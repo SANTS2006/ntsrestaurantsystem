@@ -1,0 +1,22 @@
+Django>=6.1,<6.2
+djangorestframework>=3.18
+djangorestframework-simplejwt>=5.5
+django-cors-headers>=4.9
+dj-database-url>=3.0
+psycopg[binary]>=3.2
+redis>=5
+django-redis>=6
+celery>=5.5
+drf-spectacular>=0.28
+whitenoise>=6.9
+gunicorn>=23; sys_platform != "win32"
+waitress>=3; sys_platform == "win32"
+Pillow>=11
+google-auth>=2.35
+requests>=2.32
+reportlab>=4.2
+qrcode[pil]>=8
+channels>=4.2
+channels-redis>=4.2
+daphne>=4.1
+boto3>=1.35

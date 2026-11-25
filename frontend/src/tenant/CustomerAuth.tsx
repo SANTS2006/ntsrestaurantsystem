@@ -1,0 +1,199 @@
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
+import { ApiError, api, tokenStore } from '../lib/api'
+import { useAuth } from '../lib/auth'
+import { Field, Spinner, useDocumentTitle } from '../ui/kit'
+import { GOOGLE_CLIENT_ID } from '../lib/config'
+import { MfaChallengeForm } from '../ui/Mfa'
+import { useSite } from './SiteContext'
+
+export const STAFF_ROLES = ['restaurant_admin', 'manager', 'cashier', 'kitchen', 'waiter', 'delivery', 'platform_admin']
+const emailOk = (v: string) => /^\S+@\S+\.\S+$/.test(v)
+
+function Shell({ title, children }: { title: string; children: ReactNode }) {
+  const { site } = useSite()
+  useDocumentTitle(`${title} | ${site.restaurant.name}`)
+  return (
+    <div className="login-wrap">
+      <div className="card" style={{ width: 'min(440px, 100%)' }}>
+        <p className="muted" style={{ marginBottom: 4 }}><Link to="/">← {site.restaurant.name}</Link></p>
+        <h1 style={{ fontSize: '1.6rem' }}>{title}</h1>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+const safeNext = (n: string | null) => (n && n.startsWith('/') && !n.startsWith('//') ? n : null) // no open redirects
+
+/** Google Identity Services button; only rendered when VITE_GOOGLE_CLIENT_ID is configured. */
+function GoogleButton({ onDone, onError }: { onDone: () => void; onError: (m: string) => void }) {
+  const box = useRef<HTMLDivElement>(null)
+  const { reload } = useAuth()
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return
+    const init = () => {
+      const g = (window as unknown as { google?: { accounts: { id: { initialize: (o: unknown) => void; renderButton: (el: HTMLElement, o: unknown) => void } } } }).google
+      if (!g || !box.current) return
+      g.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: async (resp: { credential: string }) => {
+          try {
+            // The on-screen notice ("By continuing you agree to the Terms and Privacy Policy") is shown right above this button.
+            const t = await api<{ access: string; refresh: string; mfa_required?: boolean }>('/auth/google/', { body: { id_token: resp.credential, accept_terms: true }, auth: false })
+            if (t.mfa_required) return onError('This account uses two-step verification. Please sign in with your email and password.')
+            tokenStore.set(t)
+            await reload()
+            onDone()
+          } catch (e) { onError(e instanceof ApiError ? e.message : 'Google sign-in failed.') }
+        },
+      })
+      g.accounts.id.renderButton(box.current, { theme: 'outline', size: 'large', width: 320 })
+    }
+    if (document.getElementById('gsi')) return init()
+    const s = document.createElement('script')
+    s.id = 'gsi'; s.src = 'https://accounts.google.com/gsi/client'; s.async = true; s.onload = init
+    document.head.appendChild(s)
+  }, [onDone, onError, reload])
+  if (!GOOGLE_CLIENT_ID) return null
+  return (
+    <div style={{ marginTop: 16 }}>
+      <p className="hint">By continuing with Google you agree to the <Link to="/policies/terms-of-use">Terms of Use</Link> and <Link to="/policies/privacy-policy">Privacy Policy</Link>.</p>
+      <div ref={box} />
+    </div>
+  )
+}
+
+export function Login() {
+  const { login, me } = useAuth()
+  const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const next = safeNext(params.get('next'))
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [busy, setBusy] = useState(false)
+  const [challenge, setChallenge] = useState<string | null>(null)
+  const dest = (role: string | null) => (STAFF_ROLES.includes(role ?? '') ? '/manage' : next ?? '/account')
+  if (me) return <Navigate to={dest(me.role)} replace />
+
+  async function submit(e: FormEvent) {
+    e.preventDefault()
+    const local: Record<string, string> = {}
+    if (!emailOk(email)) local.email = 'Enter a valid email address.'
+    if (!password) local.password = 'Enter your password.'
+    setErrors(local)
+    if (Object.keys(local).length) return
+    setBusy(true)
+    try {
+      const profile = await login(email.trim(), password)
+      if ('mfa_token' in profile) { setChallenge(profile.mfa_token); return }
+      navigate(dest(profile.role))
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'email_not_verified') return navigate(`/verify-email?email=${encodeURIComponent(email.trim())}`)
+      setErrors({ form: err instanceof ApiError ? err.message : 'Sign-in failed. Please try again.' })
+    } finally { setBusy(false) }
+  }
+  return (
+    <Shell title="Sign in">
+      {challenge ? <MfaChallengeForm token={challenge} onDone={() => navigate('/manage')} onCancel={() => setChallenge(null)} /> : <><form onSubmit={submit} noValidate>
+        {errors.form && <div className="alert error" role="alert">{errors.form}</div>}
+        <Field label="Email address" error={errors.email}>{(p) => <input {...p} className="input" type="email" autoComplete="username" placeholder="Enter your email address" value={email} onChange={(e) => setEmail(e.target.value)} />}</Field>
+        <Field label="Password" error={errors.password}>{(p) => <input {...p} className="input" type="password" autoComplete="current-password" placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} />}</Field>
+        <button className="btn" style={{ width: '100%' }} disabled={busy}>{busy ? <Spinner /> : 'Sign in'}</button>
+      </form>
+      <GoogleButton onDone={() => navigate(next ?? '/account')} onError={(m) => setErrors({ form: m })} />
+      <p style={{ marginTop: 14 }}><Link to="/forgot-password">Forgot your password?</Link> · <Link to={`/register${next ? `?next=${encodeURIComponent(next)}` : ''}`}>Create an account</Link></p></>}
+    </Shell>
+  )
+}
+
+export function Register() {
+  const { me } = useAuth()
+  const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const next = safeNext(params.get('next'))
+  const [v, setV] = useState({ full_name: '', email: '', phone: '', password: '' })
+  const [terms, setTerms] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [busy, setBusy] = useState(false)
+  if (me) return <Navigate to="/account" replace />
+  const set = (k: keyof typeof v) => (e: { target: { value: string } }) => setV({ ...v, [k]: e.target.value })
+
+  async function submit(e: FormEvent) {
+    e.preventDefault()
+    const local: Record<string, string> = {}
+    if (!v.full_name.trim()) local.full_name = 'Enter your full name.'
+    if (!emailOk(v.email)) local.email = 'Enter a valid email address.'
+    if (v.phone && !/^[0-9+()\-\s]{6,30}$/.test(v.phone)) local.phone = 'Enter a valid phone number.'
+    if (v.password.length < 10) local.password = 'Use at least 10 characters.'
+    if (!terms) local.accept_terms = 'You must agree to the Terms of Service and Privacy Policy.'
+    setErrors(local)
+    if (Object.keys(local).length) return
+    setBusy(true)
+    try {
+      await api('/auth/register/', { body: { ...v, email: v.email.trim(), accept_terms: terms }, auth: false })
+      navigate(`/verify-email?email=${encodeURIComponent(v.email.trim())}${next ? `&next=${encodeURIComponent(next)}` : ''}`)
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const f = err.fieldErrors()
+        setErrors({ ...f, password: f.password ?? '', form: Object.keys(f).length ? '' : err.message })
+      } else setErrors({ form: 'Something went wrong. Please try again.' })
+    } finally { setBusy(false) }
+  }
+  return (
+    <Shell title="Create your account">
+      <form onSubmit={submit} noValidate>
+        {errors.form && <div className="alert error" role="alert">{errors.form}</div>}
+        <Field label="Full name" error={errors.full_name}>{(p) => <input {...p} className="input" autoComplete="name" placeholder="Enter your full name" value={v.full_name} onChange={set('full_name')} />}</Field>
+        <Field label="Email address" error={errors.email}>{(p) => <input {...p} className="input" type="email" autoComplete="email" placeholder="Enter your email address" value={v.email} onChange={set('email')} />}</Field>
+        <Field label="Phone number (optional)" error={errors.phone}>{(p) => <input {...p} className="input" type="tel" autoComplete="tel" placeholder="Enter your phone number" value={v.phone} onChange={set('phone')} />}</Field>
+        <Field label="Password" error={errors.password} hint="At least 10 characters. Avoid common passwords.">{(p) => <input {...p} className="input" type="password" autoComplete="new-password" placeholder="Enter your password" value={v.password} onChange={set('password')} />}</Field>
+        <div className="field">
+          <label style={{ fontWeight: 400 }}><input type="checkbox" checked={terms} onChange={(e) => setTerms(e.target.checked)} aria-invalid={!!errors.accept_terms} /> I agree to the <Link to="/policies/terms-of-use" target="_blank">Terms of Service</Link> and <Link to="/policies/privacy-policy" target="_blank">Privacy Policy</Link></label>
+          {errors.accept_terms && <span className="err">{errors.accept_terms}</span>}
+        </div>
+        <button className="btn" style={{ width: '100%' }} disabled={busy}>{busy ? <Spinner /> : 'Create account'}</button>
+      </form>
+      <GoogleButton onDone={() => navigate(next ?? '/account')} onError={(m) => setErrors({ form: m })} />
+      <p style={{ marginTop: 14 }}>Already registered? <Link to="/login">Sign in</Link></p>
+    </Shell>
+  )
+}
+
+export function VerifyEmail() {
+  const [params] = useSearchParams()
+  const email = params.get('email') ?? ''
+  const next = safeNext(params.get('next'))
+  const navigate = useNavigate()
+  const [code, setCode] = useState('')
+  const [error, setError] = useState('')
+  const [info, setInfo] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function submit(e: FormEvent) {
+    e.preventDefault()
+    if (code.trim().length !== 6) return setError('Enter the 6-character code from your email.')
+    setBusy(true); setError('')
+    try {
+      await api('/auth/verify-email/', { body: { email, code: code.trim() }, auth: false })
+      navigate(`/login${next ? `?next=${encodeURIComponent(next)}` : ''}`, { state: { verified: true } })
+    } catch (err) { setError(err instanceof ApiError ? err.message : 'Something went wrong.') } finally { setBusy(false) }
+  }
+  async function resend() {
+    setInfo(''); setError('')
+    try { await api('/auth/resend-verification/', { body: { email }, auth: false }); setInfo('If your account needs verification, a new code has been sent. You can request one every minute.') } catch (err) { setError(err instanceof ApiError ? err.message : 'Could not resend.') }
+  }
+  return (
+    <Shell title="Verify your email">
+      <p>We sent a 6-character code to <b>{email || 'your email'}</b>. It expires in 10 minutes.</p>
+      <form onSubmit={submit} noValidate>
+        {error && <div className="alert error" role="alert">{error}</div>}
+        {info && <div className="alert ok">{info}</div>}
+        <Field label="Verification code">{(p) => <input {...p} className="input" autoComplete="one-time-code" maxLength={6} placeholder="Enter the 6-character code" style={{ letterSpacing: 4, fontWeight: 700 }} value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} />}</Field>
+        <button className="btn" style={{ width: '100%' }} disabled={busy}>{busy ? <Spinner /> : 'Verify and continue'}</button>
+      </form>
+      <p style={{ marginTop: 14 }}>Did not get it? <button className="btn sm secondary" type="button" onClick={resend}>Send a new code</button></p>
+    </Shell>
+  )
+}

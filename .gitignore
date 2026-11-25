@@ -1,0 +1,23 @@
+# Secrets and local state: NEVER commit these
+.env
+.env.*
+!.env.example
+!frontend/.env.production
+backend/.env
+backend/db.sqlite3
+backend/*.sqlite3
+backend/backups/
+backend/media/
+backend/staticfiles/
+backend/spa/
+backend/spa_index.html
+backend/.venv/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.claude/settings.local.json
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+*.log

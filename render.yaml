@@ -1,0 +1,108 @@
+# Render Blueprint: one web service (website + API + WebSockets), one background worker (email, payments reconciliation,
+# scheduled backups) and a private Redis. The database is Neon PostgreSQL, files are on Cloudinary, backups on Cloudflare R2.
+# Secrets are NOT stored here: every `sync: false` variable is entered once in the Render dashboard.
+# See docs/RENDER.md for the step-by-step guide.
+
+envVarGroups:
+  - name: ntsrestaurant
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.5
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.prod
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: PUBLIC_URL_SCHEME
+        value: https
+      - key: MFA_ENFORCEMENT
+        value: "true"
+      - key: UPLOAD_SCANNER
+        value: builtin           # no ClamAV service on Render without Docker: images are checked and re-encoded (see docs/SECURITY.md)
+      - key: UPLOAD_SCAN_FAIL_CLOSED
+        value: "true"
+      - key: EMAIL_PROVIDER
+        value: brevo
+      - key: PAYMENT_PROVIDER
+        value: monime
+      - key: BREVO_SENDER_NAME
+        value: NTS Restaurant Platform
+      - key: DB_CONN_MAX_AGE
+        value: "60"
+      # --- entered in the dashboard (same values as your local backend/.env) ---
+      - key: PLATFORM_DOMAIN
+        sync: false
+      - key: PLATFORM_HOSTS
+        sync: false
+      - key: ALLOWED_HOSTS
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_DATABASE_URL
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        sync: false
+      - key: MONIME_API_KEY
+        sync: false
+      - key: MONIME_SPACE_ID
+        sync: false
+      - key: MONIME_WEBHOOK_SECRET
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET
+        sync: false
+      - key: BACKUP_ENCRYPTION_KEY
+        sync: false
+      - key: GOOGLE_OAUTH_CLIENT_ID
+        sync: false
+
+services:
+  - type: web
+    name: nts-restaurant-platform
+    runtime: python
+    plan: starter            # WebSockets and the worker need an always-on instance: the free plan sleeps
+    buildCommand: bash render-build.sh
+    startCommand: cd backend && python manage.py migrate --noinput && daphne --proxy-headers -b 0.0.0.0 -p $PORT config.asgi:application
+    healthCheckPath: /healthz
+    autoDeploy: false        # deploy deliberately, after running preflight (docs/RENDER.md)
+    envVars:
+      - fromGroup: nts-shared
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: nts-redis
+          property: connectionString
+
+  - type: worker
+    name: nts-worker
+    runtime: python
+    plan: starter
+    buildCommand: bash render-build.sh
+    # one instance only: -B embeds the scheduler (daily backup, backup pruning, payment reconciliation)
+    startCommand: cd backend && celery -A config worker -B -l info --concurrency 2
+    autoDeploy: false
+    envVars:
+      - fromGroup: nts-shared
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: nts-redis
+          property: connectionString
+
+  - type: keyvalue
+    name: nts-redis
+    plan: starter
+    maxmemoryPolicy: noeviction   # queued jobs must never be evicted
+    ipAllowList: []               # reachable only from this account's private network
