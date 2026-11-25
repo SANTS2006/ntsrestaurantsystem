@@ -296,3 +296,9 @@ Tenant hosts in dev: `http://<slug>.localhost:8000` (browsers resolve `*.localho
 - **Header:** logo, links, then actions (theme, cart, notifications, account or Log in / Sign up, menu button) in one row; the menu collapses below 1000 px. **Footer:** brand and description, three link columns (Explore/Product, Policies/Legal, Contact) and a bottom bar with copyright and secondary links.
 - **Light mode everywhere:** the footer, the application sidebar, toasts and overlays are light in light mode (they were dark navy). New text tokens: text #0a1628, secondary text #3f516e, links #0757b0, accent text #0a5fae (the cyan is used only for fills), darker success/warning/error colours. The theme is applied before the first paint, so there is no flash.
 - Checked in the browser (light mode): marketing home and footer, restaurant home, application dashboard; no underlined links on those pages; content width 89-90%. Not checked: every page of the system one by one.
+
+### Session 22: 2026-11-25 (full-width pages, centred navbar, footer grid, profile email)
+- **Full width, not centred:** pages (website and application) now use the whole screen width with a small padding (12 to 28 px, scaling with the screen); this replaces the 90% centred column of Session 21, and inline maximum widths on page-level cards, forms and wrappers are overridden. Sign-in cards, modals and the mobile QR menu keep their own sizes.
+- **Navbar:** logo left, links (Home to Contact) centred, actions right; below 1000 px it becomes logo + actions with a drop-down menu. On small screens the account / log-in button shows as an icon, and the profile picture stays visible in the application top bar (a CSS rule was hiding it on phones).
+- **Footer:** brand block, then "Explore" (or "Product") with the links laid out in columns of four, then Policies and Contact (with a Contact us link when no details are set), and a bottom bar.
+- **Sidebar profile** now shows name, role and email.

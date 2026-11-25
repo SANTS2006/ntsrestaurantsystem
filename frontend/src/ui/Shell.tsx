@@ -17,7 +17,7 @@ export function Avatar({ name, src, className = '' }: { name: string; src?: stri
 /** Premium application shell: dark brand sidebar with the profile at the bottom, sticky top bar (refresh, theme, notifications, profile menu),
  *  off-canvas navigation on tablets and phones. */
 export default function Shell({ brand, tagline, logo, groups, user, onLogout, children, footerLink, profilePath }: {
-  brand: string; tagline: string; logo?: string | null; groups: NavGroup[]; user: { name: string; role: string; avatar?: string | null }; onLogout: () => void; children?: ReactNode; footerLink?: { to: string; label: string }; profilePath: string
+  brand: string; tagline: string; logo?: string | null; groups: NavGroup[]; user: { name: string; role: string; email?: string; avatar?: string | null }; onLogout: () => void; children?: ReactNode; footerLink?: { to: string; label: string }; profilePath: string
 }) {
   const [open, setOpen] = useState(false)
   const loc = useLocation()
@@ -43,7 +43,7 @@ export default function Shell({ brand, tagline, logo, groups, user, onLogout, ch
           {footerLink && <Link className="btn sm" to={footerLink.to}>{footerLink.label}</Link>}
           <Link className="me" to={profilePath} aria-label="Your profile and settings">
             <Avatar name={user.name} src={user.avatar} />
-            <span><b>{user.name}</b><small>{user.role}</small></span>
+            <span><b>{user.name}</b><small>{user.role}</small>{user.email && <small className="em">{user.email}</small>}</span>
           </Link>
         </footer>
       </aside>

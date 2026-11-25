@@ -71,14 +71,16 @@ function PublicLayout() {
           <nav className={`links ${open ? 'open' : ''}`} aria-label="Main">
             {links.map(([to, l]) => <NavLink key={to} to={to} end={to === '/'} onClick={() => setOpen(false)}>{l}</NavLink>)}
           </nav>
+          <div className="nav-end">
           <div className="secret" aria-hidden="true" />
           <div className="actions">
             <ThemeToggle />
             {me && <NotificationBell />}
             <Link to="/cart" className="btn sm secondary" aria-label={`Cart, ${cart.count} items`}><ShoppingCart size={18} aria-hidden /> {cart.count}</Link>
             {me ? <Link to={me.role === 'customer' ? '/account' : '/manage'} className="btn sm secondary">{me.avatar ? <Avatar name={me.full_name || me.email} src={me.avatar} /> : <User size={18} aria-hidden />} <span className="hide-sm">Account</span></Link>
-              : <><Link to="/login" className="btn sm secondary">Log in</Link><Link to="/register" className="btn sm hide-sm">Sign up</Link></>}
+              : <><Link to="/login" className="btn sm secondary" aria-label="Log in"><User size={18} aria-hidden /> <span className="hide-sm">Log in</span></Link><Link to="/register" className="btn sm hide-sm">Sign up</Link></>}
             <button className="menu-btn" onClick={() => setOpen(!open)} aria-label="Toggle menu" aria-expanded={open}>{open ? <X /> : <MenuIcon />}</button>
+          </div>
           </div>
         </div>
       </header>
@@ -90,12 +92,13 @@ function PublicLayout() {
               <Link to="/" className="logo">{logo && <img src={logo} alt="" width={36} height={36} />}{r.name}</Link>
               <p>{r.description}</p>
             </div>
-            <div><h4>Explore</h4><ul>{links.map(([to, l]) => <li key={to}><Link to={to}>{l}</Link></li>)}<li><Link to="/faq">FAQ</Link></li></ul></div>
+            <div className="foot-explore"><h4>Explore</h4><ul className="foot-links">{links.map(([to, l]) => <li key={to}><Link to={to}>{l}</Link></li>)}<li><Link to="/faq">FAQ</Link></li></ul></div>
             <div><h4>Policies</h4><ul>{site.policies.map((p) => <li key={p.slug}><Link to={`/policies/${p.slug}`}>{p.title}</Link></li>)}</ul></div>
             <div><h4>Contact</h4><div className="foot-contact">
               {r.contact_phone && <a href={`tel:${r.contact_phone}`}>{r.contact_phone}</a>}
               {r.contact_email && <a href={`mailto:${r.contact_email}`}>{r.contact_email}</a>}
               {(r.address || r.city) && <span>{[r.address, r.city].filter(Boolean).join(', ')}</span>}
+              {!r.contact_phone && !r.contact_email && !r.address && !r.city && <Link to="/contact">Contact us</Link>}
             </div></div>
           </div>
           <div className="foot-bottom">

@@ -108,3 +108,10 @@ body { transition: background-color .2s, color .2s; }
 
 /* ---- Navbar actions on the restaurant site ---- */
 .nav .actions .btn { white-space: nowrap; }
+
+/* ---- Sidebar profile: name, role and email ---- */
+.shell .side .me > span:last-child { min-width: 0; display: grid; }
+.shell .side .me b, .shell .side .me small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 176px; }
+.shell .side .me small.em { font-size: .72rem; opacity: .9; }
+.nav .nav-end .secret { flex: 1; align-self: stretch; min-width: 24px; }
+.container.section { padding-inline: clamp(12px, 2vw, 28px); }

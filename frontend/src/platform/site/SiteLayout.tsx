@@ -46,6 +46,7 @@ export default function SiteLayout() {
           <nav className={`links ${open ? 'open' : ''}`} aria-label="Main">
             {links.map(([to, label]) => <NavLink key={to} to={to} onClick={() => setOpen(false)}>{label}</NavLink>)}
           </nav>
+          <div className="nav-end">
           {/* Intentionally empty, unlabelled area: five quick clicks open the sign-in page. */}
           <div className="secret" onClick={onSecret} aria-hidden="true" data-testid="secret-area" />
           <div className="actions">
@@ -54,6 +55,7 @@ export default function SiteLayout() {
             <button className="menu-btn" onClick={() => setOpen(!open)} aria-label="Toggle menu" aria-expanded={open}>
               {open ? <X /> : <Menu />}
             </button>
+          </div>
           </div>
         </div>
       </header>
@@ -65,9 +67,9 @@ export default function SiteLayout() {
               <Link to="/" className="logo"><img src="/logo-64.png" alt="" width={36} height={36} /> {name}</Link>
               <p>Run every restaurant, branch and till from one secure platform: orders, payments, kitchen, stock, staff and reports.</p>
             </div>
-            <div><h4>Product</h4><ul>{links.map(([to, l]) => <li key={to}><Link to={to}>{l}</Link></li>)}</ul></div>
+            <div className="foot-explore"><h4>Product</h4><ul className="foot-links">{links.map(([to, l]) => <li key={to}><Link to={to}>{l}</Link></li>)}</ul></div>
             <div><h4>Legal</h4><ul>{legal.slice(0, 4).map(([slug, l]) => <li key={slug}><Link to={`/legal/${slug}`}>{l}</Link></li>)}</ul></div>
-            <div><h4>Contact</h4><div className="foot-contact">{s?.support_email ? <a href={`mailto:${s.support_email}`}>{s.support_email}</a> : <span>See our contact page.</span>}{s?.whatsapp_number && <a href={`https://wa.me/${s.whatsapp_number}`} target="_blank" rel="noopener noreferrer">WhatsApp us</a>}</div></div>
+            <div><h4>Contact</h4><div className="foot-contact">{s?.support_email ? <a href={`mailto:${s.support_email}`}>{s.support_email}</a> : <Link to="/contact">Contact us</Link>}{s?.whatsapp_number && <a href={`https://wa.me/${s.whatsapp_number}`} target="_blank" rel="noopener noreferrer">WhatsApp us</a>}</div></div>
           </div>
           <div className="foot-bottom">
             <span>&copy; {new Date().getFullYear()} {name}. All rights reserved.</span>

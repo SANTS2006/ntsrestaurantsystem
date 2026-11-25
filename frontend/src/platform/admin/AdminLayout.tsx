@@ -21,5 +21,5 @@ export default function AdminLayout() {
   // UI gate only; every admin endpoint independently enforces platform-admin access on the server.
   if (me?.role !== 'platform_admin') return <Navigate to="/login" replace />
   const gated = me.mfa?.enforced && me.mfa.required && !me.mfa.enabled
-  return <Shell brand="Platform" tagline="Administration" logo="/logo-64.png" groups={groups} user={{ name: me.full_name || me.email, role: 'Platform admin', avatar: me.avatar }} onLogout={() => void signOut()} profilePath="/admin/profile">{gated ? <MfaSettings forced /> : undefined}</Shell>
+  return <Shell brand="Platform" tagline="Administration" logo="/logo-64.png" groups={groups} user={{ name: me.full_name || me.email, role: 'Platform admin', email: me.email, avatar: me.avatar }} onLogout={() => void signOut()} profilePath="/admin/profile">{gated ? <MfaSettings forced /> : undefined}</Shell>
 }

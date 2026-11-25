@@ -63,7 +63,7 @@ export default function ManageLayout() {
   ]
   const logo = site.restaurant.logo ? (site.restaurant.logo.startsWith('http') ? site.restaurant.logo : `${API_URL}${site.restaurant.logo}`) : null
   return (
-    <Shell brand={site.restaurant.name} tagline="Restaurant workspace" logo={logo} groups={groups} user={{ name: me.full_name || me.email, role: LABEL[role] ?? role, avatar: me.avatar }} onLogout={() => void signOut()} profilePath="/manage/profile" footerLink={{ to: '/', label: 'View website' }}>
+    <Shell brand={site.restaurant.name} tagline="Restaurant workspace" logo={logo} groups={groups} user={{ name: me.full_name || me.email, role: LABEL[role] ?? role, email: me.email, avatar: me.avatar }} onLogout={() => void signOut()} profilePath="/manage/profile" footerLink={{ to: '/', label: 'View website' }}>
       {me.mfa?.enforced && me.mfa.required && !me.mfa.enabled ? <MfaSettings forced /> : STAFF.includes(role) ? (allowed(role, loc.pathname.split('/')[2] ?? '') ? <Outlet /> : <Empty title="This page is not available for your role">Ask the restaurant administrator if you need access. <Link to="/manage/orders">Go to orders</Link></Empty>) : <Empty title="No access">This area is for restaurant staff. <Link to="/account">Go to your account</Link></Empty>}
     </Shell>
   )
