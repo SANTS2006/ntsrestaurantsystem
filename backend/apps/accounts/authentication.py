@@ -1,9 +1,11 @@
-from django.conf import settings
+from django.conf import settings  # noqa: F401
 from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 # A privileged account that has not enrolled two-factor authentication may only reach these endpoints (to enrol, see itself, or leave).
-MFA_ENROLMENT_ALLOWED = ("/api/v1/auth/me/", "/api/v1/auth/mfa/", "/api/v1/auth/change-password/", "/api/v1/auth/token/refresh/")
+from . import mfa  # noqa: E402
+
+MFA_ENROLMENT_ALLOWED = ("/api/v1/auth/me/", "/api/v1/auth/mfa/", "/api/v1/platform/settings/mfa/", "/api/v1/auth/change-password/", "/api/v1/auth/token/refresh/")
 
 
 class VersionedJWTAuthentication(JWTAuthentication):
@@ -15,7 +17,7 @@ class VersionedJWTAuthentication(JWTAuthentication):
         if result is None:
             return None
         _, token = result
-        if getattr(settings, "MFA_ENFORCEMENT", False) and token.get("mp") and not token.get("mf") and not request.path.startswith(MFA_ENROLMENT_ALLOWED):
+        if token.get("mp") and not token.get("mf") and not request.path_info.startswith(MFA_ENROLMENT_ALLOWED) and mfa.enforced():
             raise PermissionDenied("Two-factor authentication must be set up before you can continue.", code="mfa_enrollment_required")
         return result
 

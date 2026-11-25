@@ -97,7 +97,7 @@ class MeView(APIView):
             "role": effective_role(request),  # derived server-side for display only
             "branch_ids": sorted(accessible_branch_ids(request)),
             "must_change_password": u.must_change_password,
-            "mfa": {"enabled": u.mfa_enabled, "required": mfa.required_for(u), "enforced": bool(settings.MFA_ENFORCEMENT)},
+            "mfa": {"enabled": u.mfa_enabled, "required": mfa.required_for(u), "enforced": mfa.enforced()},
         }})
 
 

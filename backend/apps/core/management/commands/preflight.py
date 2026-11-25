@@ -88,7 +88,9 @@ class Command(BaseCommand):
         b = _backups()
         add({"ok": "PASS", "warning": "WARN", "critical": "FAIL"}[b["status"]], "A recent verified backup exists", b["detail"])
 
-        add("PASS" if getattr(s, "MFA_ENFORCEMENT", False) else "FAIL", "Two-factor authentication is enforced for privileged accounts")
+        from apps.accounts import mfa as _mfa
+
+        add("PASS" if _mfa.enforced() else "WARN", "Two-factor authentication is enforced for privileged accounts", "" if _mfa.enforced() else "switched off (Admin, Security) or MFA_ENFORCEMENT=false")
         from apps.core import scanning
 
         if getattr(s, "UPLOAD_SCANNER", "off") == "clamav":

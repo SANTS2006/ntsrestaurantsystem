@@ -1,5 +1,5 @@
 import pytest
-from rest_framework.test import APIClient
+from rest_framework.test import APIClient as _APIClient
 
 from apps.accounts.models import Membership, Role, User
 from apps.tenants.models import Branch, Restaurant
@@ -8,7 +8,22 @@ PW = "Str0ng-Passw0rd!x"
 
 
 def host(slug=None):
+    """Test shorthand for "restaurant <slug>": `<slug>.platform.test`. TenantClient turns it into the real URL form
+    https://platform.test/<slug>/... (restaurants are addressed by path, there is no subdomain routing)."""
     return f"{slug}.platform.test" if slug else "platform.test"
+
+
+class TenantClient(_APIClient):
+    def generic(self, method, path, *args, **extra):
+        h = extra.get("HTTP_HOST") or self.defaults.get("HTTP_HOST") or ""
+        if h.endswith(".platform.test") and path.startswith("/"):
+            slug = h[: -len(".platform.test")]
+            extra["HTTP_HOST"] = "platform.test"
+            path = f"/{slug}{path}"
+        return super().generic(method, path, *args, **extra)
+
+
+APIClient = TenantClient
 
 
 @pytest.fixture

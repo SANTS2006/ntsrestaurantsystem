@@ -4,7 +4,7 @@ from datetime import timedelta
 import pytest
 from django.core.cache import cache
 from django.utils import timezone
-from rest_framework.test import APIClient
+from tests.conftest import TenantClient as APIClient
 
 from apps.accounts.google import GoogleAuthError, verify_google_id_token
 from apps.accounts.models import (ConsentRecord, GoogleIdentity, Membership, OneTimeCode, Role,
@@ -183,7 +183,7 @@ def test_manager_invites_cashier_to_own_branch_and_staff_sets_password(world):
     r = invite(world["mgr_a1"], branch_ids=[world["a1"].pk])
     assert r.status_code == 201
     mail = last_mail("sam@staff.com")
-    assert "Alpha" in mail["html"] and "sam@staff.com" in mail["html"] and "http://alpha.platform.test" in mail["html"]
+    assert "Alpha" in mail["html"] and "sam@staff.com" in mail["html"] and "http://platform.test/alpha" in mail["html"]
     u = User.objects.get(email="sam@staff.com")
     assert not u.has_usable_password()
     assert login("alpha", "sam@staff.com", "anything-1234567").status_code == 401  # no bootstrap password exists

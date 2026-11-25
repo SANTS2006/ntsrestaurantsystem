@@ -5,7 +5,8 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError as DRFValidationError
-from rest_framework.test import APIClient, APIRequestFactory
+from rest_framework.test import APIRequestFactory
+from tests.conftest import TenantClient as APIClient
 
 from apps.accounts.models import User
 from apps.core.idempotency import run_idempotent

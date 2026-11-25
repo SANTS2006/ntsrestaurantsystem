@@ -10,7 +10,7 @@ from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import URLPattern, URLResolver, get_resolver
 from django.utils import timezone
-from rest_framework.test import APIClient
+from tests.conftest import TenantClient as APIClient
 
 from apps.orders.models import Order
 from apps.payments.models import Payment

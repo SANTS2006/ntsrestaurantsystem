@@ -69,7 +69,7 @@ def test_discount_validation(world, shop, clean):  # noqa: F811
 
 
 def test_public_quote_and_checkout_ignore_discounts(world, shop, clean):  # noqa: F811
-    from rest_framework.test import APIClient
+    from tests.conftest import TenantClient as APIClient
 
     from .conftest import host
 

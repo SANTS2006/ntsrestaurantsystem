@@ -23,8 +23,7 @@ if EMAIL_PROVIDER != "brevo" or not BREVO_API_KEY or not BREVO_SENDER_EMAIL:
     raise RuntimeError("Production requires EMAIL_PROVIDER=brevo, BREVO_API_KEY and BREVO_SENDER_EMAIL.")
 if PAYMENT_PROVIDER != "monime" or not (MONIME_API_KEY and MONIME_BASE_URL and MONIME_WEBHOOK_SECRET):
     raise RuntimeError("Production requires PAYMENT_PROVIDER=monime with MONIME_API_KEY, MONIME_BASE_URL and MONIME_WEBHOOK_SECRET.")
-if not MFA_ENFORCEMENT:  # noqa: F405
-    raise RuntimeError("Production requires MFA_ENFORCEMENT=true (two-factor authentication for privileged accounts).")
+# MFA_ENFORCEMENT (default true) is the master switch; the platform owner turns enforcement on or off from Admin, Security.
 if UPLOAD_SCANNER not in ("clamav", "builtin") or not UPLOAD_SCAN_FAIL_CLOSED:  # noqa: F405
     raise RuntimeError("Production requires UPLOAD_SCANNER=clamav (or builtin when no ClamAV daemon is available) with UPLOAD_SCAN_FAIL_CLOSED=true.")
 if not USE_CLOUDINARY:  # noqa: F405

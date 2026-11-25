@@ -12,6 +12,7 @@ urlpatterns = [
     path("public/settings/", v.PublicSettingsView.as_view()),
     path("public/plans/", v.PublicPlansView.as_view()),
     path("settings/", v.PlatformSettingsView.as_view()),
+    path("settings/mfa/", v.MfaPolicyView.as_view()),
     path("dashboard/", v.PlatformDashboardView.as_view()),
     path("", include(router.urls)),
 ]

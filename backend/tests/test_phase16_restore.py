@@ -145,7 +145,8 @@ def test_maintenance_mode_blocks_requests_except_health_checks(world, local):  #
     c = client_for(world["admin_a"], "alpha")
     r = c.get("/api/v1/payroll/employees/")
     assert r.status_code == 503 and r["Retry-After"] == "120" and r.json()["error"]["code"] == "maintenance"
-    assert c.get("/healthz").status_code == 200
+    from tests.conftest import APIClient as _C
+    assert _C(HTTP_HOST="platform.test").get("/healthz").status_code == 200
     cache.delete(service.MAINTENANCE_KEY)
     assert c.get("/api/v1/payroll/employees/").status_code == 200
 

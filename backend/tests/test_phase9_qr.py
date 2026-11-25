@@ -7,7 +7,7 @@ from asgiref.sync import sync_to_async
 from channels.routing import URLRouter
 from channels.testing import WebsocketCommunicator
 from django.core.cache import cache
-from rest_framework.test import APIClient
+from tests.conftest import TenantClient as APIClient
 
 from apps.accounts.services import issue_tokens
 from apps.cashier.models import Shift
@@ -50,7 +50,7 @@ def open_shift(world, who="cashier_a1", branch="a1"):
 def test_manager_creates_tables_for_own_branch_with_unique_unguessable_tokens(world):
     m = api(world, "mgr_a1")
     r = m.post(Q + "tables/", {"label": "Table 1", "branch": world["a1"].pk, "seats": 4}, format="json")
-    assert r.status_code == 201 and r.data["qr_url"].startswith("http://alpha.platform.test/t/")
+    assert r.status_code == 201 and r.data["qr_url"].startswith("http://platform.test/alpha/t/")
     r2 = m.post(Q + "tables/", {"label": "Table 2", "branch": world["a1"].pk}, format="json")
     t1, t2 = DiningTable.unscoped.get(pk=r.data["id"]), DiningTable.unscoped.get(pk=r2.data["id"])
     assert t1.qr_token != t2.qr_token and len(t1.qr_token) >= 30
@@ -286,7 +286,7 @@ WS = URLRouter(websocket_urlpatterns)
 
 
 def communicator(slug="alpha"):
-    return WebsocketCommunicator(WS, "/ws/staff/", headers=[(b"host", f"{slug}.platform.test".encode())])
+    return WebsocketCommunicator(WS, f"/{slug}/ws/staff/", headers=[(b"host", b"platform.test")])
 
 
 async def ws_login(world, who, slug="alpha"):

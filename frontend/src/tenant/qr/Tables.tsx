@@ -1,7 +1,7 @@
 import { Download, Plus, Printer } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { API_URL } from '../../lib/config'
+import { API_BASE } from '../../lib/config'
 import { ApiError, api, downloadFile, tokenStore, type Page } from '../../lib/api'
 import { Empty, ErrorState, Field, Modal, Skeleton, Spinner, useAsync, useDocumentTitle, useToast } from '../../ui/kit'
 import { useSite } from '../SiteContext'
@@ -17,7 +17,7 @@ export function QrImage({ id, version, size = 96 }: { id: number; version: strin
     let url = ''
     let live = true
     const t = tokenStore.get()
-    fetch(`${API_URL}/api/v1/qr-menu/tables/${id}/qr/`, { headers: t ? { Authorization: `Bearer ${t.access}` } : {} })
+    fetch(`${API_BASE}/api/v1/qr-menu/tables/${id}/qr/`, { headers: t ? { Authorization: `Bearer ${t.access}` } : {} })
       .then((r) => (r.ok ? r.blob() : Promise.reject()))
       .then((b) => { if (live) { url = URL.createObjectURL(b); setSrc(url) } })
       .catch(() => live && setSrc(''))

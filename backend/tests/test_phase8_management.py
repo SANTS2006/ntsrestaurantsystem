@@ -6,7 +6,7 @@ from decimal import Decimal
 import pytest
 from django.core.cache import cache
 from django.utils import timezone
-from rest_framework.test import APIClient
+from tests.conftest import TenantClient as APIClient
 
 from apps.accounts.models import Membership, Role, SetupToken, User
 from apps.cashier.models import Shift

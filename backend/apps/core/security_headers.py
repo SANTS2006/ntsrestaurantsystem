@@ -35,6 +35,6 @@ class SecurityHeadersMiddleware:
         resp.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()")
         resp.setdefault("Cross-Origin-Opener-Policy", "same-origin-allow-popups")  # allows the Google sign-in popup
         resp.setdefault("Cross-Origin-Resource-Policy", "same-site")
-        if request.path.startswith("/api/") and "Cache-Control" not in resp:
+        if request.path_info.startswith("/api/") and "Cache-Control" not in resp:
             resp["Cache-Control"] = "no-store"  # API answers carry personal and financial data
         return resp

@@ -1,8 +1,10 @@
+import { BarChart3, Building2, Lock, Mail, ShieldCheck } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { ApiError } from '../lib/api'
 import { useAuth } from '../lib/auth'
-import { Field, Spinner, useDocumentTitle } from '../ui/kit'
+import { AuthField, AuthLayout } from '../ui/Auth'
+import { Spinner, useDocumentTitle } from '../ui/kit'
 import { MfaChallengeForm } from '../ui/Mfa'
 
 export default function Login() {
@@ -40,19 +42,26 @@ export default function Login() {
   }
 
   return (
-    <div className="login-wrap">
-      {challenge ? <div className="card" style={{ width: 'min(420px, 100%)' }}><MfaChallengeForm token={challenge} onDone={() => navigate('/admin')} onCancel={() => setChallenge(null)} /></div> : <form className="card" style={{ width: 'min(420px, 100%)' }} onSubmit={submit} noValidate>
-        <img className="login-logo" src="/logo-192.png" alt="NTS Restaurant Platform" width={72} height={72} />
-        <h1 style={{ fontSize: '1.6rem', textAlign: 'center' }}>Platform sign in</h1>
-        {errors.form && <div className="alert error" role="alert">{errors.form}</div>}
-        <Field label="Email address" error={errors.email}>
-          {(p) => <input {...p} className="input" type="email" autoComplete="username" placeholder="Enter your email address" value={email} onChange={(e) => setEmail(e.target.value)} />}
-        </Field>
-        <Field label="Password" error={errors.password}>
-          {(p) => <input {...p} className="input" type="password" autoComplete="current-password" placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} />}
-        </Field>
-        <button className="btn" style={{ width: '100%' }} disabled={busy}>{busy ? <Spinner /> : 'Sign in'}</button>
-      </form>}
-    </div>
+    <AuthLayout
+      brand="NTS Restaurant Platform"
+      logo="/logo-192.png"
+      tagline="Run every restaurant from one secure place."
+      points={[
+        { icon: Building2, text: 'Restaurants, branches and staff in one workspace' },
+        { icon: BarChart3, text: 'Live sales, orders and reports' },
+        { icon: ShieldCheck, text: 'Protected by two-step verification and audit logs' },
+      ]}
+      title={challenge ? 'Two-step verification' : 'Platform sign in'}
+      subtitle={challenge ? undefined : 'Sign in to manage the platform.'}
+    >
+      {challenge ? <MfaChallengeForm token={challenge} onDone={() => navigate('/admin')} onCancel={() => setChallenge(null)} /> : (
+        <form onSubmit={submit} noValidate>
+          {errors.form && <div className="alert error" role="alert">{errors.form}</div>}
+          <AuthField label="Email address" icon={Mail} error={errors.email} type="email" autoComplete="username" placeholder="Enter your email address" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <AuthField label="Password" icon={Lock} secret error={errors.password} autoComplete="current-password" placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <button className="btn" style={{ width: '100%' }} disabled={busy}>{busy ? <Spinner /> : 'Sign in'}</button>
+        </form>
+      )}
+    </AuthLayout>
   )
 }

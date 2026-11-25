@@ -3,7 +3,7 @@ from decimal import Decimal
 
 import pytest
 from django.core.cache import cache
-from rest_framework.test import APIClient
+from tests.conftest import TenantClient as APIClient
 
 from apps.accounts.models import Membership, Role, User
 from apps.catalog.models import Category, Product, ProductAddon, ProductVariation, StockMovement
@@ -157,7 +157,7 @@ def test_checkout_creates_complete_order_history_audit_and_email(world, shop):
     assert [(h.from_status, h.to_status, h.actor_role) for h in o.history.all()] == [("", "awaiting_payment", "customer")]
     assert AuditLog.objects.filter(action="order.created", restaurant=world["a"]).count() == 1
     mail = [m for m in ConsoleProvider.outbox if m["to"] == "cust@a.com"][0]
-    assert "ORD-000001" in mail["html"] and "2 × Rice" in mail["html"] and "http://alpha.platform.test/account/orders/" in mail["html"]
+    assert "ORD-000001" in mail["html"] and "2 × Rice" in mail["html"] and "http://platform.test/alpha/account/orders/" in mail["html"]
 
 
 def test_idempotent_checkout_replays_instead_of_duplicating(world, shop):

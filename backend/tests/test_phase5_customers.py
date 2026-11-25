@@ -5,7 +5,7 @@ import pytest
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from PIL import Image
-from rest_framework.test import APIClient
+from tests.conftest import TenantClient as APIClient
 
 from apps.accounts.models import Membership, User
 from apps.customers.models import CustomerAddress

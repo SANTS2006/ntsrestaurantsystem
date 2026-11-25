@@ -1,6 +1,6 @@
 import pytest
 from django.core.exceptions import ValidationError
-from rest_framework.test import APIClient
+from tests.conftest import TenantClient as APIClient
 
 from apps.accounts.models import Role
 from apps.accounts.permissions import can_assign_role

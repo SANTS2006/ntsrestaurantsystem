@@ -1,24 +1,12 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ApiError, api } from '../lib/api'
-import { Field, Spinner, useDocumentTitle } from '../ui/kit'
-import { useSite } from './SiteContext'
+import { KeyRound, Lock, Mail } from 'lucide-react'
+import { AuthField } from '../ui/Auth'
+import { Spinner } from '../ui/kit'
+import { Shell } from './AuthShell'
 
 const emailOk = (v: string) => /^\S+@\S+\.\S+$/.test(v)
-
-function Shell({ title, children }: { title: string; children: ReactNode }) {
-  const { site } = useSite()
-  useDocumentTitle(`${title} | ${site.restaurant.name}`)
-  return (
-    <div className="login-wrap">
-      <div className="card" style={{ width: 'min(440px, 100%)' }}>
-        <p className="muted" style={{ marginBottom: 4 }}><Link to="/">← {site.restaurant.name}</Link></p>
-        <h1 style={{ fontSize: '1.6rem' }}>{title}</h1>
-        {children}
-      </div>
-    </div>
-  )
-}
 
 const strong = (v: string) => v.length >= 10
 
@@ -49,14 +37,14 @@ export function SetupPassword() {
     }
   }
   return (
-    <Shell title="Set your password">
+    <Shell title="Set your password" subtitle="Choose a strong password for your account.">
       {!token ? <div className="alert error">This link is missing its token. Open the link from your invitation email.</div> : done ? (
         <div><div className="alert ok">Your password is set.</div><Link className="btn" to="/login">Go to sign in</Link></div>
       ) : (
         <form onSubmit={submit} noValidate>
           {errors.form && <div className="alert error" role="alert">{errors.form}</div>}
-          <Field label="New password" error={errors.pw} hint="At least 10 characters. Avoid common passwords.">{(p) => <input {...p} className="input" type="password" autoComplete="new-password" placeholder="Enter your new password" value={pw} onChange={(e) => setPw(e.target.value)} />}</Field>
-          <Field label="Confirm password" error={errors.pw2}>{(p) => <input {...p} className="input" type="password" autoComplete="new-password" placeholder="Re-enter your new password" value={pw2} onChange={(e) => setPw2(e.target.value)} />}</Field>
+          <AuthField label="New password" icon={Lock} secret error={errors.pw} hint="At least 10 characters. Avoid common passwords." autoComplete="new-password" placeholder="Enter your new password" value={pw} onChange={(e) => setPw(e.target.value)} />
+          <AuthField label="Confirm password" icon={Lock} secret error={errors.pw2} autoComplete="new-password" placeholder="Re-enter your new password" value={pw2} onChange={(e) => setPw2(e.target.value)} />
           <button className="btn" style={{ width: '100%' }} disabled={busy}>{busy ? <Spinner /> : 'Save password'}</button>
         </form>
       )}
@@ -104,20 +92,20 @@ export function ForgotPassword() {
     }
   }
   return (
-    <Shell title="Reset your password">
+    <Shell title="Reset your password" subtitle="We will email you a code.">
       {step === 'done' ? <div><div className="alert ok">Password updated. You can sign in now.</div><Link className="btn" to="/login">Sign in</Link></div>
         : step === 'email' ? (
           <form onSubmit={sendCode} noValidate>
             {errors.form && <div className="alert error" role="alert">{errors.form}</div>}
-            <Field label="Email address" error={errors.email}>{(p) => <input {...p} className="input" type="email" placeholder="Enter your email address" value={email} onChange={(e) => setEmail(e.target.value)} />}</Field>
+            <AuthField label="Email address" icon={Mail} error={errors.email} type="email" autoComplete="email" placeholder="Enter your email address" value={email} onChange={(e) => setEmail(e.target.value)} />
             <button className="btn" style={{ width: '100%' }} disabled={busy}>{busy ? <Spinner /> : 'Send reset code'}</button>
           </form>
         ) : (
           <form onSubmit={reset} noValidate>
             <div className="alert">If that email belongs to an account here, a code has been sent. It expires in 10 minutes.</div>
             {errors.form && <div className="alert error" role="alert">{errors.form}</div>}
-            <Field label="Code" error={errors.code}>{(p) => <input {...p} className="input" autoComplete="one-time-code" maxLength={6} placeholder="Enter the 6-character code" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} />}</Field>
-            <Field label="New password" error={errors.pw}>{(p) => <input {...p} className="input" type="password" autoComplete="new-password" placeholder="Enter your new password" value={pw} onChange={(e) => setPw(e.target.value)} />}</Field>
+            <AuthField label="Code" icon={KeyRound} error={errors.code} autoComplete="one-time-code" maxLength={6} placeholder="Enter the 6-character code" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} />
+            <AuthField label="New password" icon={Lock} secret error={errors.pw} autoComplete="new-password" placeholder="Enter your new password" value={pw} onChange={(e) => setPw(e.target.value)} />
             <button className="btn" style={{ width: '100%' }} disabled={busy}>{busy ? <Spinner /> : 'Reset password'}</button>
           </form>
         )}

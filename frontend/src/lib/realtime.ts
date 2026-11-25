@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { tokenStore } from './api'
-import { API_ORIGIN } from './config'
+import { API_ORIGIN, TENANT_BASE } from './config'
 
 export type LiveStatus = 'connecting' | 'live' | 'polling'
 export type StaffEvent = { type: string; [k: string]: unknown }
@@ -21,7 +21,7 @@ export function useStaffSocket(onEvent: (e: StaffEvent) => void): LiveStatus {
     let retry = 0
     let ping: ReturnType<typeof setInterval> | undefined
     let timer: ReturnType<typeof setTimeout> | undefined
-    const url = API_ORIGIN.replace(/^http/, 'ws') + '/ws/staff/'
+    const url = API_ORIGIN.replace(/^http/, 'ws') + TENANT_BASE + '/ws/staff/'
 
     const connect = () => {
       const tokens = tokenStore.get()

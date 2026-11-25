@@ -20,10 +20,10 @@ Brevo email and Monime payments configuration.
 ## 2. Domains and routing
 
 * Platform host: `PLATFORM_DOMAIN` (e.g. `example.com`), also listed in `PLATFORM_HOSTS`. Marketing site and `/admin`.
-* Each restaurant: `<slug>.example.com` (wildcard DNS + wildcard TLS certificate) or a verified custom domain.
+* Each restaurant: `https://example.com/<slug>` (no wildcard DNS or certificate needed) or a verified custom domain.
 * The proxy must pass the original `Host` header unchanged (tenant resolution depends on it), set `X-Forwarded-Proto: https`, and forward WebSocket upgrades for `/ws/`.
 * Set the proxy idle timeout for WebSockets above 60 s (the server pings every 25 s).
-* `ALLOWED_HOSTS` must list the platform domain and `.example.com`; never `*`.
+* `ALLOWED_HOSTS` must list the platform domain (and any custom domains); never `*`.
 * Trust `X-Forwarded-For` only from your own proxy (rate limits and audit IPs use it).
 
 ## 3. Environment variables (names only; never commit values)

@@ -4,7 +4,7 @@ from decimal import Decimal
 import pytest
 from django.core.cache import cache
 from django.db import IntegrityError, transaction
-from rest_framework.test import APIClient
+from tests.conftest import TenantClient as APIClient
 
 from apps.core.models import AuditLog
 from apps.notifications.providers import ConsoleProvider

@@ -1,4 +1,4 @@
-import { API_ORIGIN, API_URL } from './config'
+import { API_BASE, API_ORIGIN, TENANT_BASE } from './config'
 
 export class ApiError extends Error {
   status: number
@@ -49,7 +49,7 @@ let refreshing: Promise<boolean> | null = null
 async function refreshTokens(): Promise<boolean> {
   const t = tokenStore.get()
   if (!t) return false
-  refreshing ??= fetch(`${API_URL}/api/v1/auth/token/refresh/`, {
+  refreshing ??= fetch(`${API_BASE}/api/v1/auth/token/refresh/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refresh: t.refresh }),
@@ -70,7 +70,7 @@ async function refreshTokens(): Promise<boolean> {
 type Opts = { method?: string; body?: unknown; params?: Record<string, string | number | undefined>; auth?: boolean; headers?: Record<string, string> }
 
 export async function api<T = unknown>(path: string, opts: Opts = {}, retry = true): Promise<T> {
-  const url = new URL(`${API_ORIGIN}/api/v1${path}`)
+  const url = new URL(`${API_ORIGIN}${TENANT_BASE}/api/v1${path}`)
   for (const [k, v] of Object.entries(opts.params ?? {})) if (v !== undefined && v !== '') url.searchParams.set(k, String(v))
   const headers: Record<string, string> = { ...(opts.headers ?? {}) }
   const isForm = opts.body instanceof FormData
@@ -106,7 +106,7 @@ export type Page<T> = { count: number; next: string | null; previous: string | n
 /** Download a protected file (e.g. a PDF receipt) using the bearer token. */
 export async function downloadFile(path: string, filename: string): Promise<void> {
   const t = tokenStore.get()
-  const res = await fetch(`${API_URL}/api/v1${path}`, { headers: t ? { Authorization: `Bearer ${t.access}` } : {} })
+  const res = await fetch(`${API_BASE}/api/v1${path}`, { headers: t ? { Authorization: `Bearer ${t.access}` } : {} })
   if (!res.ok) throw new ApiError(res.status, 'download', 'Download failed.')
   const url = URL.createObjectURL(await res.blob())
   const a = document.createElement('a')

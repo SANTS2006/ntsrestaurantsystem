@@ -9,7 +9,7 @@ from decimal import Decimal
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from PIL import Image
-from rest_framework.test import APIClient
+from tests.conftest import TenantClient as APIClient
 
 from apps.payments import providers
 from apps.payments.models import Payment, PaymentEvent
@@ -171,7 +171,7 @@ def test_platform_and_restaurant_emails_have_their_own_look(world, settings):
     assert "https://example.com/logo-192.png" in platform and "#0a72e0" in platform and "automated message from" in platform and "Open daily" not in platform
     _, rest = render_email("password_changed", {"name": "Dana"}, world["a"])
     assert "#aa2200" in rest and "#ffcc00" in rest and "Open daily 9 to 10. Thank you!" in rest and "1 Beach Road" in rest and "hello@alpha.test" in rest
-    assert "alpha.example.com" in rest and "Sent through NTS Restaurant Platform" in rest and "logo-192.png" not in rest
+    assert "https://example.com/alpha" in rest and "Sent through NTS Restaurant Platform" in rest and "logo-192.png" not in rest
     _, hostile = render_email("password_changed", {"name": '<script>alert(1)</script>'}, world["a"])
     assert "<script>alert(1)" not in hostile
 

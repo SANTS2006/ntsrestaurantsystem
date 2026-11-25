@@ -3,7 +3,7 @@ from datetime import timedelta
 
 import pytest
 from django.utils import timezone
-from rest_framework.test import APIClient
+from tests.conftest import TenantClient as APIClient
 
 from apps.core.models import AuditLog
 from apps.floor.models import FloorZone, Reservation

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Count, Q
 from rest_framework import mixins, viewsets
@@ -52,6 +53,43 @@ class PlatformSettingsView(APIView):
         s.save()
         audit("platform.settings_updated", actor=request.user, metadata={"fields": sorted(s.validated_data)}, request=request)
         return Response({"success": True, "data": s.data})
+
+
+class MfaPolicyView(APIView):
+    """Turn the platform-wide two-step-verification requirement on or off. Needs the administrator's password and, if they have
+    two-step verification, a current code. Turning it off also lets administrators switch their own factor off. Audited."""
+
+    permission_classes = [IsPlatformAdminOnPlatformHost]
+
+    def get(self, request):
+        from apps.accounts import mfa
+
+        return Response({"success": True, "data": {"enforced": mfa.enforced(), "master_switch": bool(settings.MFA_ENFORCEMENT)}})
+
+    def post(self, request):
+        from django.contrib.auth import authenticate
+
+        from apps.accounts import mfa
+
+        want = request.data.get("enforced")
+        if not isinstance(want, bool):
+            raise ValidationError({"enforced": "Send true or false."})
+        if not settings.MFA_ENFORCEMENT:
+            raise ValidationError({"enforced": "Two-step verification is disabled in the server configuration (MFA_ENFORCEMENT)."})
+        u = request.user
+        if authenticate(request, username=u.email, password=str(request.data.get("password", ""))) is None:
+            audit("platform.mfa_policy_refused", actor=u, metadata={"reason": "password"}, request=request)
+            raise ValidationError({"password": "Your password is not correct."})
+        if u.mfa_enabled:
+            ok, how = mfa.verify(u, str(request.data.get("code", "")))
+            if not ok:
+                audit("platform.mfa_policy_refused", actor=u, metadata={"reason": f"mfa:{how}"}, request=request)
+                raise ValidationError({"code": "Enter a current code from your authenticator app."})
+        obj = PlatformSettings.load()
+        obj.mfa_enforced = want
+        obj.save(update_fields=["mfa_enforced"])
+        audit("platform.mfa_enforced" if want else "platform.mfa_not_enforced", actor=u, request=request)
+        return Response({"success": True, "data": {"enforced": mfa.enforced(), "master_switch": True}})
 
 
 class SubscriptionPlanViewSet(viewsets.ModelViewSet):

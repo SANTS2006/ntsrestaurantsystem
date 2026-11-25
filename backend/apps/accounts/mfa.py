@@ -81,8 +81,23 @@ def _rhash(code: str) -> str:
 
 
 # ---- policy ------------------------------------------------------------------------------------------------------
+def enforced() -> bool:
+    """Is two-step verification mandatory for privileged accounts right now? The environment switch MFA_ENFORCEMENT is the master
+    (off disables the feature); the platform owner turns it on and off at runtime from Admin, Security (PlatformSettings.mfa_enforced)."""
+    if not getattr(settings, "MFA_ENFORCEMENT", False):
+        return False
+    from apps.tenants.models import PlatformSettings
+
+    try:
+        return PlatformSettings.load().mfa_enforced
+    except Exception:  # noqa: BLE001 - never lock people out because of a settings lookup problem; fail closed (enforced)
+        return True
+
+
 def required_for(user) -> bool:
-    """Platform administrators and the roles listed in MFA_REQUIRED_ROLES must use a second factor."""
+    """Platform administrators and the roles listed in MFA_REQUIRED_ROLES must use a second factor while enforcement is on."""
+    if not enforced():
+        return False
     if user.is_platform_admin:
         return True
     roles = set(getattr(settings, "MFA_REQUIRED_ROLES", ("restaurant_admin",)))

@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { TENANT_BASE } from '../lib/config'
 
 type Seo = { title: string; description?: string; image?: string | null; path: string; type?: string; jsonLd?: object }
 
@@ -18,7 +19,7 @@ export function useSeo({ title, description, image, path, type = 'website', json
   const ld = jsonLd ? JSON.stringify(jsonLd) : ''
   useEffect(() => {
     document.title = title
-    const url = `${window.location.origin}${path}`
+    const url = `${window.location.origin}${TENANT_BASE}${path}`
     setMeta('name', 'description', description)
     setMeta('property', 'og:title', title)
     setMeta('property', 'og:description', description)

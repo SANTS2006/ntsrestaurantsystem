@@ -68,11 +68,20 @@ def authenticate_ws(token, tenant):
     return user, ids
 
 
-def resolve_tenant(host):
+def resolve_tenant(host, slug=None):
     from apps.core.middleware import resolve_host
+    from apps.tenants.models import RESERVED_SLUGS, Restaurant
 
     is_platform, restaurant, found = resolve_host(host)
-    if not found or is_platform or restaurant is None or restaurant.status != "active":
+    if not found:
+        return None
+    if is_platform:
+        if not slug or slug in RESERVED_SLUGS:
+            return None
+        restaurant = Restaurant.unscoped_objects.filter(slug=slug).first()
+    elif slug:  # a custom domain has no slug in its path
+        return None
+    if restaurant is None or restaurant.status != "active":
         return None
     return restaurant
 
@@ -82,7 +91,7 @@ class StaffConsumer(AsyncJsonWebsocketConsumer):
 
     async def connect(self):
         host = dict(self.scope.get("headers", [])).get(b"host", b"").decode()
-        self.tenant = await sync_to_async(resolve_tenant)(host)
+        self.tenant = await sync_to_async(resolve_tenant)(host, self.scope.get("url_route", {}).get("kwargs", {}).get("slug"))
         if self.tenant is None:
             await self.close(code=4404)
             return

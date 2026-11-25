@@ -7,7 +7,7 @@ import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 from PIL import Image
-from rest_framework.test import APIClient
+from tests.conftest import TenantClient as APIClient
 
 from apps.catalog.models import Category, Product, StockMovement
 from apps.core.models import AuditLog
@@ -366,7 +366,7 @@ def test_robots_and_sitemap_are_per_host(world):
     mk_product(world, ca, name="Fish stew")
     mk_product(world, ca, name="Hidden item", is_available=False)
     robots = public().get("/robots.txt").content.decode()
-    assert "Sitemap: http://alpha.platform.test/sitemap.xml" in robots and "Disallow: /manage" in robots
+    assert "Sitemap: http://platform.test/alpha/sitemap.xml" in robots and "Disallow: /manage" in robots
     sm = public().get("/sitemap.xml").content.decode()
-    assert "http://alpha.platform.test/menu/fish-stew" in sm and "hidden-item" not in sm and "bravo" not in sm
+    assert "http://platform.test/alpha/menu/fish-stew" in sm and "hidden-item" not in sm and "bravo" not in sm
     assert "/pricing" in APIClient(HTTP_HOST=host()).get("/sitemap.xml").content.decode()

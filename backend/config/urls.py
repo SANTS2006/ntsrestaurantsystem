@@ -39,8 +39,8 @@ if settings.DEBUG:
 if settings.DEBUG:  # API documentation is not published in production
     urlpatterns += [path("api/schema/", SpectacularAPIView.as_view(), name="schema"), path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"))]
 
-# Everything that is not the API, a WebSocket, the admin or a static file is a page of the React app.
+# Everything that is not the API, a WebSocket, the admin or a static file is a page of the React app. (`<unknown-slug>/api/...` stays a JSON 404.)
 from apps.core.spa import spa  # noqa: E402
 
-urlpatterns += [re_path(r"^(?!api/|ws/|django-admin/|static/|media/|healthz|readyz)(?P<path>.*)$", spa)]
+urlpatterns += [re_path(r"^(?!api/|ws/|django-admin/|static/|media/|healthz|readyz)(?![^/]+/(?:api|ws)/)(?P<path>.*)$", spa)]
 handler404 = "apps.core.views.not_found"

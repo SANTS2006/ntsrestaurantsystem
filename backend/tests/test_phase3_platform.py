@@ -5,7 +5,7 @@ import pytest
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from PIL import Image
-from rest_framework.test import APIClient
+from tests.conftest import TenantClient as APIClient
 
 from apps.accounts.models import Membership, Role, User
 from apps.core.models import AuditLog
@@ -54,10 +54,10 @@ def test_registration_runs_full_onboarding_workflow(world):
     assert not admin.has_usable_password()  # no predictable bootstrap password
     mail = ConsoleProvider.outbox[-1]
     assert mail["to"] == "olive@ocean.com" and "olive@ocean.com" in mail["html"]
-    assert "http://ocean-view.platform.test/login" in mail["html"] and "must set your own password" in mail["html"]
+    assert "http://platform.test/ocean-view/login" in mail["html"] and "must set your own password" in mail["html"]
     assert mail["sender_name"] != "Ocean View Restaurant"  # platform-originated mail
     assert AuditLog.objects.filter(action="restaurant.registered", restaurant=rest).exists()
-    assert r.data["data"]["public_url"] == "http://ocean-view.platform.test"
+    assert r.data["data"]["public_url"] == "http://platform.test/ocean-view"
     # the admin completes onboarding and signs in on the new tenant host
     token = re.search(r"token=([\w-]+)", mail["html"]).group(1)
     api = APIClient(HTTP_HOST=host("ocean-view"))

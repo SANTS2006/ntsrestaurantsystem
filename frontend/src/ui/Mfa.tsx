@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { ApiError, api } from '../lib/api'
 import { useAuth } from '../lib/auth'
-import { Field, Spinner, useToast } from './kit'
+import { KeyRound, ShieldCheck } from 'lucide-react'
+import { AuthField } from './Auth'
+import { Field, Modal, Spinner, useToast } from './kit'
 
 /** Second step of sign-in: a six-digit code from the authenticator app, or one recovery code. */
 export function MfaChallengeForm({ token, onDone, onCancel }: { token: string; onDone: () => void; onCancel: () => void }) {
@@ -18,13 +20,70 @@ export function MfaChallengeForm({ token, onDone, onCancel }: { token: string; o
   }
   return (
     <form onSubmit={submit} noValidate>
-      <h2 style={{ fontSize: '1.3rem' }}>Two-step verification</h2>
-      <p className="muted">{recovery ? 'Enter one of your recovery codes. Each works once.' : 'Open your authenticator app and enter the 6-digit code.'}</p>
+      <p className="auth-sub">{recovery ? 'Enter one of your recovery codes. Each works once.' : 'Open your authenticator app and enter the 6-digit code.'}</p>
       {error && <div className="alert error" role="alert">{error}</div>}
-      <Field label={recovery ? 'Recovery code' : 'Authentication code'}>{(p) => <input {...p} className="input" inputMode={recovery ? 'text' : 'numeric'} autoComplete="one-time-code" autoFocus placeholder={recovery ? 'xxxx-xxxx-xxxx' : '123456'} value={code} onChange={(e) => setCode(e.target.value)} />}</Field>
+      <AuthField label={recovery ? 'Recovery code' : 'Authentication code'} icon={KeyRound} inputMode={recovery ? 'text' : 'numeric'} autoComplete="one-time-code" autoFocus placeholder={recovery ? 'xxxx-xxxx-xxxx' : '123456'} value={code} onChange={(e) => setCode(e.target.value)} />
       <button className="btn" style={{ width: '100%' }} disabled={busy}>{busy ? <Spinner /> : 'Verify and sign in'}</button>
       <p style={{ marginTop: 12 }}><button type="button" className="btn sm ghost" onClick={() => { setRecovery(!recovery); setCode(''); setError('') }}>{recovery ? 'Use my authenticator app' : 'Use a recovery code instead'}</button> <button type="button" className="btn sm ghost" onClick={onCancel}>Back</button></p>
     </form>
+  )
+}
+
+
+type Policy = { enforced: boolean; master_switch: boolean }
+
+/** Platform owner only: switch the two-step requirement for administrators on or off for the whole platform. */
+function MfaPolicyCard() {
+  const { me, reload } = useAuth()
+  const toast = useToast()
+  const [policy, setPolicy] = useState<Policy | null>(null)
+  const [loaded, setLoaded] = useState(false)
+  const [target, setTarget] = useState<boolean | null>(null)
+  const [password, setPassword] = useState('')
+  const [code, setCode] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  if (!loaded) { setLoaded(true); void api<Policy>('/platform/settings/mfa/').then(setPolicy).catch(() => undefined) }
+  if (!policy) return null
+
+  async function apply() {
+    setBusy(true); setError('')
+    try {
+      const r = await api<Policy>('/platform/settings/mfa/', { body: { enforced: target, password, code } })
+      setPolicy(r)
+      toast(r.enforced ? 'Two-step verification is now required for administrators.' : 'Two-step verification is no longer required.')
+      setTarget(null); setPassword(''); setCode('')
+      await reload()
+    } catch (e) { setError(e instanceof ApiError ? (Object.values(e.fieldErrors())[0] ?? e.message) : 'Something went wrong.') } finally { setBusy(false) }
+  }
+
+  return (
+    <div className="card" style={{ marginBottom: 16 }}>
+      <div className="toggle-row">
+        <div>
+          <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}><ShieldCheck size={20} aria-hidden /> Require two-step verification</h3>
+          <p className="muted" style={{ margin: '6px 0 0' }}>
+            {policy.master_switch
+              ? (policy.enforced ? 'Platform and restaurant administrators must use an authenticator app to sign in.' : 'Off: administrators sign in with a password only. Anyone can still turn it on for their own account.')
+              : 'Disabled in the server settings (MFA_ENFORCEMENT=false). Change it there to use this switch.'}
+          </p>
+        </div>
+        <button type="button" role="switch" className="switch" aria-checked={policy.enforced} aria-label="Require two-step verification" disabled={!policy.master_switch} onClick={() => { setError(''); setTarget(!policy.enforced) }} />
+      </div>
+      {target !== null && (
+        <Modal title={target ? 'Require two-step verification' : 'Stop requiring two-step verification'} onClose={() => setTarget(null)}>
+          <h2 style={{ marginTop: 0 }}>{target ? 'Turn the requirement on?' : 'Turn the requirement off?'}</h2>
+          <p className="muted">{target ? 'Administrators without it will be asked to set it up at their next sign-in.' : 'Your administrators will be able to sign in, and to turn their own factor off, without a code. This weakens protection of the platform.'}</p>
+          {error && <div className="alert error" role="alert">{error}</div>}
+          <Field label="Your password">{(p) => <input {...p} className="input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />}</Field>
+          {me?.mfa?.enabled && <Field label="Current 6-digit code">{(p) => <input {...p} className="input" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} />}</Field>}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button className="btn secondary" onClick={() => setTarget(null)}>Cancel</button>
+            <button className={target ? 'btn' : 'btn danger'} disabled={busy || !password || (!!me?.mfa?.enabled && code.length < 6)} onClick={apply}>{busy ? <Spinner /> : target ? 'Turn on' : 'Turn off'}</button>
+          </div>
+        </Modal>
+      )}
+    </div>
   )
 }
 
@@ -65,6 +124,7 @@ export function MfaSettings({ forced = false }: { forced?: boolean }) {
     <div style={{ maxWidth: 640 }}>
       {forced && <div className="alert warn"><b>Set up two-step verification to continue.</b> Your role requires it. It takes a minute and protects your restaurant if your password is ever stolen.</div>}
       <h1 className="page-title">Two-step verification</h1>
+      {me?.role === 'platform_admin' && <MfaPolicyCard />}
       {error && <div className="alert error" role="alert">{error}</div>}
       {codes && (
         <div className="card" style={{ marginBottom: 16 }}>
@@ -100,7 +160,7 @@ export function MfaSettings({ forced = false }: { forced?: boolean }) {
             <button className="btn secondary" disabled={busy || !password || code.length < 6} onClick={regenerate}>New recovery codes</button>
             {!(status?.required ?? me?.mfa?.required) && <button className="btn danger" disabled={busy || !password || code.length < 6} onClick={disable}>Turn off</button>}
           </div>
-          {(status?.required ?? me?.mfa?.required) && <p className="hint" style={{ marginTop: 8 }}>Your role requires two-step verification, so it cannot be turned off. Lost your phone? Ask a platform administrator to reset it.</p>}
+          {(status?.required ?? me?.mfa?.required) && <p className="hint" style={{ marginTop: 8 }}>Your role requires two-step verification, so it cannot be turned off here. The platform owner can switch the requirement off under Admin, Security. Lost your phone? Ask a platform administrator to reset it.</p>}
         </div>
       )}
     </div>

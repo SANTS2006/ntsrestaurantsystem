@@ -1,6 +1,6 @@
 import { Suspense, lazy } from 'react'
 import { Route, Routes } from 'react-router-dom'
-import { isPlatformHost } from './lib/config'
+import { IS_PLATFORM_SITE } from './lib/config'
 import Login from './platform/Login'
 import { About, Contact, Faq, Features, Home, Legal, Pricing } from './platform/site/Pages'
 import SiteLayout from './platform/site/SiteLayout'
@@ -22,7 +22,7 @@ function NotFound() {
 }
 
 export default function App() {
-  if (!isPlatformHost()) {
+  if (!IS_PLATFORM_SITE) {
     return <Routes><Route path="*" element={<RestaurantApp />} /></Routes>
   }
   return (

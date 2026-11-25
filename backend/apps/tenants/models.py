@@ -10,7 +10,12 @@ from django.db import models
 from apps.core.tenancy import TimeStampedModel
 
 hex_color = RegexValidator(r"^#[0-9a-fA-F]{6}$", "Enter a hex colour like #1a2b3c.")
-RESERVED_SLUGS = {"www", "api", "admin", "app", "static", "mail", "platform", "root", "support"}
+# A restaurant lives at https://<platform domain>/<slug>, so its slug must never equal a top-level platform path.
+RESERVED_SLUGS = {
+    "www", "api", "admin", "app", "static", "mail", "platform", "root", "support", "ws", "media", "assets", "django-admin",
+    "healthz", "readyz", "robots", "sitemap", "login", "register", "logout", "features", "pricing", "about", "faq", "contact",
+    "legal", "terms", "privacy", "forgot-password", "setup-password", "verify-email", "favicon", "logo", "index", "new", "null", "undefined",
+}
 
 
 def validate_slug(value):
@@ -80,7 +85,7 @@ class Restaurant(TimeStampedModel):
 
     @property
     def public_url(self):
-        return f"{settings.PUBLIC_URL_SCHEME}://{self.slug}.{settings.PLATFORM_DOMAIN}"
+        return f"{settings.PUBLIC_URL_SCHEME}://{settings.PLATFORM_DOMAIN}/{self.slug}"
 
 
 class RestaurantDomain(TimeStampedModel):
@@ -159,6 +164,9 @@ class PlatformSettings(models.Model):
     whatsapp_number = models.CharField(max_length=20, blank=True, help_text="International format, digits only.")
     support_email = models.EmailField(blank=True)
     platform_name = models.CharField(max_length=100, default="NTS Restaurant Platform")
+    # Platform-wide switch: when on, platform and restaurant administrators must use two-step verification.
+    # Changed only through POST /platform/settings/mfa/ (password + code re-check, audited).
+    mfa_enforced = models.BooleanField(default=True)
 
     def save(self, *args, **kwargs):
         self.pk = 1

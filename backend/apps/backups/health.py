@@ -107,8 +107,10 @@ def _scanner():
 def _mfa():
     from apps.accounts.models import User
 
-    if not getattr(settings, "MFA_ENFORCEMENT", False):
-        return _check("Two-factor authentication", "warning", "Not enforced for privileged accounts.")
+    from apps.accounts import mfa
+
+    if not mfa.enforced():
+        return _check("Two-factor authentication", "warning", "Switched off: administrators are not required to use two-step verification (Admin, Security).")
     pending = User.objects.filter(is_active=True, is_platform_admin=True, mfa_enabled=False).count()
     return _check("Two-factor authentication", "warning" if pending else "ok", f"{pending} platform administrator(s) have not enrolled yet." if pending else "Enforced; every platform administrator has enrolled.")
 

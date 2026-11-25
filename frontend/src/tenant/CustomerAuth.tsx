@@ -1,28 +1,16 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { ApiError, api, tokenStore } from '../lib/api'
 import { useAuth } from '../lib/auth'
-import { Field, Spinner, useDocumentTitle } from '../ui/kit'
+import { KeyRound, Lock, Mail, Phone, User } from 'lucide-react'
+import { AuthField } from '../ui/Auth'
+import { Spinner } from '../ui/kit'
+import { Shell } from './AuthShell'
 import { GOOGLE_CLIENT_ID } from '../lib/config'
 import { MfaChallengeForm } from '../ui/Mfa'
-import { useSite } from './SiteContext'
 
 export const STAFF_ROLES = ['restaurant_admin', 'manager', 'cashier', 'kitchen', 'waiter', 'delivery', 'platform_admin']
 const emailOk = (v: string) => /^\S+@\S+\.\S+$/.test(v)
-
-function Shell({ title, children }: { title: string; children: ReactNode }) {
-  const { site } = useSite()
-  useDocumentTitle(`${title} | ${site.restaurant.name}`)
-  return (
-    <div className="login-wrap">
-      <div className="card" style={{ width: 'min(440px, 100%)' }}>
-        <p className="muted" style={{ marginBottom: 4 }}><Link to="/">← {site.restaurant.name}</Link></p>
-        <h1 style={{ fontSize: '1.6rem' }}>{title}</h1>
-        {children}
-      </div>
-    </div>
-  )
-}
 
 const safeNext = (n: string | null) => (n && n.startsWith('/') && !n.startsWith('//') ? n : null) // no open redirects
 
@@ -95,15 +83,16 @@ export function Login() {
     } finally { setBusy(false) }
   }
   return (
-    <Shell title="Sign in">
+    <Shell title={challenge ? 'Two-step verification' : 'Welcome back'} subtitle={challenge ? undefined : 'Sign in to your account.'} footer={challenge ? undefined : <>New here? <Link to={`/register${next ? `?next=${encodeURIComponent(next)}` : ''}`}>Create an account</Link></>}>
       {challenge ? <MfaChallengeForm token={challenge} onDone={() => navigate('/manage')} onCancel={() => setChallenge(null)} /> : <><form onSubmit={submit} noValidate>
         {errors.form && <div className="alert error" role="alert">{errors.form}</div>}
-        <Field label="Email address" error={errors.email}>{(p) => <input {...p} className="input" type="email" autoComplete="username" placeholder="Enter your email address" value={email} onChange={(e) => setEmail(e.target.value)} />}</Field>
-        <Field label="Password" error={errors.password}>{(p) => <input {...p} className="input" type="password" autoComplete="current-password" placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} />}</Field>
+        <AuthField label="Email address" icon={Mail} error={errors.email} type="email" autoComplete="username" placeholder="Enter your email address" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <AuthField label="Password" icon={Lock} secret error={errors.password} autoComplete="current-password" placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        <div className="auth-links"><span /><Link to="/forgot-password">Forgot your password?</Link></div>
         <button className="btn" style={{ width: '100%' }} disabled={busy}>{busy ? <Spinner /> : 'Sign in'}</button>
       </form>
       <GoogleButton onDone={() => navigate(next ?? '/account')} onError={(m) => setErrors({ form: m })} />
-      <p style={{ marginTop: 14 }}><Link to="/forgot-password">Forgot your password?</Link> · <Link to={`/register${next ? `?next=${encodeURIComponent(next)}` : ''}`}>Create an account</Link></p></>}
+      </>}
     </Shell>
   )
 }
@@ -142,13 +131,13 @@ export function Register() {
     } finally { setBusy(false) }
   }
   return (
-    <Shell title="Create your account">
+    <Shell title="Create your account" subtitle="It takes less than a minute." footer={<>Already registered? <Link to="/login">Sign in</Link></>}>
       <form onSubmit={submit} noValidate>
         {errors.form && <div className="alert error" role="alert">{errors.form}</div>}
-        <Field label="Full name" error={errors.full_name}>{(p) => <input {...p} className="input" autoComplete="name" placeholder="Enter your full name" value={v.full_name} onChange={set('full_name')} />}</Field>
-        <Field label="Email address" error={errors.email}>{(p) => <input {...p} className="input" type="email" autoComplete="email" placeholder="Enter your email address" value={v.email} onChange={set('email')} />}</Field>
-        <Field label="Phone number (optional)" error={errors.phone}>{(p) => <input {...p} className="input" type="tel" autoComplete="tel" placeholder="Enter your phone number" value={v.phone} onChange={set('phone')} />}</Field>
-        <Field label="Password" error={errors.password} hint="At least 10 characters. Avoid common passwords.">{(p) => <input {...p} className="input" type="password" autoComplete="new-password" placeholder="Enter your password" value={v.password} onChange={set('password')} />}</Field>
+        <AuthField label="Full name" icon={User} error={errors.full_name} autoComplete="name" placeholder="Enter your full name" value={v.full_name} onChange={set('full_name')} />
+        <AuthField label="Email address" icon={Mail} error={errors.email} type="email" autoComplete="email" placeholder="Enter your email address" value={v.email} onChange={set('email')} />
+        <AuthField label="Phone number (optional)" icon={Phone} error={errors.phone} type="tel" autoComplete="tel" placeholder="Enter your phone number" value={v.phone} onChange={set('phone')} />
+        <AuthField label="Password" icon={Lock} secret error={errors.password} hint="At least 10 characters. Avoid common passwords." autoComplete="new-password" placeholder="Enter your password" value={v.password} onChange={set('password')} />
         <div className="field">
           <label style={{ fontWeight: 400 }}><input type="checkbox" checked={terms} onChange={(e) => setTerms(e.target.checked)} aria-invalid={!!errors.accept_terms} /> I agree to the <Link to="/policies/terms-of-use" target="_blank">Terms of Service</Link> and <Link to="/policies/privacy-policy" target="_blank">Privacy Policy</Link></label>
           {errors.accept_terms && <span className="err">{errors.accept_terms}</span>}
@@ -156,7 +145,6 @@ export function Register() {
         <button className="btn" style={{ width: '100%' }} disabled={busy}>{busy ? <Spinner /> : 'Create account'}</button>
       </form>
       <GoogleButton onDone={() => navigate(next ?? '/account')} onError={(m) => setErrors({ form: m })} />
-      <p style={{ marginTop: 14 }}>Already registered? <Link to="/login">Sign in</Link></p>
     </Shell>
   )
 }
@@ -185,12 +173,12 @@ export function VerifyEmail() {
     try { await api('/auth/resend-verification/', { body: { email }, auth: false }); setInfo('If your account needs verification, a new code has been sent. You can request one every minute.') } catch (err) { setError(err instanceof ApiError ? err.message : 'Could not resend.') }
   }
   return (
-    <Shell title="Verify your email">
+    <Shell title="Verify your email" subtitle="One more step before you can sign in.">
       <p>We sent a 6-character code to <b>{email || 'your email'}</b>. It expires in 10 minutes.</p>
       <form onSubmit={submit} noValidate>
         {error && <div className="alert error" role="alert">{error}</div>}
         {info && <div className="alert ok">{info}</div>}
-        <Field label="Verification code">{(p) => <input {...p} className="input" autoComplete="one-time-code" maxLength={6} placeholder="Enter the 6-character code" style={{ letterSpacing: 4, fontWeight: 700 }} value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} />}</Field>
+        <AuthField label="Verification code" icon={KeyRound} autoComplete="one-time-code" maxLength={6} placeholder="Enter the 6-character code" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} />
         <button className="btn" style={{ width: '100%' }} disabled={busy}>{busy ? <Spinner /> : 'Verify and continue'}</button>
       </form>
       <p style={{ marginTop: 14 }}>Did not get it? <button className="btn sm secondary" type="button" onClick={resend}>Send a new code</button></p>

@@ -165,7 +165,7 @@ def test_cashier_customer_anonymous_denied(world):
         assert c.get(f"{P}/employees/").status_code == 403
         assert c.get(f"{P}/summary/").status_code == 403
         assert c.get(f"{P}/export.csv").status_code == 403
-    from rest_framework.test import APIClient
+    from tests.conftest import TenantClient as APIClient
     assert APIClient(HTTP_HOST="alpha.platform.test").get(f"{P}/employees/").status_code in (401, 403)
 
 

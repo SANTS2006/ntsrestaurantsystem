@@ -215,7 +215,7 @@ def test_backups_and_health_are_platform_admin_on_platform_host_only(world, loca
         assert c.get(S + "backups/").status_code == 403
         assert c.post(S + "backups/").status_code == 403
         assert c.post(S + "backups/1/verify/").status_code == 403
-    from rest_framework.test import APIClient
+    from tests.conftest import TenantClient as APIClient
     assert APIClient(HTTP_HOST="platform.test").get(S + "health/").status_code in (401, 403)
     assert BackupRecord.objects.count() == 0
 

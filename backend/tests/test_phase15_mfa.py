@@ -2,7 +2,7 @@ import time
 
 import pytest
 from django.core.cache import cache
-from rest_framework.test import APIClient
+from tests.conftest import TenantClient as APIClient
 
 from apps.accounts import mfa
 from apps.accounts.models import MFADevice, RecoveryCode, User
@@ -251,3 +251,34 @@ def test_google_sign_in_for_an_enrolled_account_also_needs_the_second_factor(wor
     monkeypatch.setattr(views.services, "google_login", lambda *a, **k: User.objects.get(email="admin@a.com"))
     r = client().post(A + "google/", {"id_token": "x", "accept_terms": True}, format="json")
     assert r.status_code == 200 and r.json()["data"]["mfa_required"] is True and "access" not in r.json()["data"]
+
+
+# ---------------------------------------------------- platform switch for the two-step requirement
+def test_platform_owner_can_switch_enforcement_off_and_on(world, settings):
+    from apps.accounts import mfa
+    from tests.conftest import client_for
+
+    settings.MFA_ENFORCEMENT = True
+    root = client_for(world["platform"])
+    assert mfa.enforced() and mfa.required_for(world["admin_a"])
+    bad = root.post("/api/v1/platform/settings/mfa/", {"enforced": False, "password": "wrong"}, format="json")
+    assert bad.status_code == 400 and mfa.enforced()
+    ok = root.post("/api/v1/platform/settings/mfa/", {"enforced": False, "password": "Str0ng-Passw0rd!x"}, format="json")
+    assert ok.status_code == 200 and ok.json()["data"]["enforced"] is False
+    assert not mfa.enforced() and not mfa.required_for(world["admin_a"])
+    c = client_for(world["admin_a"], "alpha")
+    assert c.get("/api/v1/auth/me/").json()["data"]["mfa"]["enforced"] is False
+    assert root.post("/api/v1/platform/settings/mfa/", {"enforced": True, "password": "Str0ng-Passw0rd!x"}, format="json").status_code == 200
+    assert mfa.enforced() and mfa.required_for(world["admin_a"])
+    # a restaurant administrator can never change the platform policy
+    assert client_for(world["admin_a"], "alpha").post("/api/v1/platform/settings/mfa/", {"enforced": False, "password": "Str0ng-Passw0rd!x"}, format="json").status_code in (401, 403, 404)
+    from apps.core.models import AuditLog
+    assert AuditLog.objects.filter(action__in=("platform.mfa_not_enforced", "platform.mfa_enforced")).count() == 2
+
+
+def test_master_switch_in_configuration_wins(world, settings):
+    from apps.accounts import mfa
+
+    settings.MFA_ENFORCEMENT = False
+    r = __import__("tests.conftest", fromlist=["client_for"]).client_for(world["platform"]).post("/api/v1/platform/settings/mfa/", {"enforced": True, "password": "Str0ng-Passw0rd!x"}, format="json")
+    assert r.status_code == 400 and not mfa.enforced()
