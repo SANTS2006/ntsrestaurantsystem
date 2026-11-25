@@ -22,22 +22,34 @@ export class ApiError extends Error {
   }
 }
 
-// Tokens live in sessionStorage (cleared when the tab closes). The backend, not the token, decides roles.
-const KEY = 'nts.tokens'
+// Tokens live in sessionStorage (cleared when the tab closes), or in localStorage when the person ticked "Remember me".
+// The key includes the restaurant path so one restaurant's session is never offered to another. The backend, not the token, decides roles.
+const KEY = `nts.tokens${TENANT_BASE}`
 type Tokens = { access: string; refresh: string }
+
+function read(store: Storage): Tokens | null {
+  try {
+    return JSON.parse(store.getItem(KEY) ?? 'null')
+  } catch {
+    return null
+  }
+}
 
 export const tokenStore = {
   get(): Tokens | null {
     try {
-      return JSON.parse(sessionStorage.getItem(KEY) ?? 'null')
+      return read(sessionStorage) ?? read(localStorage)
     } catch {
       return null
     }
   },
-  set(t: Tokens | null) {
+  /** `remember` chooses where to keep the session; when omitted (token refresh) the current choice is kept. */
+  set(t: Tokens | null, remember?: boolean) {
     try {
-      if (t) sessionStorage.setItem(KEY, JSON.stringify(t))
-      else sessionStorage.removeItem(KEY)
+      const persist = remember ?? read(localStorage) !== null
+      sessionStorage.removeItem(KEY)
+      localStorage.removeItem(KEY)
+      if (t) (persist ? localStorage : sessionStorage).setItem(KEY, JSON.stringify(t))
     } catch {
       /* storage unavailable: session will not persist */
     }

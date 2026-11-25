@@ -40,6 +40,7 @@ STAFF_MOVES = {
                  (S.AWAITING_PAYMENT, S.CANCELLED), (S.CONFIRMED, S.CANCELLED), (S.RECEIVED, S.CANCELLED)},
     _R.KITCHEN: {(S.RECEIVED, S.PREPARING), (S.PREPARING, S.READY_FOR_PICKUP), (S.PREPARING, S.OUT_FOR_DELIVERY)},
     _R.WAITER: {(S.READY_FOR_PICKUP, S.COMPLETED)},
+    _R.WAITRESS: {(S.READY_FOR_PICKUP, S.COMPLETED)},
     _R.DELIVERY: {(S.OUT_FOR_DELIVERY, S.COMPLETED)},
 }
 
@@ -160,6 +161,9 @@ def create_order(request, data, *, customer=None, source="online", cashier=None,
             "items": [f"{i.quantity} × {i.product_name}" + (f" ({i.variation_name})" if i.variation_name else "")
                       for i in order.items.all()], "url": _tracking_url(restaurant, order)},
             restaurant=restaurant, dedupe_key=f"order:{order.pk}:created")
+    from apps.notifications import inapp
+
+    inapp.order_created(order)
     return order
 
 
@@ -208,6 +212,9 @@ def transition_order(request, order_id, to, *, role, note="", customer_cancel=Fa
         queue_email("order_status", order.contact_email, {
             "name": order.contact_name, "number": order.number, "status": label(to), "note": note,
             "url": _tracking_url(restaurant, order)}, restaurant=restaurant, dedupe_key=f"order:{order.pk}:status:{to}")
+    from apps.notifications import inapp
+
+    inapp.order_moved(order, to)
     return order
 
 
@@ -226,6 +233,9 @@ def system_transition(order, to, *, note="", actor=None, role="system"):
         queue_email("order_status", order.contact_email, {
             "name": order.contact_name, "number": order.number, "status": label(to), "note": note,
             "url": _tracking_url(order.restaurant, order)}, restaurant=order.restaurant, dedupe_key=f"order:{order.pk}:status:{to}")
+    from apps.notifications import inapp
+
+    inapp.order_moved(order, to)
     return True
 
 

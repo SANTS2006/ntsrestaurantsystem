@@ -2,6 +2,7 @@ import { Plus } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { ApiError, api, type Page } from '../../lib/api'
 import { Empty, ErrorState, Field, Modal, Skeleton, Spinner, useAsync, useDocumentTitle, useToast } from '../../ui/kit'
+import { useConfirm } from '../../ui/dialogs'
 
 type Branch = { id: number; name: string; code: string; address: string; location: string; phone: string; email: string; operating_hours: Record<string, string>; status: string; manager: number | null; manager_name: string | null; staff_count: number }
 type Member = { user_id: number; full_name: string; email: string }
@@ -9,6 +10,7 @@ const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'
 const msg = (e: unknown) => (e instanceof ApiError ? (Object.values(e.fieldErrors())[0] ?? e.message) : 'Something went wrong.')
 
 export default function Branches() {
+  const confirm = useConfirm()
   useDocumentTitle('Branches')
   const toast = useToast()
   const list = useAsync(() => api<Page<Branch>>('/restaurants/branches/', { params: { page_size: 100 } }), [])
@@ -18,7 +20,7 @@ export default function Branches() {
 
   async function toggle(b: Branch) {
     const suspend = b.status === 'active'
-    if (suspend && !confirm(`Suspend ${b.name}? It will stop taking new orders and shifts.`)) return
+    if (suspend && !(await confirm({ title: `Suspend ${b.name}?`, message: 'It will stop taking new orders and shifts.', confirmLabel: 'Suspend', danger: true }))) return
     try { await api(`/restaurants/branches/${b.id}/${suspend ? 'suspend' : 'activate'}/`, { body: {} }); toast(`${b.name} ${suspend ? 'suspended' : 'activated'}.`); list.reload() } catch (e) { toast(msg(e)) }
   }
   return (

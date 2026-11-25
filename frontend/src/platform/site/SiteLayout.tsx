@@ -4,6 +4,7 @@ import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { api } from '../../lib/api'
 import { useSecretClicks } from '../../lib/useSecretClicks'
 import { useAsync } from '../../ui/kit'
+import { ThemeToggle } from '../../ui/TopTools'
 
 export type PublicSettings = { platform_name: string; whatsapp_number: string; support_email: string }
 
@@ -47,6 +48,7 @@ export default function SiteLayout() {
           </nav>
           {/* Intentionally empty, unlabelled area: five quick clicks open the sign-in page. */}
           <div className="secret" onClick={onSecret} aria-hidden="true" data-testid="secret-area" />
+          <ThemeToggle />
           <button className="menu-btn" onClick={() => setOpen(!open)} aria-label="Toggle menu" aria-expanded={open}>
             {open ? <X /> : <Menu />}
           </button>

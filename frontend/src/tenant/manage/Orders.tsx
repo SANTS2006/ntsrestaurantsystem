@@ -5,6 +5,7 @@ import { ApiError, api, type Page } from '../../lib/api'
 import { Drawer, Empty, ErrorState, PageHeader, Pager, SearchInput, Skeleton, useAsync, useDocumentTitle, useToast } from '../../ui/kit'
 import { StatusBadge, type OrderRow } from '../account/pages'
 import { useSite } from '../SiteContext'
+import { usePrompt } from '../../ui/dialogs'
 
 type StaffDetail = OrderRow & {
   contact_phone: string; contact_email: string; customer_notes: string; delivery_address: Record<string, string>
@@ -67,6 +68,7 @@ export default function Orders() {
 }
 
 function OrderModal({ id, onClose, onChanged }: { id: number; onClose: () => void; onChanged: () => void }) {
+  const prompt = usePrompt()
   const { money } = useSite()
   const toast = useToast()
   const [o, setO] = useState<StaffDetail | null>(null)
@@ -80,21 +82,23 @@ function OrderModal({ id, onClose, onChanged }: { id: number; onClose: () => voi
   async function recordCash() {
     if (!o) return
     const due = (Number(o.total) - Number(o.amount_paid)).toFixed(2)
-    const got = prompt(`Cash received (amount due ${due}):`, due)
+    const got = await prompt({ title: 'Record cash payment', message: `Amount due ${due}.`, label: 'Cash received', defaultValue: due, required: true, inputMode: 'decimal', confirmLabel: 'Record payment' })
     if (got === null) return
     setBusy(true)
     try { const r = await api<{ change_given: string }>('/payments/cash/', { body: { order_id: id, amount_received: got.trim() }, headers: { 'Idempotency-Key': crypto.randomUUID() } }); toast(`Payment recorded. Change to give: ${r.change_given}`); await load(); onChanged() }
     catch (e) { toast(e instanceof ApiError ? (e.fieldErrors().amount_received ?? e.fieldErrors().order_id ?? e.message) : 'Failed.') } finally { setBusy(false) }
   }
   async function refund(paymentId: number, max: string) {
-    const amount = prompt(`Refund amount (up to ${max}):`, max)
+    const amount = await prompt({ title: 'Refund payment', message: `Up to ${max}.`, label: 'Refund amount', defaultValue: max, required: true, inputMode: 'decimal', confirmLabel: 'Continue' })
     if (amount === null) return
-    const reason = (prompt('Reason for the refund:') ?? '').trim()
+    const reasonAsked = await prompt({ title: 'Reason for the refund', label: 'Reason', required: true, multiline: true, confirmLabel: 'Continue' })
+    if (reasonAsked === null) return
+    const reason = reasonAsked
     if (reason.length < 3) return toast('A reason is required.')
     let manual_reference = ''
     if (o?.payments.find((p) => p.id === paymentId)?.method === 'mobile_money') {
       // Monime has no refund API: the money is returned from the Monime dashboard and its reference is recorded here
-      manual_reference = (prompt('Mobile money refunds are made in the Monime dashboard. Refund the customer there first, then enter the refund reference to record it:') ?? '').trim()
+      manual_reference = (await prompt({ title: 'Record the Monime refund', message: 'Mobile money refunds are made in the Monime dashboard. Refund the customer there first, then enter the refund reference to record it.', label: 'Refund reference', required: true })) ?? ''
       if (manual_reference.length < 3) return toast('Enter the reference of the refund you made in the Monime dashboard.')
     }
     setBusy(true)
@@ -105,7 +109,7 @@ function OrderModal({ id, onClose, onChanged }: { id: number; onClose: () => voi
   async function move(to: string, label: string) {
     let note = ''
     if (to === 'cancelled') {
-      note = (prompt('Reason for cancelling (the customer will see it):') ?? '').trim()
+      note = (await prompt({ title: 'Cancel this order?', message: 'The customer will see the reason.', label: 'Reason', required: true, multiline: true, danger: true, confirmLabel: 'Cancel order' })) ?? ''
       if (!note) return
     }
     setBusy(true)

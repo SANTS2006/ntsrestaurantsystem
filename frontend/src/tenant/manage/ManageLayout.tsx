@@ -2,16 +2,16 @@ import { Banknote, BarChart3, Boxes, Building2, CalendarDays, ChefHat, Contact, 
 import { Link, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { API_URL } from '../../lib/config'
 import { useAuth } from '../../lib/auth'
-import { Empty, Spinner } from '../../ui/kit'
+import { Empty, PageLoader } from '../../ui/kit'
 import { MfaSettings } from '../../ui/Mfa'
 import Shell, { type NavGroup } from '../../ui/Shell'
 import { useSite } from '../SiteContext'
 
 const CATALOG_ROLES = ['restaurant_admin', 'manager', 'platform_admin']
-const STAFF = ['restaurant_admin', 'manager', 'cashier', 'kitchen', 'waiter', 'delivery', 'platform_admin']
+const STAFF = ['restaurant_admin', 'manager', 'cashier', 'kitchen', 'waiter', 'waitress', 'delivery', 'platform_admin']
 const TILL = ['cashier', 'manager', 'restaurant_admin', 'platform_admin']
 const KITCHEN = ['kitchen', 'manager', 'restaurant_admin', 'platform_admin', 'cashier']
-const LABEL: Record<string, string> = { restaurant_admin: 'Administrator', manager: 'Manager', cashier: 'Cashier', kitchen: 'Kitchen', waiter: 'Waiter', delivery: 'Delivery', platform_admin: 'Platform admin' }
+const LABEL: Record<string, string> = { restaurant_admin: 'Administrator', manager: 'Manager', cashier: 'Cashier', kitchen: 'Kitchen', waiter: 'Waiter', waitress: 'Waitress', delivery: 'Delivery', platform_admin: 'Platform admin' }
 
 const MANAGE_ONLY = ['dashboard', 'customers', 'stock', 'finance', 'tables', 'catering', 'shifts', 'products', 'categories', 'inventory', 'reports', 'staff', 'payroll', 'services', 'gallery']
 const ADMIN_ONLY = ['branches', 'site']
@@ -27,10 +27,10 @@ function allowed(role: string, section: string) {
 }
 
 export default function ManageLayout() {
-  const { me, loading, logout } = useAuth()
+  const { me, loading, signOut } = useAuth()
   const loc = useLocation()
   const { site } = useSite()
-  if (loading) return <div className="login-wrap"><Spinner /></div>
+  if (loading) return <PageLoader />
   if (!me) return <Navigate to="/login" replace />
   const role = me.role ?? ''
   const manage = CATALOG_ROLES.includes(role)
@@ -63,7 +63,7 @@ export default function ManageLayout() {
   ]
   const logo = site.restaurant.logo ? (site.restaurant.logo.startsWith('http') ? site.restaurant.logo : `${API_URL}${site.restaurant.logo}`) : null
   return (
-    <Shell brand={site.restaurant.name} tagline="Restaurant workspace" logo={logo} groups={groups} user={{ name: me.full_name || me.email, role: LABEL[role] ?? role }} onLogout={logout} footerLink={{ to: '/', label: 'View website' }}>
+    <Shell brand={site.restaurant.name} tagline="Restaurant workspace" logo={logo} groups={groups} user={{ name: me.full_name || me.email, role: LABEL[role] ?? role, avatar: me.avatar }} onLogout={() => void signOut()} profilePath="/manage/profile" footerLink={{ to: '/', label: 'View website' }}>
       {me.mfa?.enforced && me.mfa.required && !me.mfa.enabled ? <MfaSettings forced /> : STAFF.includes(role) ? (allowed(role, loc.pathname.split('/')[2] ?? '') ? <Outlet /> : <Empty title="This page is not available for your role">Ask the restaurant administrator if you need access. <Link to="/manage/orders">Go to orders</Link></Empty>) : <Empty title="No access">This area is for restaurant staff. <Link to="/account">Go to your account</Link></Empty>}
     </Shell>
   )

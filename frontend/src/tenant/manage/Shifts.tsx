@@ -3,6 +3,7 @@ import { ApiError, api, type Page } from '../../lib/api'
 import { Empty, ErrorState, Modal, Skeleton, useAsync, useDocumentTitle, useToast } from '../../ui/kit'
 import { useSite } from '../SiteContext'
 import type { ShiftData } from './Cashier'
+import { usePrompt } from '../../ui/dialogs'
 
 type Adj = { id: number; shift_id: number; kind: string; amount: string; reason: string; status: string; requested_by: string }
 type Report = ShiftData & {
@@ -13,6 +14,7 @@ type Report = ShiftData & {
 
 /** Manager/admin view: branch shifts, approvals of cash adjustments, and shift reports. */
 export default function Shifts() {
+  const prompt = usePrompt()
   useDocumentTitle('Shifts')
   const { money } = useSite()
   const toast = useToast()
@@ -22,7 +24,9 @@ export default function Shifts() {
   const pending = useAsync(() => api<Adj[]>('/cashier/adjustments/pending/'), [])
 
   async function decide(a: Adj, approve: boolean) {
-    const note = approve ? '' : (prompt('Reason for rejecting (optional):') ?? '')
+    const answer = approve ? '' : await prompt({ title: 'Reject this adjustment?', label: 'Reason (optional)', danger: true, confirmLabel: 'Reject' })
+    if (answer === null) return
+    const note = answer
     try { await api(`/cashier/adjustments/${a.id}/decide/`, { body: { approve, note } }); toast(approve ? 'Approved.' : 'Rejected.'); pending.reload(); list.reload() } catch (e) { toast(e instanceof ApiError ? e.message : 'Failed.') }
   }
   return (

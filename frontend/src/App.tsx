@@ -5,7 +5,7 @@ import Login from './platform/Login'
 import { About, Contact, Faq, Features, Home, Legal, Pricing } from './platform/site/Pages'
 import SiteLayout from './platform/site/SiteLayout'
 import RestaurantApp from './tenant/RestaurantApp'
-import { Empty, Spinner } from './ui/kit'
+import { Empty, PageLoader } from './ui/kit'
 
 const AdminLayout = lazy(() => import('./platform/admin/AdminLayout'))
 const Dashboard = lazy(() => import('./platform/admin/Dashboard'))
@@ -15,6 +15,7 @@ const PlatformSettings = lazy(() => import('./platform/admin/Misc').then((m) => 
 const Plans = lazy(() => import('./platform/admin/Misc').then((m) => ({ default: m.Plans })))
 const Restaurants = lazy(() => import('./platform/admin/Restaurants'))
 const Security = lazy(() => import('./ui/Mfa').then((m) => ({ default: m.MfaSettings })))
+const Profile = lazy(() => import('./ui/Profile').then((m) => ({ default: m.ProfileSettings })))
 const System = lazy(() => import('./platform/admin/System'))
 
 function NotFound() {
@@ -26,7 +27,7 @@ export default function App() {
     return <Routes><Route path="*" element={<RestaurantApp />} /></Routes>
   }
   return (
-    <Suspense fallback={<div className="login-wrap"><Spinner /></div>}>
+    <Suspense fallback={<PageLoader />}>
     <Routes>
       <Route element={<SiteLayout />}>
         <Route index element={<Home />} />
@@ -46,6 +47,7 @@ export default function App() {
         <Route path="audit" element={<AuditLog />} />
         <Route path="system" element={<System />} />
         <Route path="security" element={<Security />} />
+        <Route path="profile" element={<Profile />} />
         <Route path="settings" element={<PlatformSettings />} />
       </Route>
       <Route path="*" element={<NotFound />} />

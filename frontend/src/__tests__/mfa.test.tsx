@@ -17,7 +17,7 @@ describe('two-step sign-in form', () => {
     fireEvent.change(screen.getByLabelText('Authentication code'), { target: { value: '123456' } })
     fireEvent.click(screen.getByText('Verify and sign in'))
     await waitFor(() => expect(done).toHaveBeenCalled())
-    expect(completeMfa).toHaveBeenCalledWith('tok', '123456', false)
+    expect(completeMfa).toHaveBeenCalledWith('tok', '123456', false, false)
   })
 
   it('switches to a recovery code and shows server errors', async () => {
@@ -26,7 +26,7 @@ describe('two-step sign-in form', () => {
     fireEvent.click(screen.getByText('Use a recovery code instead'))
     fireEvent.change(screen.getByLabelText('Recovery code'), { target: { value: 'abcd-1234-ef56' } })
     fireEvent.click(screen.getByText('Verify and sign in'))
-    await waitFor(() => expect(completeMfa).toHaveBeenLastCalledWith('tok', 'abcd-1234-ef56', true))
+    await waitFor(() => expect(completeMfa).toHaveBeenLastCalledWith('tok', 'abcd-1234-ef56', true, false))
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Verification failed'))
   })
 

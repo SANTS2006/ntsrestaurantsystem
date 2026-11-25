@@ -3,10 +3,12 @@ import { useState, Suspense, lazy } from 'react'
 import { Link, NavLink, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { API_URL } from '../lib/config'
 import { useAuth } from '../lib/auth'
+import { NotificationBell, ThemeToggle } from '../ui/TopTools'
+import { Avatar } from '../ui/Shell'
 import { CartProvider, useCart } from './cart'
 import { Login, Register, VerifyEmail } from './CustomerAuth'
 import { CartPage, CheckoutPage } from './shop'
-import { Empty, Spinner } from '../ui/kit'
+import { Empty, PageLoader } from '../ui/kit'
 import { About, Contact, Faq, Gallery, Home, Menu, Policy, ProductPage, Services } from './pages'
 import { SiteProvider, useSite } from './SiteContext'
 import { ForgotPassword, SetupPassword } from './StaffAuth'
@@ -30,6 +32,7 @@ const Tables = lazy(() => import('./qr/Tables'))
 const TablesPrint = lazy(() => import('./qr/Tables').then((m) => ({ default: m.TablesPrint })))
 const Branches = lazy(() => import('./manage/Branches'))
 const SecurityMfa = lazy(() => import('../ui/Mfa').then((m) => ({ default: m.MfaSettings })))
+const ProfileSettings = lazy(() => import('../ui/Profile').then((m) => ({ default: m.ProfileSettings })))
 const Customers = lazy(() => import('./manage/Customers'))
 const Floor = lazy(() => import('./manage/Floor'))
 const Stock = lazy(() => import('./manage/Stock'))
@@ -70,7 +73,9 @@ function PublicLayout() {
           </nav>
           <div style={{ flex: 1 }} />
           <Link to="/cart" className="btn sm secondary" aria-label={`Cart, ${cart.count} items`}><ShoppingCart size={18} aria-hidden /> {cart.count}</Link>
-          {me ? <Link to={me.role === 'customer' ? '/account' : '/manage'} className="btn sm secondary"><User size={18} aria-hidden /> Account</Link>
+          <ThemeToggle />
+          {me && <NotificationBell />}
+          {me ? <Link to={me.role === 'customer' ? '/account' : '/manage'} className="btn sm secondary">{me.avatar ? <Avatar name={me.full_name || me.email} src={me.avatar} /> : <User size={18} aria-hidden />} Account</Link>
             : <><Link to="/login" className="btn sm secondary">Log in</Link><Link to="/register" className="btn sm">Sign up</Link></>}
           <button className="menu-btn" onClick={() => setOpen(!open)} aria-label="Toggle menu" aria-expanded={open}>{open ? <X /> : <MenuIcon />}</button>
         </div>
@@ -99,7 +104,7 @@ export default function RestaurantApp() {
   return (
     <SiteProvider>
       <CartProvider>
-      <Suspense fallback={<div className="login-wrap"><Spinner /></div>}>
+      <Suspense fallback={<PageLoader />}>
 <Routes>
         <Route element={<PublicLayout />}>
           <Route index element={<Home />} />
@@ -149,6 +154,7 @@ export default function RestaurantApp() {
           <Route path="stock" element={<Stock />} />
           <Route path="finance" element={<Finance />} />
           <Route path="security" element={<SecurityMfa />} />
+          <Route path="profile" element={<ProfileSettings />} />
           <Route path="payroll" element={<Payroll />} />
           <Route path="reports" element={<Reports />} />
           <Route path="my-pay" element={<MyPay />} />

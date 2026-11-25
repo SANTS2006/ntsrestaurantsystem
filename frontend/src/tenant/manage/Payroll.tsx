@@ -4,6 +4,7 @@ import { ApiError, api, downloadFile } from '../../lib/api'
 import { useAuth } from '../../lib/auth'
 import { Empty, ErrorState, Field, Modal, Skeleton, useAsync, useDocumentTitle, useToast } from '../../ui/kit'
 import { useSite } from '../SiteContext'
+import { usePrompt } from '../../ui/dialogs'
 
 export type Comp = { type: string; name: string; mode: 'fixed' | 'percent_of_basic'; amount: string }
 type Structure = { id: number; employee_id: number; version: number; status: string; frequency: string; basic_salary: string; components: Comp[]; terms: string; effective_from: string; created_by: string | null }
@@ -19,7 +20,7 @@ type Summary = { by_status: Record<string, { count: number; gross: string; deduc
 const EARN = [['allowance', 'Allowance'], ['bonus', 'Bonus'], ['overtime', 'Overtime'], ['other_earning', 'Other earning']]
 const DED = [['deduction', 'Deduction'], ['other_deduction', 'Other deduction']]
 const TYPE_LABEL: Record<string, string> = Object.fromEntries([...EARN, ...DED, ['basic', 'Basic']])
-const ROLE: Record<string, string> = { restaurant_admin: 'Administrator', manager: 'Manager', cashier: 'Cashier', kitchen: 'Kitchen', waiter: 'Waiter', delivery: 'Delivery' }
+const ROLE: Record<string, string> = { restaurant_admin: 'Administrator', manager: 'Manager', cashier: 'Cashier', kitchen: 'Kitchen', waiter: 'Waiter', waitress: 'Waitress', delivery: 'Delivery' }
 const msg = (e: unknown) => (e instanceof ApiError ? (Object.values(e.fieldErrors())[0] ?? e.message) : 'Something went wrong.')
 const amountRx = /^\d+(\.\d{1,2})?$/
 type Rule = { name: string; kind: 'percent' | 'brackets'; base: 'gross' | 'basic' | 'taxable'; bearer: 'employee' | 'employer'; pre_tax?: boolean; enabled?: boolean; rate?: string; brackets?: { up_to: string | null; rate: string }[] }
@@ -72,6 +73,7 @@ export default function Payroll() {
 
 // ---------------------------------------------------------------- employees
 function Employees({ isAdmin }: { isAdmin: boolean }) {
+  const prompt = usePrompt()
   const { money } = useSite()
   const toast = useToast()
   const list = useAsync(() => api<Employee[]>('/payroll/employees/'), [])
@@ -80,7 +82,7 @@ function Employees({ isAdmin }: { isAdmin: boolean }) {
 
   async function decide(s: Structure, act: 'approve' | 'reject') {
     let reason = ''
-    if (act === 'reject') { reason = (prompt('Reason for rejecting this salary change:') ?? '').trim(); if (!reason) return }
+    if (act === 'reject') { reason = (await prompt({ title: 'Reject this salary change?', label: 'Reason', required: true, danger: true, confirmLabel: 'Reject' })) ?? ''; if (!reason) return }
     try { await api(`/payroll/structures/${s.id}/${act}/`, { body: { reason } }); toast(act === 'approve' ? 'Salary change approved.' : 'Salary change rejected.'); list.reload() } catch (e) { toast(msg(e)) }
   }
   if (list.error) return <ErrorState message={list.error} onRetry={list.reload} />
@@ -195,6 +197,7 @@ function Runs({ isAdmin }: { isAdmin: boolean }) {
 }
 
 function RecordModal({ id, isAdmin, onClose, onChanged }: { id: number; isAdmin: boolean; onClose: () => void; onChanged: () => void }) {
+  const prompt = usePrompt()
   const { money } = useSite()
   const toast = useToast()
   const d = useAsync(() => api<Rec & { period_id: number; employee: Rec['employee'] & { id: number } }>(`/payroll/records/${id}/`), [id])
@@ -211,8 +214,8 @@ function RecordModal({ id, isAdmin, onClose, onChanged }: { id: number; isAdmin:
     try { await fn(); toast(ok); setAdj(null); d.reload(); onChanged() } catch (e) { toast(msg(e)) } finally { setBusy(false) }
   }
   const act = (a: string, body: unknown = {}) => api(`/payroll/records/${id}/${a}/`, { body })
-  function ask(a: 'reject' | 'cancel', text: string, ok: string) {
-    const reason = (prompt(text) ?? '').trim()
+  async function ask(a: 'reject' | 'cancel', text: string, ok: string) {
+    const reason = (await prompt({ title: text.replace(/:$/, ''), label: 'Reason', required: true, multiline: true, danger: true })) ?? ''
     if (reason) void run(() => act(a, { reason }), ok)
   }
   function save() {

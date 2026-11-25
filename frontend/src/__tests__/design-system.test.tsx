@@ -81,12 +81,12 @@ describe('layout components', () => {
     render(
       <MemoryRouter initialEntries={['/manage/orders']}>
         <Shell brand="Ocean View" tagline="Workspace" groups={[{ label: 'Service', items: [{ to: '/manage/orders', label: 'Orders', icon: Icon }] }, { label: 'Empty', items: [] }]}
-          user={{ name: 'Casey Cashier', role: 'Cashier' }} onLogout={() => {}}><p>page</p></Shell>
+          user={{ name: 'Casey Cashier', role: 'Cashier' }} onLogout={() => {}} profilePath="/profile"><p>page</p></Shell>
       </MemoryRouter>,
     )
     expect(screen.getByRole('link', { name: /Orders/ }).className).toContain('active')
     expect(screen.queryByText('Empty')).toBeNull()
-    expect(screen.getByText('CC')).toBeTruthy()
+    expect(screen.getAllByText('CC').length).toBe(2) // sidebar profile and top bar avatar
     fireEvent.click(screen.getByLabelText('Open navigation'))
     expect(document.querySelector('.shell')?.className).toContain('open')
   })

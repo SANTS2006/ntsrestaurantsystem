@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { ApiError, api, type Page } from '../../lib/api'
 import { Empty, ErrorState, Field, Modal, Skeleton, Spinner, useAsync, useDocumentTitle, useToast } from '../../ui/kit'
 import { useSite } from '../SiteContext'
+import { useConfirm } from '../../ui/dialogs'
 
 const price = (v: string) => /^\d+(\.\d{1,2})?$/.test(v.trim())
 const msg = (e: unknown) => (e instanceof ApiError ? e.message : 'Something went wrong.')
@@ -86,6 +87,7 @@ type Prod = {
 }
 
 export function Products() {
+  const confirm = useConfirm()
   useDocumentTitle('Products')
   const toast = useToast()
   const { money } = useSite()
@@ -123,7 +125,7 @@ export function Products() {
                 <td style={{ display: 'flex', gap: 6 }}>
                   <button className="btn sm secondary" onClick={() => setEdit(p)}>Edit</button>
                   {p.is_archived ? <button className="btn sm" onClick={() => act(p, 'restore/', {}, 'Restored.')}>Restore</button>
-                    : <button className="btn sm danger" onClick={() => confirm(`Archive ${p.name}? It will disappear from the menu but past orders keep it.`) && act(p, 'archive/', {}, 'Archived.')}>Archive</button>}
+                    : <button className="btn sm danger" onClick={async () => (await confirm({ title: `Archive ${p.name}?`, message: 'It will disappear from the menu but past orders keep it.', confirmLabel: 'Archive', danger: true })) && act(p, 'archive/', {}, 'Archived.')}>Archive</button>}
                 </td>
               </tr>
             ))}
@@ -360,6 +362,7 @@ function ServiceForm({ initial, onClose, onSaved }: { initial: Svc | null; onClo
 
 /* ------------------------------------------------------------------ gallery */
 export function Gallery() {
+  const confirm = useConfirm()
   useDocumentTitle('Gallery')
   const toast = useToast()
   const list = useAsync(() => api<Page<{ id: number; image: string; caption: string }>>('/catalog/gallery/'), [])
@@ -375,7 +378,7 @@ export function Gallery() {
     setBusy(true)
     try { await api('/catalog/gallery/', { body: fd }); setFile(null); setCaption(''); (e.target as HTMLFormElement).reset(); list.reload() } catch (err) { toast(err instanceof ApiError ? (err.fieldErrors().image ?? err.message) : 'Upload failed.') } finally { setBusy(false) }
   }
-  const remove = async (id: number) => { if (!confirm('Delete this photo?')) return; try { await api(`/catalog/gallery/${id}/`, { method: 'DELETE' }); list.reload() } catch (e) { toast(msg(e)) } }
+  const remove = async (id: number) => { if (!(await confirm({ title: 'Delete this photo?', confirmLabel: 'Delete', danger: true }))) return; try { await api(`/catalog/gallery/${id}/`, { method: 'DELETE' }); list.reload() } catch (e) { toast(msg(e)) } }
   return (
     <>
       <H>Gallery</H>

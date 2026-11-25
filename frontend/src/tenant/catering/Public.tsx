@@ -4,6 +4,7 @@ import { ApiError, api } from '../../lib/api'
 import { Empty, ErrorState, Field, Skeleton, Spinner, useAsync } from '../../ui/kit'
 import { useSeo } from '../seo'
 import { useSite } from '../SiteContext'
+import { useConfirm } from '../../ui/dialogs'
 
 type Options = { event_types: { value: string; label: string }[]; services: { id: number; name: string }[]; branches: { id: number; name: string }[]; currency: string }
 const A = { auth: false } as const
@@ -95,6 +96,7 @@ type Quote = {
 
 /** Private page opened from the emailed link: view the quotation, then accept or decline. */
 export function QuotationPage() {
+  const confirm = useConfirm()
   const { token = '' } = useParams()
   const { money } = useSite()
   const q = useAsync(() => api<Quote>(`/catering/public/quotations/${token}/`, A), [token])
@@ -105,7 +107,7 @@ export function QuotationPage() {
   useSeo({ title: 'Your quotation', path: `/quotation/${token}` })
 
   async function respond(accept: boolean) {
-    if (accept && !confirm('Accept this quotation? The restaurant will be notified and your booking will be confirmed with them.')) return
+    if (accept && !(await confirm({ title: 'Accept this quotation?', message: 'The restaurant will be notified and your booking will be confirmed with them.', confirmLabel: 'Accept' }))) return
     setBusy(true); setError('')
     try { await api(`/catering/public/quotations/${token}/${accept ? 'accept' : 'decline'}/`, { auth: false, body: { note } }); setResult(accept ? 'accepted' : 'declined') }
     catch (e) { setError(e instanceof ApiError ? e.message : 'Something went wrong.') } finally { setBusy(false) }

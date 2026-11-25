@@ -5,6 +5,7 @@ import { API_BASE } from '../../lib/config'
 import { ApiError, api, downloadFile, tokenStore, type Page } from '../../lib/api'
 import { Empty, ErrorState, Field, Modal, Skeleton, Spinner, useAsync, useDocumentTitle, useToast } from '../../ui/kit'
 import { useSite } from '../SiteContext'
+import { useConfirm } from '../../ui/dialogs'
 
 export type Table = { id: number; label: string; seats: number | null; is_active: boolean; branch: number; branch_name: string; qr_url: string; qr_regenerated_at: string | null }
 type BranchRow = { id: number; name: string; status: string }
@@ -27,6 +28,7 @@ export function QrImage({ id, version, size = 96 }: { id: number; version: strin
 }
 
 export default function Tables() {
+  const confirm = useConfirm()
   useDocumentTitle('Tables and QR codes')
   const toast = useToast()
   const list = useAsync(() => api<Page<Table>>('/qr-menu/tables/', { params: { page_size: 100 } }), [])
@@ -51,7 +53,7 @@ export default function Tables() {
                 <td style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   <button className="btn sm secondary" onClick={() => downloadFile(`/qr-menu/tables/${t.id}/qr/`, `${t.label.replace(/\W+/g, '-')}-qr.png`).catch(() => toast('Download failed.'))}><Download size={14} aria-hidden /> PNG</button>
                   <button className="btn sm secondary" onClick={() => setEdit(t)}>Edit</button>
-                  <button className="btn sm secondary" onClick={() => confirm(`Create a new QR code for ${t.label}? Printed copies of the old code stop working immediately.`) && act(t, 'regenerate', 'New QR code created. Reprint it.')}>Regenerate</button>
+                  <button className="btn sm secondary" onClick={async () => (await confirm({ title: `Create a new QR code for ${t.label}?`, message: 'Printed copies of the old code stop working immediately.', confirmLabel: 'Create new code', danger: true })) && act(t, 'regenerate', 'New QR code created. Reprint it.')}>Regenerate</button>
                   <button className={`btn sm ${t.is_active ? 'danger' : ''}`} onClick={() => act(t, t.is_active ? 'disable' : 'enable', t.is_active ? 'Table disabled.' : 'Table enabled.')}>{t.is_active ? 'Disable' : 'Enable'}</button>
                 </td></tr>
             ))}

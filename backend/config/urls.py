@@ -31,6 +31,7 @@ urlpatterns = [
     path("robots.txt", seo_views.robots_txt),
     path("sitemap.xml", seo_views.sitemap_xml),
     path("api/v1/staff/", include("apps.accounts.staff_urls")),
+    path("api/v1/notifications/", include("apps.notifications.urls")),
 ]
 
 if settings.DEBUG:

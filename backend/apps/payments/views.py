@@ -144,7 +144,7 @@ def _receipt_for(request, pk):
     role = effective_role(request)
     if role == "customer":
         qs = qs.filter(order__customer=request.user)
-    elif role in ("platform_admin", "restaurant_admin", "manager", "cashier", "waiter"):
+    elif role in ("platform_admin", "restaurant_admin", "manager", "cashier", "waiter", "waitress"):
         qs = qs.filter(branch_id__in=accessible_branch_ids(request))
     else:
         qs = qs.none()  # kitchen/delivery staff and strangers never see receipts

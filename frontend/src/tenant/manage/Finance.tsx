@@ -4,6 +4,7 @@ import { ApiError, api, downloadFile, type Page } from '../../lib/api'
 import { useAuth } from '../../lib/auth'
 import { Drawer, Empty, ErrorState, Field, Modal, PageHeader, Pager, SearchInput, Skeleton, useAsync, useDocumentTitle, useToast } from '../../ui/kit'
 import { useSite } from '../SiteContext'
+import { usePrompt } from '../../ui/dialogs'
 
 type Cat = { id: number; name: string; is_active: boolean }
 type Exp = { id: number; category: string; branch: string | null; description: string; amount: string; expense_date: string; method: string; reference: string; status: string; void_reason: string; supplier: string | null; purchase_order: string | null; created_by: string | null }
@@ -31,6 +32,7 @@ export default function Finance() {
 
 // ----------------------------------------------------------------------------------------------- expenses
 function Expenses() {
+  const prompt = usePrompt()
   const { money } = useSite()
   const { me } = useAuth()
   const toast = useToast()
@@ -40,7 +42,7 @@ function Expenses() {
   const [add, setAdd] = useState(false)
   const list = useAsync(() => api<Page<Exp> & { total_recorded: string }>('/finance/expenses/', { params: { q, page } }), [q, page])
   async function voidIt(e: Exp) {
-    const reason = (prompt(`Reason for voiding “${e.description}”:`) ?? '').trim()
+    const reason = (await prompt({ title: `Void “${e.description}”?`, label: 'Reason', required: true, danger: true, confirmLabel: 'Void' })) ?? ''
     if (!reason) return
     try { await api(`/finance/expenses/${e.id}/void/`, { body: { reason } }); toast('Expense voided.'); list.reload() } catch (x) { toast(msg(x)) }
   }
@@ -163,6 +165,7 @@ function InvoiceEditor({ id, initial, onClose, onSaved }: { id?: number; initial
 }
 
 function InvoiceDrawer({ id, onClose, onChanged }: { id: number; onClose: () => void; onChanged: () => void }) {
+  const prompt = usePrompt()
   const { money } = useSite()
   const { me } = useAuth()
   const toast = useToast()
@@ -180,7 +183,7 @@ function InvoiceDrawer({ id, onClose, onChanged }: { id: number; onClose: () => 
     if (!/^\d+(\.\d{1,2})?$/.test(pay.amount) || Number(pay.amount) <= 0) return toast('Enter the amount received.')
     try { await api(`/finance/invoices/${id}/payments/`, { body: pay, headers: { 'Idempotency-Key': `${key}-${pay.amount}-${pay.received_on}` } }); toast('Payment recorded.'); setPay({ ...pay, amount: '', reference: '' }); done() } catch (x) { toast(msg(x)) }
   }
-  async function voidIt() { const reason = (prompt('Reason for voiding this invoice:') ?? '').trim(); if (!reason) return; try { await api(`/finance/invoices/${id}/void/`, { body: { reason } }); toast('Invoice voided.'); done() } catch (x) { toast(msg(x)) } }
+  async function voidIt() { const reason = (await prompt({ title: 'Void this invoice?', label: 'Reason', required: true, danger: true, confirmLabel: 'Void' })) ?? ''; if (!reason) return; try { await api(`/finance/invoices/${id}/void/`, { body: { reason } }); toast('Invoice voided.'); done() } catch (x) { toast(msg(x)) } }
   return (
     <Drawer title={i ? (i.number || 'Draft invoice') : 'Invoice'} onClose={onClose}>
       {d.error && <ErrorState message={d.error} />}

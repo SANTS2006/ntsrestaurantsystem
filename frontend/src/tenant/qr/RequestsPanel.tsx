@@ -4,6 +4,7 @@ import { ApiError, api, type Page } from '../../lib/api'
 import { useStaffSocket } from '../../lib/realtime'
 import { Empty, ErrorState, Field, Modal, Skeleton, Spinner, useAsync, useToast } from '../../ui/kit'
 import { useSite } from '../SiteContext'
+import { usePrompt } from '../../ui/dialogs'
 
 type Req = {
   id: number; status: string; branch_name: string; table: string; customer_name: string; customer_phone: string; notes: string; created_at: string
@@ -13,6 +14,7 @@ const msg = (e: unknown) => (e instanceof ApiError ? (Object.values(e.fieldError
 
 /** Live list of table requests for the cashier. WebSocket pushes new requests instantly; polling is the fallback. */
 export default function RequestsPanel({ onCount }: { onCount?: (n: number) => void }) {
+  const prompt = usePrompt()
   const { money } = useSite()
   const toast = useToast()
   const list = useAsync(() => api<Page<Req>>('/qr-menu/requests/', { params: { status: 'new' } }), [])
@@ -39,7 +41,7 @@ export default function RequestsPanel({ onCount }: { onCount?: (n: number) => vo
   }, [rows.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function reject(r: Req) {
-    const reason = prompt(`Reject the request from ${r.table}? Reason (shown to the diner):`)
+    const reason = await prompt({ title: `Reject the request from ${r.table}?`, message: 'The reason is shown to the diner.', label: 'Reason', danger: true, confirmLabel: 'Reject' })
     if (reason === null) return
     try { await api(`/qr-menu/requests/${r.id}/reject/`, { body: { reason } }); toast('Request rejected.'); reload() } catch (e) { toast(msg(e)) }
   }

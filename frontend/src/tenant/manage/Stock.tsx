@@ -4,6 +4,7 @@ import { ApiError, api, type Page } from '../../lib/api'
 import { useAuth } from '../../lib/auth'
 import { Drawer, Empty, ErrorState, Field, Modal, PageHeader, Pager, Skeleton, useAsync, useDocumentTitle, useToast } from '../../ui/kit'
 import { useSite } from '../SiteContext'
+import { usePrompt } from '../../ui/dialogs'
 
 type Ing = { id: number; name: string; unit: string; low_stock_threshold: string; last_unit_cost: string; is_active: boolean; total: string; low: boolean; branches: { branch_id: number; branch: string; quantity: string; low: boolean }[] }
 type Sup = { id: number; name: string; contact_name: string; phone: string; email: string; address: string; notes: string; is_active: boolean }
@@ -220,6 +221,7 @@ function NewPO({ onClose, onSaved }: { onClose: () => void; onSaved: (id: number
 }
 
 function PODrawer({ id, onClose, onChanged }: { id: number; onClose: () => void; onChanged: () => void }) {
+  const prompt = usePrompt()
   const { money } = useSite()
   const toast = useToast()
   const d = useAsync(() => api<PO>(`/procurement/orders/${id}/`), [id])
@@ -228,7 +230,7 @@ function PODrawer({ id, onClose, onChanged }: { id: number; onClose: () => void;
   async function act(a: string, body: unknown = {}) {
     try { await api(`/procurement/orders/${id}/${a}/`, { body }); d.reload(); onChanged(); setRecv({}) } catch (e) { toast(msg(e)) }
   }
-  function cancel() { const reason = (prompt('Reason for cancelling:') ?? '').trim(); if (reason) void act('cancel', { reason }) }
+  async function cancel() { const reason = (await prompt({ title: 'Cancel this purchase order?', label: 'Reason', required: true, danger: true, confirmLabel: 'Cancel order' })) ?? ''; if (reason) void act('cancel', { reason }) }
   return (
     <Drawer title={po ? `Purchase order ${po.number}` : 'Purchase order'} onClose={onClose}>
       {d.error && <ErrorState message={d.error} />}

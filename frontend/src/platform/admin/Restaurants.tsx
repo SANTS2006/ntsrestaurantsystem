@@ -2,6 +2,7 @@ import { Plus } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { ApiError, api, type Page } from '../../lib/api'
 import { Empty, ErrorState, Field, Modal, Skeleton, Spinner, useAsync, useDocumentTitle, useToast } from '../../ui/kit'
+import { useConfirm } from '../../ui/dialogs'
 
 export type Restaurant = {
   id: number; name: string; slug: string; status: 'active' | 'suspended'; logo: string | null
@@ -11,6 +12,7 @@ export type Restaurant = {
 }
 
 export default function Restaurants() {
+  const confirm = useConfirm()
   useDocumentTitle('Restaurants')
   const toast = useToast()
   const [q, setQ] = useState('')
@@ -21,7 +23,7 @@ export default function Restaurants() {
 
   async function toggle(r: Restaurant) {
     const suspend = r.status === 'active'
-    if (suspend && !confirm(`Suspend ${r.name}? Its website and staff sign-in will stop working immediately.`)) return
+    if (suspend && !(await confirm({ title: `Suspend ${r.name}?`, message: 'Its website and staff sign-in will stop working immediately.', confirmLabel: 'Suspend', danger: true }))) return
     try {
       await api(`/platform/restaurants/${r.id}/${suspend ? 'suspend' : 'activate'}/`, { body: {} })
       toast(`${r.name} ${suspend ? 'suspended' : 'activated'}.`)

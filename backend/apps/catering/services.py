@@ -36,7 +36,7 @@ TRANSITIONS = {
 MANUAL_TARGETS = {S.UNDER_REVIEW, S.REJECTED, S.IN_PROGRESS, S.COMPLETED, S.CANCELLED}
 NEEDS_REASON = {S.REJECTED, S.CANCELLED}
 PAYMENT_METHODS = ("cash", "mobile_money", "bank_transfer", "other")
-STAFF_ROLES = [Role.RESTAURANT_ADMIN, Role.MANAGER, Role.CASHIER, Role.KITCHEN, Role.WAITER, Role.DELIVERY]
+STAFF_ROLES = [Role.RESTAURANT_ADMIN, Role.MANAGER, Role.CASHIER, Role.KITCHEN, Role.WAITER, Role.WAITRESS, Role.DELIVERY]
 
 
 def m(x) -> Decimal:
@@ -103,6 +103,9 @@ def submit_public(request, data):
                     restaurant=tenant, dedupe_key=f"catering:{req.pk}:staff")
     if branch:
         notify_branch(tenant.pk, branch.pk, {"type": "catering.request.created", "id": req.pk, "reference": req.reference, "branch_id": branch.pk})
+        from apps.notifications import inapp
+
+        inapp.notify_staff(tenant, branch.pk, ("restaurant_admin", "manager"), "catering", f"New catering request {req.reference}", req.get_event_type_display(), "/manage/catering")
     return req
 
 

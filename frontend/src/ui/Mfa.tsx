@@ -6,7 +6,7 @@ import { AuthField } from './Auth'
 import { Field, Modal, Spinner, useToast } from './kit'
 
 /** Second step of sign-in: a six-digit code from the authenticator app, or one recovery code. */
-export function MfaChallengeForm({ token, onDone, onCancel }: { token: string; onDone: () => void; onCancel: () => void }) {
+export function MfaChallengeForm({ token, onDone, onCancel, remember = false }: { token: string; onDone: () => void; onCancel: () => void; remember?: boolean }) {
   const { completeMfa } = useAuth()
   const [code, setCode] = useState('')
   const [recovery, setRecovery] = useState(false)
@@ -16,7 +16,7 @@ export function MfaChallengeForm({ token, onDone, onCancel }: { token: string; o
     e.preventDefault()
     if (!code.trim()) return setError(recovery ? 'Enter a recovery code.' : 'Enter the 6-digit code.')
     setBusy(true); setError('')
-    try { await completeMfa(token, code.trim(), recovery); onDone() } catch (x) { setError(x instanceof ApiError ? x.message : 'Verification failed.') } finally { setBusy(false) }
+    try { await completeMfa(token, code.trim(), recovery, remember); onDone() } catch (x) { setError(x instanceof ApiError ? x.message : 'Verification failed.') } finally { setBusy(false) }
   }
   return (
     <form onSubmit={submit} noValidate>

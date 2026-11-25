@@ -5,11 +5,12 @@ import { ApiError, api, tokenStore, type Page } from '../../lib/api'
 import { useAuth } from '../../lib/auth'
 import { Empty, ErrorState, Field, Modal, Skeleton, Spinner, useAsync, useDocumentTitle, useToast } from '../../ui/kit'
 import { useSite } from '../SiteContext'
+import { useConfirm, usePrompt } from '../../ui/dialogs'
 
 const msg = (e: unknown) => (e instanceof ApiError ? e.message : 'Something went wrong.')
 
 export function AccountLayout() {
-  const { me, loading, logout } = useAuth()
+  const { me, loading, signOut } = useAuth()
   const { site } = useSite()
   const navigate = useNavigate()
   if (loading) return <div className="container section"><Spinner /></div>
@@ -23,7 +24,7 @@ export function AccountLayout() {
         <strong style={{ padding: '6px 12px' }}>{me.full_name || me.email}</strong>
         {items.map(([to, l, Icon, end]) => <NavLink key={to} to={to} end={end}><Icon size={18} aria-hidden /> {l}</NavLink>)}
         <Link to="/menu" style={{ marginTop: 8 }}>Back to {site.restaurant.name}</Link>
-        <button className="btn secondary sm" style={{ marginTop: 'auto' }} onClick={() => { logout(); navigate('/') }}><LogOut size={16} aria-hidden /> Sign out</button>
+        <button className="btn secondary sm" style={{ marginTop: 'auto' }} onClick={() => { void signOut().then(() => navigate('/')) }}><LogOut size={16} aria-hidden /> Sign out</button>
       </aside>
       <div className="main"><Outlet /></div>
     </div>
@@ -127,6 +128,7 @@ const POLL_MS = 10000
 const FINAL = ['completed', 'cancelled', 'refunded']
 
 export function OrderDetail() {
+  const prompt = usePrompt()
   const { id = '' } = useParams()
   const { money } = useSite()
   const toast = useToast()
@@ -157,7 +159,7 @@ export function OrderDetail() {
   useDocumentTitle(order ? `Order ${order.number}` : 'Order')
 
   async function cancel() {
-    const reason = prompt(order?.can_cancel ? 'Reason for cancelling (optional):' : 'Why would you like to cancel?') ?? null
+    const reason = await prompt({ title: order?.can_cancel ? 'Cancel this order?' : 'Request cancellation', label: order?.can_cancel ? 'Reason (optional)' : 'Why would you like to cancel?', multiline: true, danger: true, confirmLabel: 'Continue' })
     if (reason === null) return
     try {
       const r = await api<{ outcome: string; order: Detail }>(`/orders/my/${id}/cancel/`, { body: { reason } })
@@ -287,11 +289,12 @@ function EmailChange({ onClose, onDone }: { onClose: () => void; onDone: () => v
 /* ------------------------------------------------------------------ addresses */
 type Addr = { id: number; label: string; recipient_name: string; phone: string; line1: string; line2: string; city: string; delivery_notes: string; is_default: boolean }
 export function Addresses() {
+  const confirm = useConfirm()
   useDocumentTitle('Addresses')
   const toast = useToast()
   const list = useAsync(() => api<Addr[]>('/customers/addresses/'), [])
   const [edit, setEdit] = useState<Addr | 'new' | null>(null)
-  const del = async (a: Addr) => { if (!confirm('Delete this address?')) return; try { await api(`/customers/addresses/${a.id}/`, { method: 'DELETE' }); list.reload() } catch (e) { toast(msg(e)) } }
+  const del = async (a: Addr) => { if (!(await confirm({ title: 'Delete this address?', confirmLabel: 'Delete', danger: true }))) return; try { await api(`/customers/addresses/${a.id}/`, { method: 'DELETE' }); list.reload() } catch (e) { toast(msg(e)) } }
   const makeDefault = async (a: Addr) => { try { await api(`/customers/addresses/${a.id}/`, { method: 'PATCH', body: { is_default: true } }); list.reload() } catch (e) { toast(msg(e)) } }
   return (
     <>

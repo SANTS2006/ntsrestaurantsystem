@@ -119,6 +119,10 @@ def _validate_when(tenant, branch, start, party, *, staff=False):
         _fail("The restaurant is not open for a full sitting at that time.", "starts_at")
 
 
+def local_when(r, tenant):
+    return r.starts_at.astimezone(tz_of(tenant)).strftime("%a %d %b, %H:%M")
+
+
 @transaction.atomic
 def create_reservation(tenant, branch, d, *, source="public", user=None, table_id=None):
     st = tenant.get_settings()
@@ -146,6 +150,9 @@ def create_reservation(tenant, branch, d, *, source="public", user=None, table_i
         queue_email("reservation_confirmed", r.customer_email, {"name": r.customer_name, "party": f"{party} guest{'s' if party != 1 else ''}", "when": local.strftime("%A %d %B, %H:%M"),
                                                                    "reference": r.reference, "url": f"{tenant.public_url}/reservation/{raw}"}, restaurant=tenant, dedupe_key=f"reservation:{r.pk}:created")
     r.raw_token = raw  # handed to the caller once; never stored
+    from apps.notifications import inapp
+
+    inapp.notify_staff(tenant, branch.pk, inapp.FRONT_OF_HOUSE, "reservation", f"New reservation {r.reference}", f"{r.customer_name} · {party} guest{'s' if party != 1 else ''} · {local_when(r, tenant)}", "/manage/floor")
     return r
 
 

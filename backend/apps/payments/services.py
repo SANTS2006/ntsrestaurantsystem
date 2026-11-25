@@ -69,6 +69,9 @@ def issue_receipt(payment):
             "amount": f"{order.currency} {payment.amount}", "method": payment.get_method_display(),
             "url": f"{payment.restaurant.public_url}/account/orders/{order.pk}"},
             restaurant=payment.restaurant, dedupe_key=f"receipt:{receipt.pk}")  # a replayed webhook never re-sends it
+    from apps.notifications import inapp
+
+    inapp.payment_received(order, payment.amount)
     return receipt
 
 

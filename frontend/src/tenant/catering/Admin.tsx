@@ -3,6 +3,7 @@ import { ApiError, api, type Page } from '../../lib/api'
 import { useAuth } from '../../lib/auth'
 import { Empty, ErrorState, Field, Modal, Skeleton, Spinner, useAsync, useDocumentTitle, useToast } from '../../ui/kit'
 import { useSite } from '../SiteContext'
+import { useConfirm, usePrompt } from '../../ui/dialogs'
 
 type Row = { id: number; reference: string; status: string; status_label: string; customer_name: string; event_type_label: string; event_date: string; guests: number; branch: { id: number; name: string } | null; assigned_to: string | null; created_at: string }
 type Quote = { id: number; version: number; status: string; items: { description: string; quantity: string; unit_price: string; line_total: string }[]; subtotal: string; discount: string; tax_total: string; total: string; valid_until: string; terms: string; sent_at: string | null; accepted_via: string; response_note: string }
@@ -51,6 +52,7 @@ export default function CateringAdmin() {
 }
 
 function DetailModal({ id, onClose, onChanged }: { id: number; onClose: () => void; onChanged: () => void }) {
+  const prompt = usePrompt()
   const { money } = useSite()
   const { me } = useAuth()
   const toast = useToast()
@@ -68,9 +70,9 @@ function DetailModal({ id, onClose, onChanged }: { id: number; onClose: () => vo
     try { await fn(); toast(ok); d.reload(); onChanged() } catch (e) { toast(msg(e)) } finally { setBusy(false) }
   }
   const post = (path: string, body: unknown = {}, headers?: Record<string, string>) => api(`/catering/requests/${id}/${path}/`, { body, headers })
-  function move(to: string, label: string) {
+  async function move(to: string, label: string) {
     let reason = ''
-    if (to === 'rejected' || to === 'cancelled') { reason = (prompt(`Reason for marking this ${label.toLowerCase()} (the customer will see it):`) ?? '').trim(); if (!reason) return }
+    if (to === 'rejected' || to === 'cancelled') { reason = (await prompt({ title: `Mark this ${label.toLowerCase()}`, message: 'The customer will see the reason.', label: 'Reason', required: true, multiline: true, danger: true, confirmLabel: 'Continue' })) ?? ''; if (!reason) return }
     void run(() => post('status', { status: to, note: reason }), `Marked ${label.toLowerCase()}.`)
   }
   if (!r) return <Modal title="Catering request" onClose={onClose}>{d.error ? <ErrorState message={d.error} /> : <Skeleton h={200} />}</Modal>
@@ -120,6 +122,8 @@ function DetailModal({ id, onClose, onChanged }: { id: number; onClose: () => vo
 }
 
 function Quotations({ r, busy, run, post }: { r: Detail; busy: boolean; run: (fn: () => Promise<unknown>, ok: string) => Promise<void>; post: (path: string, body?: unknown) => Promise<unknown> }) {
+  const prompt = usePrompt()
+  const confirm = useConfirm()
   const { money } = useSite()
   const [building, setBuilding] = useState(false)
   const [items, setItems] = useState([{ description: '', quantity: '1', unit_price: '' }])
@@ -146,8 +150,8 @@ function Quotations({ r, busy, run, post }: { r: Detail; busy: boolean; run: (fn
           {q.response_note && <div className="muted">“{q.response_note}”</div>}
           <div className="muted" style={{ fontSize: '.9rem' }}>{q.items.map((i) => `${i.quantity} × ${i.description}`).join(' · ')}</div>
           <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-            {q.status === 'draft' && <button className="btn sm" disabled={busy} onClick={() => confirm('Email this quotation to the customer?') && run(() => post(`quotations/${q.id}/send`), 'Quotation emailed.')}>Send to customer</button>}
-            {q.status === 'sent' && <button className="btn sm secondary" disabled={busy} onClick={() => { const n = (prompt('How and when did the customer accept? (required)') ?? '').trim(); if (n) void run(() => post(`quotations/${q.id}/accept`, { note: n }), 'Acceptance recorded.') }}>Record acceptance</button>}
+            {q.status === 'draft' && <button className="btn sm" disabled={busy} onClick={async () => (await confirm({ title: 'Email this quotation?', message: 'The customer will receive it now.', confirmLabel: 'Send' })) && run(() => post(`quotations/${q.id}/send`), 'Quotation emailed.')}>Send to customer</button>}
+            {q.status === 'sent' && <button className="btn sm secondary" disabled={busy} onClick={async () => { const n = (await prompt({ title: 'Record acceptance', label: 'How and when did the customer accept?', required: true, multiline: true })) ?? ''; if (n) void run(() => post(`quotations/${q.id}/accept`, { note: n }), 'Acceptance recorded.') }}>Record acceptance</button>}
           </div>
         </div>))}
       {canQuote && !building && <button className="btn sm secondary" onClick={() => setBuilding(true)}>New quotation</button>}

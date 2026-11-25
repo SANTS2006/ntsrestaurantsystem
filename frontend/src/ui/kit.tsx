@@ -1,11 +1,13 @@
 import { Component, createContext, useCallback, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { tokenStore } from '../lib/api'
+import { registerRefresh } from '../lib/refresh'
 
-export function Spinner() {
-  return <span className="spinner" role="status" aria-label="Loading" />
-}
+import { Spinner as BrandSpin } from './Loaders'
+export { LoadingBlock, PageLoader, Spinner } from './Loaders'
 
 export function Skeleton({ h = 18, w = '100%' }: { h?: number; w?: string }) {
-  return <div className="skeleton" style={{ height: h, width: w }} aria-hidden />
+  // Larger placeholders (tables, cards, pages) show the branded loader on top of the shimmer.
+  return <div className="skeleton" style={{ height: h, width: w, display: 'grid', placeItems: 'center', color: 'var(--brand)' }} aria-hidden>{h >= 80 && <BrandSpin />}</div>
 }
 
 export function Empty({ title, children }: { title: string; children?: ReactNode }) {
@@ -125,16 +127,23 @@ export function useDocumentTitle(title: string, description?: string) {
   }, [title, description])
 }
 
-/** Small async-data hook with loading / error / reload. */
+const LIVE_POLL_MS = 30000
+
+/** Async-data hook with loading / error / reload. Signed-in screens also refresh themselves quietly (every 30 s while the tab is
+ *  visible, when it regains focus, and whenever something is pushed or the refresh button is pressed): no flicker, and the data object
+ *  keeps its identity when nothing changed, so a form being edited is not reset. */
 export function useAsync<T>(fn: () => Promise<T>, deps: unknown[]) {
   const [state, setState] = useState<{ data: T | null; error: string | null; loading: boolean }>({ data: null, error: null, loading: true })
   const [tick, setTick] = useState(0)
+  const quiet = useRef(false)
   useEffect(() => {
     let live = true
-    setState((s) => ({ ...s, loading: true, error: null }))
+    const silent = quiet.current
+    quiet.current = false
+    if (!silent) setState((s) => ({ ...s, loading: true, error: null }))
     fn().then(
-      (data) => live && setState({ data, error: null, loading: false }),
-      (e: Error) => live && setState({ data: null, error: e.message, loading: false }),
+      (data) => live && setState((s) => (silent && s.data !== null && JSON.stringify(s.data) === JSON.stringify(data) ? s : { data, error: null, loading: false })),
+      (e: Error) => live && setState((s) => (silent && s.data !== null ? s : { data: null, error: e.message, loading: false })),
     )
     return () => {
       live = false
@@ -142,6 +151,14 @@ export function useAsync<T>(fn: () => Promise<T>, deps: unknown[]) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [...deps, tick])
   const reload = useCallback(() => setTick((t) => t + 1), []) // stable identity: safe to use in effect dependencies
+  const refresh = useCallback(() => { quiet.current = true; setTick((t) => t + 1) }, [])
+  useEffect(() => registerRefresh(refresh), [refresh])
+  useEffect(() => {
+    const t = setInterval(() => { if (document.visibilityState === 'visible' && tokenStore.get()) refresh() }, LIVE_POLL_MS)
+    const vis = () => document.visibilityState === 'visible' && tokenStore.get() && refresh()
+    document.addEventListener('visibilitychange', vis)
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', vis) }
+  }, [refresh])
   return { ...state, reload }
 }
 

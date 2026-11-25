@@ -4,6 +4,7 @@ import { ApiError, api, type Page } from '../../lib/api'
 import { useAuth } from '../../lib/auth'
 import { Empty, ErrorState, Field, Modal, PageHeader, Pager, Skeleton, useAsync, useDocumentTitle, useToast } from '../../ui/kit'
 import { useSite } from '../SiteContext'
+import { usePrompt } from '../../ui/dialogs'
 
 type Table = { id: number; label: string; seats: number | null; shape: string; x: number; y: number; state: 'free' | 'reserved' | 'occupied'; occupied_by: { reference?: string; party?: number; name?: string; order?: string } | null; next_reservation: { id: number; reference: string; name: string; party: number; at: string; status: string } | null }
 type Board = { branch: string; branch_id: number; counts: Record<string, number>; zones: { zone_id: number | null; zone: string; tables: Table[] }[] }
@@ -67,6 +68,7 @@ function BoardTab({ branch }: { branch: string }) {
 }
 
 function ListTab({ branch }: { branch: string }) {
+  const prompt = usePrompt()
   const toast = useToast()
   const [day, setDay] = useState(iso(new Date()))
   const [status, setStatus] = useState('')
@@ -76,7 +78,7 @@ function ListTab({ branch }: { branch: string }) {
   async function act(r: Res, a: string, reason = '') {
     try { await api(`/floor/reservations/${r.id}/${a}/`, { body: { reason } }); toast(`${r.reference}: ${a.replace('-', ' ')}`); list.reload() } catch (e) { toast(msg(e)) }
   }
-  function cancel(r: Res) { const reason = (prompt('Reason for cancelling (the guest is emailed):') ?? '').trim(); if (reason) void act(r, 'cancel', reason) }
+  async function cancel(r: Res) { const reason = (await prompt({ title: `Cancel ${r.reference}?`, message: 'The guest is emailed the reason.', label: 'Reason', required: true, danger: true, confirmLabel: 'Cancel reservation' })) ?? ''; if (reason) void act(r, 'cancel', reason) }
   return (
     <>
       <div className="toolbar">

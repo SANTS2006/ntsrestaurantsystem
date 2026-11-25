@@ -125,7 +125,7 @@ class AdminResetView(APIView):
             return err("not_found", "No such user.", 404)
         if target.is_platform_admin:
             return err("forbidden", "Platform administrators are reset by an operator.", 403)
-        if not Membership.objects.filter(user=target, role__in=[Role.RESTAURANT_ADMIN, Role.MANAGER, Role.CASHIER, Role.KITCHEN, Role.WAITER, Role.DELIVERY]).exists():
+        if not Membership.objects.filter(user=target, role__in=[Role.RESTAURANT_ADMIN, Role.MANAGER, Role.CASHIER, Role.KITCHEN, Role.WAITER, Role.WAITRESS, Role.DELIVERY]).exists():
             return err("not_found", "No such staff user.", 404)
         mfa.disable(target)
         audit("auth.mfa_reset_by_admin", actor=request.user, metadata={"user": target.pk}, request=request)

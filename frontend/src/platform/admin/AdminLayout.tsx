@@ -1,7 +1,7 @@
 import { Activity, BarChart3, CreditCard, LayoutDashboard, ScrollText, Settings, ShieldCheck, Store } from 'lucide-react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../../lib/auth'
-import { Spinner } from '../../ui/kit'
+import { PageLoader } from '../../ui/kit'
 import { MfaSettings } from '../../ui/Mfa'
 import Shell, { type NavGroup } from '../../ui/Shell'
 
@@ -16,10 +16,10 @@ const groups: NavGroup[] = [
 ]
 
 export default function AdminLayout() {
-  const { me, loading, logout } = useAuth()
-  if (loading) return <div className="login-wrap"><Spinner /></div>
+  const { me, loading, signOut } = useAuth()
+  if (loading) return <PageLoader />
   // UI gate only; every admin endpoint independently enforces platform-admin access on the server.
   if (me?.role !== 'platform_admin') return <Navigate to="/login" replace />
   const gated = me.mfa?.enforced && me.mfa.required && !me.mfa.enabled
-  return <Shell brand="Platform" tagline="Administration" logo="/logo-64.png" groups={groups} user={{ name: me.full_name || me.email, role: 'Platform admin' }} onLogout={logout}>{gated ? <MfaSettings forced /> : undefined}</Shell>
+  return <Shell brand="Platform" tagline="Administration" logo="/logo-64.png" groups={groups} user={{ name: me.full_name || me.email, role: 'Platform admin', avatar: me.avatar }} onLogout={() => void signOut()} profilePath="/admin/profile">{gated ? <MfaSettings forced /> : undefined}</Shell>
 }

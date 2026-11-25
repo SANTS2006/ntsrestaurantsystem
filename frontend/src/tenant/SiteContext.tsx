@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react'
 import { api } from '../lib/api'
-import { ErrorState, Skeleton, useAsync } from '../ui/kit'
+import { API_URL } from '../lib/config'
+import { ErrorState, PageLoader, useAsync } from '../ui/kit'
+import { setBrand } from '../ui/Loaders'
 
 export type Variation = { id: number; kind: string; name: string; price_delta: string; is_default: boolean }
 export type Addon = { id: number; name: string; price: string; max_quantity: number }
@@ -44,10 +46,12 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     const r = document.documentElement.style
     r.setProperty('--brand', data.restaurant.primary_color)
     r.setProperty('--brand-2', data.restaurant.secondary_color)
-    return () => { r.removeProperty('--brand'); r.removeProperty('--brand-2') }
+    const logo = data.restaurant.logo ? (data.restaurant.logo.startsWith('http') ? data.restaurant.logo : `${API_URL}${data.restaurant.logo}`) : null
+    setBrand({ logo, name: data.restaurant.name })
+    return () => { r.removeProperty('--brand'); r.removeProperty('--brand-2'); setBrand(null) }
   }, [data])
   const value = useMemo(() => (data ? { site: data, money: (v: string | number) => formatMoney(v, data.currency) } : null), [data])
-  if (loading) return <div className="container section"><Skeleton h={48} /><div style={{ height: 16 }} /><Skeleton h={200} /></div>
+  if (loading) return <PageLoader />
   if (error || !value) return <div className="container section"><ErrorState message={error ?? 'Restaurant not found.'} onRetry={reload} /></div>
   return <SiteCtx.Provider value={value}>{children}</SiteCtx.Provider>
 }

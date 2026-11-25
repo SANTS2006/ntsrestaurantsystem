@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { ApiError, api } from '../lib/api'
 import { Empty, ErrorState, Field, Skeleton, Spinner, useAsync, useDocumentTitle } from '../ui/kit'
 import { useSite } from './SiteContext'
+import { useConfirm } from '../ui/dialogs'
 
 type Options = { enabled: boolean; max_party: number; duration_minutes: number; auto_confirm: boolean; branches: { id: number; name: string }[] }
 type Booked = { reference: string; status: string; branch: string; local_date: string; local_time: string; party_size: number; table: string | null; manage_token?: string; cancel_reason?: string }
@@ -84,12 +85,13 @@ export function ReservePage() {
 }
 
 export function ReservationManage() {
+  const confirm = useConfirm()
   const { token } = useParams()
   useDocumentTitle('Your reservation')
   const d = useAsync(() => api<Booked>(`/floor/public/reservations/${token}/`, { auth: false }), [token])
   const [err, setErr] = useState('')
   async function cancel() {
-    if (!confirm('Cancel this reservation?')) return
+    if (!(await confirm({ title: 'Cancel this reservation?', confirmLabel: 'Cancel reservation', cancelLabel: 'Keep it', danger: true }))) return
     try { await api(`/floor/public/reservations/${token}/`, { auth: false, body: {} }); d.reload() } catch (x) { setErr(msg(x)) }
   }
   if (d.loading) return <div className="container section"><Skeleton h={160} /></div>

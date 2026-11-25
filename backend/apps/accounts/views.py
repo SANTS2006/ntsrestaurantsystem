@@ -93,7 +93,8 @@ class MeView(APIView):
     def get(self, request):
         u = request.user
         return Response({"success": True, "data": {
-            "id": u.pk, "email": u.email, "full_name": u.full_name,
+            "id": u.pk, "email": u.email, "full_name": u.full_name, "phone": u.phone,
+            "avatar": request.build_absolute_uri(u.avatar.url) if u.avatar else None,
             "role": effective_role(request),  # derived server-side for display only
             "branch_ids": sorted(accessible_branch_ids(request)),
             "must_change_password": u.must_change_password,

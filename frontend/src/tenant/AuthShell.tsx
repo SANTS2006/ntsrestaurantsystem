@@ -1,4 +1,3 @@
-import { CalendarCheck, ShieldCheck, UtensilsCrossed } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { API_URL } from '../lib/config'
@@ -17,11 +16,6 @@ export function Shell({ title, subtitle, children, footer }: { title: string; su
       brand={r.name}
       logo={logo}
       tagline={r.description || `Welcome to ${r.name}`}
-      points={[
-        { icon: UtensilsCrossed, text: 'Order your favourites for pickup or delivery' },
-        { icon: CalendarCheck, text: 'Track orders and reserve a table' },
-        { icon: ShieldCheck, text: 'Your details are kept private and secure' },
-      ]}
       title={title}
       subtitle={subtitle}
       back={<Link to="/">&larr; Back to {r.name}</Link>}

@@ -12,7 +12,8 @@ class Role(models.TextChoices):
     MANAGER = "manager", "Branch Manager"
     CASHIER = "cashier", "Cashier"
     KITCHEN = "kitchen", "Kitchen Staff"
-    WAITER = "waiter", "Waiter/Waitress"
+    WAITER = "waiter", "Waiter"
+    WAITRESS = "waitress", "Waitress"
     DELIVERY = "delivery", "Delivery Staff"
     CUSTOMER = "customer", "Customer"
 
@@ -24,11 +25,12 @@ ROLE_LEVEL = {
     Role.CASHIER: 4,
     Role.KITCHEN: 5,
     Role.WAITER: 5,
+    Role.WAITRESS: 5,
     Role.DELIVERY: 5,
     Role.CUSTOMER: 6,
 }
 STAFF_ROLES = [r for r in Role.values if r not in (Role.PLATFORM_ADMIN, Role.CUSTOMER)]
-BRANCH_SCOPED_ROLES = {Role.MANAGER, Role.CASHIER, Role.KITCHEN, Role.WAITER, Role.DELIVERY}
+BRANCH_SCOPED_ROLES = {Role.MANAGER, Role.CASHIER, Role.KITCHEN, Role.WAITER, Role.WAITRESS, Role.DELIVERY}
 
 
 class UserManager(BaseUserManager):

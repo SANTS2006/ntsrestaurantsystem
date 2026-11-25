@@ -18,7 +18,7 @@ from apps.core.models import AuditLog, audit
 from apps.tenants.models import Branch
 
 from . import services
-from .models import ROLE_LEVEL, Membership, Role
+from .models import ROLE_LEVEL, Membership, Role, User
 from .permissions import IsManagerOrAbove, accessible_branch_ids, can_assign_role, effective_role
 
 
@@ -31,6 +31,7 @@ def member_json(m):
 
 class StaffUpdateSerializer(serializers.Serializer):
     full_name = serializers.CharField(max_length=150, required=False)
+    email = serializers.EmailField(required=False)
     phone = serializers.RegexField(r"^[0-9+()\-\s]{6,30}$", required=False, allow_blank=True)
     role = serializers.ChoiceField(choices=[r for r in Role.values if r not in (Role.PLATFORM_ADMIN, Role.CUSTOMER)], required=False)
     branch_ids = serializers.ListField(child=serializers.IntegerField(), required=False)
@@ -88,6 +89,36 @@ class StaffViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.Ge
             raise serializers.ValidationError({"detail": problem})
         return m
 
+    # ---- correct a mistyped e-mail address --------------------------------------------------------
+    def _change_email(self, request, m, new, changes):
+        """Fix a wrong address. Only for people who work for this restaurant alone. Their sessions end, they must prove they own the
+        new mailbox (an invitation link if they never set a password, otherwise a verification code)."""
+        from apps.accounts import codes
+        from apps.notifications.services import queue_email
+
+        user = m.user
+        if user.is_platform_admin:
+            raise serializers.ValidationError({"email": "Platform administrators change their own address."})
+        if Membership.objects.filter(user=user).exclude(restaurant=request.tenant).exists():
+            raise serializers.ValidationError({"email": "This person also works elsewhere; only they can change their email."})
+        if User.objects.filter(email__iexact=new).exclude(pk=user.pk).exists():
+            raise serializers.ValidationError({"email": "Another account already uses this email."})
+        old, pending = user.email, not user.email_verified
+        user.email = new
+        user.email_verified = False
+        user.token_version += 1  # signs them out everywhere
+        user.save(update_fields=["email", "email_verified", "token_version"])
+        if pending:  # never accepted the invitation: send it again, to the right address
+            raw = services.issue_setup_token(user, request.tenant)
+            queue_email("staff_invitation", new, {"name": user.full_name, "email": new, "role_label": Role(m.role).label,
+                        "setup_url": services.setup_url(request.tenant, raw), "login_url": services.login_url(request.tenant)}, restaurant=request.tenant)
+        else:
+            code = codes.issue_code(user, "verify_email", request.tenant)
+            if code:
+                queue_email("verify_email", new, {"name": user.full_name, "code": code}, restaurant=request.tenant)
+            queue_email("email_changed", old, {"name": user.full_name, "new_email": new}, restaurant=request.tenant)
+        changes["email"] = [old, new]
+
     # ---- edit ----------------------------------------------------------------------------------
     @transaction.atomic
     def partial_update(self, request, pk=None):
@@ -121,6 +152,8 @@ class StaffViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.Ge
             m.branches.set(branches)
             if new_role != Role.MANAGER:  # a branch manager that is no longer a manager stops being "the" manager
                 Branch.unscoped.filter(restaurant=request.tenant, manager=m.user).update(manager=None)
+        if "email" in d and d["email"].lower() != m.user.email:
+            self._change_email(request, m, d["email"].lower(), changes)
         user_fields = {k: d[k] for k in ("full_name", "phone") if k in d}
         if user_fields:
             if Membership.objects.filter(user=m.user).exclude(restaurant=request.tenant).exists():

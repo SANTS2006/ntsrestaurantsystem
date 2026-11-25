@@ -59,6 +59,9 @@ def submit_request(request, token, data):
     notify_branch(tenant.pk, table.branch_id, {"type": "qr.request.created", "id": req.pk, "table": table.label, "branch_id": table.branch_id,
                                                  "branch": table.branch.name, "lines": len(summary["lines"]), "total": summary["total"],
                                                  "currency": summary["currency"], "created_at": req.created_at.isoformat()})
+    from apps.notifications import inapp
+
+    inapp.notify_staff(tenant, table.branch_id, inapp.FRONT_OF_HOUSE, "request", f"Table {table.label} sent an order request", f"{summary['currency']} {summary['total']}", "/manage/tables")
     return req
 
 
