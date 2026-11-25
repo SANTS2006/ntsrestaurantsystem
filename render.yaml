@@ -11,7 +11,7 @@ services:
     buildCommand: bash render-build.sh
     startCommand: cd backend && python manage.py migrate --noinput && daphne --proxy-headers -b 0.0.0.0 -p $PORT config.asgi:application
     healthCheckPath: /healthz
-    autoDeploy: false
+    autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
         value: 3.13.5
