@@ -16,6 +16,14 @@ function stored(): ThemeChoice {
   }
 }
 
+// Applied when the file loads, before React renders anything, so the page never flashes the wrong theme.
+if (typeof document !== 'undefined') {
+  const c = stored()
+  const r = c === 'system' ? (systemDark() ? 'dark' : 'light') : c
+  document.documentElement.dataset.theme = r
+  document.documentElement.style.colorScheme = r
+}
+
 /** Light / dark mode for the whole app. "system" follows the device; an explicit choice is remembered on this device. */
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [choice, setChoiceState] = useState<ThemeChoice>(stored)

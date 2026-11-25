@@ -76,3 +76,35 @@ body { transition: background-color .2s, color .2s; }
 .theme-seg { display: inline-flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--bg-soft); border: 1px solid var(--border); }
 .theme-seg button { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; color: var(--muted); padding: 8px 14px; border-radius: 9px; font: inherit; font-weight: 600; cursor: pointer; }
 .theme-seg button[aria-pressed='true'] { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+
+
+/* ---- Light mode applies to every section: sidebar, footer, toasts and overlays are light too ---- */
+:root[data-theme='light'] .toast { background: var(--surface); color: var(--text); border: 1px solid var(--border-strong); border-left: 4px solid var(--brand); }
+:root[data-theme='light'] .shell .side { background: var(--surface); color: var(--text); border-right: 1px solid var(--border); }
+:root[data-theme='light'] .shell .side .brand { border-bottom-color: var(--border); }
+:root[data-theme='light'] .shell .side .mark { background: var(--bg-soft); border: 1px solid var(--border); }
+:root[data-theme='light'] .shell .side .brand b { color: var(--text); } :root[data-theme='light'] .shell .side .brand small { color: var(--muted); }
+:root[data-theme='light'] .shell .side .group > span { color: var(--muted); }
+:root[data-theme='light'] .shell .side a { color: var(--text); }
+:root[data-theme='light'] .shell .side a:hover { background: var(--bg-soft); color: var(--brand); }
+:root[data-theme='light'] .shell .side a.active { background: color-mix(in srgb, var(--brand) 11%, var(--surface)); color: var(--link); }
+:root[data-theme='light'] .shell .side a svg { color: var(--muted); } :root[data-theme='light'] .shell .side a.active svg { color: var(--brand); }
+:root[data-theme='light'] .shell .side a.active::before { background: var(--brand); }
+:root[data-theme='light'] .shell .side a .count { background: var(--brand); color: #fff; }
+:root[data-theme='light'] .shell .side footer { border-top-color: var(--border); }
+:root[data-theme='light'] .shell .side footer .btn { background: var(--bg-soft); color: var(--text); border-color: var(--border-strong); }
+:root[data-theme='light'] .shell .side footer .btn:hover { background: var(--border); }
+:root[data-theme='light'] .shell .side .me { background: var(--bg-soft); color: var(--text); border-color: var(--border); }
+:root[data-theme='light'] .shell .side .me:hover { background: var(--border); }
+:root[data-theme='light'] .shell .side .me b { color: var(--text); } :root[data-theme='light'] .shell .side .me small { color: var(--muted); }
+:root[data-theme='light'] .shell .side .me .avatar { background: var(--gold-soft); color: var(--accent); border-color: var(--border-strong); }
+:root[data-theme='light'] .modal-back, :root[data-theme='light'] .drawer-back, :root[data-theme='light'] .shell.open .scrim { background: rgb(10 22 40 / 45%); }
+:root[data-theme='light'] .logout-overlay { background: color-mix(in srgb, var(--bg) 96%, transparent); }
+:root[data-theme='light'] .badge { color: var(--text); }
+:root[data-theme='light'] .tbl th { color: var(--text); background: var(--bg-soft); }
+:root[data-theme='light'] .hint, :root[data-theme='light'] .muted { color: var(--muted); }
+.eyebrow { color: var(--accent); }
+.avatar { color: var(--accent); }
+
+/* ---- Navbar actions on the restaurant site ---- */
+.nav .actions .btn { white-space: nowrap; }

@@ -71,25 +71,39 @@ function PublicLayout() {
           <nav className={`links ${open ? 'open' : ''}`} aria-label="Main">
             {links.map(([to, l]) => <NavLink key={to} to={to} end={to === '/'} onClick={() => setOpen(false)}>{l}</NavLink>)}
           </nav>
-          <div style={{ flex: 1 }} />
-          <Link to="/cart" className="btn sm secondary" aria-label={`Cart, ${cart.count} items`}><ShoppingCart size={18} aria-hidden /> {cart.count}</Link>
-          <ThemeToggle />
-          {me && <NotificationBell />}
-          {me ? <Link to={me.role === 'customer' ? '/account' : '/manage'} className="btn sm secondary">{me.avatar ? <Avatar name={me.full_name || me.email} src={me.avatar} /> : <User size={18} aria-hidden />} Account</Link>
-            : <><Link to="/login" className="btn sm secondary">Log in</Link><Link to="/register" className="btn sm">Sign up</Link></>}
-          <button className="menu-btn" onClick={() => setOpen(!open)} aria-label="Toggle menu" aria-expanded={open}>{open ? <X /> : <MenuIcon />}</button>
+          <div className="secret" aria-hidden="true" />
+          <div className="actions">
+            <ThemeToggle />
+            {me && <NotificationBell />}
+            <Link to="/cart" className="btn sm secondary" aria-label={`Cart, ${cart.count} items`}><ShoppingCart size={18} aria-hidden /> {cart.count}</Link>
+            {me ? <Link to={me.role === 'customer' ? '/account' : '/manage'} className="btn sm secondary">{me.avatar ? <Avatar name={me.full_name || me.email} src={me.avatar} /> : <User size={18} aria-hidden />} <span className="hide-sm">Account</span></Link>
+              : <><Link to="/login" className="btn sm secondary">Log in</Link><Link to="/register" className="btn sm hide-sm">Sign up</Link></>}
+            <button className="menu-btn" onClick={() => setOpen(!open)} aria-label="Toggle menu" aria-expanded={open}>{open ? <X /> : <MenuIcon />}</button>
+          </div>
         </div>
       </header>
       <main><Outlet /></main>
-      <footer className="footer"><div className="container">
-        <div className="cols">
-          <div><h4>{r.name}</h4><p>{r.description}</p></div>
-          <div><h4>Explore</h4><ul>{links.map(([to, l]) => <li key={to}><Link to={to}>{l}</Link></li>)}<li><Link to="/faq">FAQ</Link></li></ul></div>
-          <div><h4>Policies</h4><ul>{site.policies.map((p) => <li key={p.slug}><Link to={`/policies/${p.slug}`}>{p.title}</Link></li>)}</ul></div>
-          <div><h4>Contact</h4><p>{r.contact_phone}<br />{r.contact_email}</p></div>
+      <footer className="footer">
+        <div className="container">
+          <div className="foot-grid">
+            <div className="foot-brand">
+              <Link to="/" className="logo">{logo && <img src={logo} alt="" width={36} height={36} />}{r.name}</Link>
+              <p>{r.description}</p>
+            </div>
+            <div><h4>Explore</h4><ul>{links.map(([to, l]) => <li key={to}><Link to={to}>{l}</Link></li>)}<li><Link to="/faq">FAQ</Link></li></ul></div>
+            <div><h4>Policies</h4><ul>{site.policies.map((p) => <li key={p.slug}><Link to={`/policies/${p.slug}`}>{p.title}</Link></li>)}</ul></div>
+            <div><h4>Contact</h4><div className="foot-contact">
+              {r.contact_phone && <a href={`tel:${r.contact_phone}`}>{r.contact_phone}</a>}
+              {r.contact_email && <a href={`mailto:${r.contact_email}`}>{r.contact_email}</a>}
+              {(r.address || r.city) && <span>{[r.address, r.city].filter(Boolean).join(', ')}</span>}
+            </div></div>
+          </div>
+          <div className="foot-bottom">
+            <span>&copy; {new Date().getFullYear()} {r.name}. All rights reserved.</span>
+            <nav aria-label="Staff"><Link to="/login">Staff sign in</Link></nav>
+          </div>
         </div>
-        <p style={{ marginTop: 24, fontSize: '.85rem' }}>© {new Date().getFullYear()} {r.name}. <Link to="/login">Staff sign in</Link></p>
-      </div></footer>
+      </footer>
     </>
   )
 }

@@ -48,22 +48,31 @@ export default function SiteLayout() {
           </nav>
           {/* Intentionally empty, unlabelled area: five quick clicks open the sign-in page. */}
           <div className="secret" onClick={onSecret} aria-hidden="true" data-testid="secret-area" />
-          <ThemeToggle />
-          <button className="menu-btn" onClick={() => setOpen(!open)} aria-label="Toggle menu" aria-expanded={open}>
-            {open ? <X /> : <Menu />}
-          </button>
+          <div className="actions">
+            <ThemeToggle />
+            <Link to="/contact" className="btn sm hide-sm">Contact us</Link>
+            <button className="menu-btn" onClick={() => setOpen(!open)} aria-label="Toggle menu" aria-expanded={open}>
+              {open ? <X /> : <Menu />}
+            </button>
+          </div>
         </div>
       </header>
       <main><Outlet /></main>
       <footer className="footer">
         <div className="container">
-          <div className="cols">
-            <div><h4>{name}</h4><p>Run every restaurant, branch and till from one secure platform.</p></div>
+          <div className="foot-grid">
+            <div className="foot-brand">
+              <Link to="/" className="logo"><img src="/logo-64.png" alt="" width={36} height={36} /> {name}</Link>
+              <p>Run every restaurant, branch and till from one secure platform: orders, payments, kitchen, stock, staff and reports.</p>
+            </div>
             <div><h4>Product</h4><ul>{links.map(([to, l]) => <li key={to}><Link to={to}>{l}</Link></li>)}</ul></div>
-            <div><h4>Legal</h4><ul>{legal.map(([slug, l]) => <li key={slug}><Link to={`/legal/${slug}`}>{l}</Link></li>)}</ul></div>
-            <div><h4>Contact</h4>{s?.support_email ? <a href={`mailto:${s.support_email}`}>{s.support_email}</a> : <p>See our contact page.</p>}</div>
+            <div><h4>Legal</h4><ul>{legal.slice(0, 4).map(([slug, l]) => <li key={slug}><Link to={`/legal/${slug}`}>{l}</Link></li>)}</ul></div>
+            <div><h4>Contact</h4><div className="foot-contact">{s?.support_email ? <a href={`mailto:${s.support_email}`}>{s.support_email}</a> : <span>See our contact page.</span>}{s?.whatsapp_number && <a href={`https://wa.me/${s.whatsapp_number}`} target="_blank" rel="noopener noreferrer">WhatsApp us</a>}</div></div>
           </div>
-          <p style={{ marginTop: 28, fontSize: '.85rem' }}>© {new Date().getFullYear()} {name}. All rights reserved.</p>
+          <div className="foot-bottom">
+            <span>&copy; {new Date().getFullYear()} {name}. All rights reserved.</span>
+            <nav aria-label="Legal">{legal.slice(4).map(([slug, l]) => <Link key={slug} to={`/legal/${slug}`}>{l}</Link>)}</nav>
+          </div>
         </div>
       </footer>
       {s?.whatsapp_number && (
