@@ -5,7 +5,7 @@
 
 services:
   - type: web
-    name: nts-restaurant-platform
+    name: ntsrestaurant
     runtime: python
     plan: free
     buildCommand: bash render-build.sh
@@ -37,15 +37,19 @@ services:
         value: monime
       - key: BREVO_SENDER_NAME
         value: NTS Restaurant Platform
+      - key: PLATFORM_DOMAIN
+        value: ntsrestaurant.onrender.com
+      - key: PLATFORM_HOSTS
+        value: ntsrestaurant.onrender.com
+      - key: ALLOWED_HOSTS
+        value: ntsrestaurant.onrender.com
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://ntsrestaurant.onrender.com
+      - key: CSRF_TRUSTED_ORIGINS
+        value: https://ntsrestaurant.onrender.com
       - key: DB_CONN_MAX_AGE
         value: "60"
       # --- entered in the dashboard (same values as your local backend/.env) ---
-      - key: PLATFORM_DOMAIN
-        sync: false
-      - key: PLATFORM_HOSTS
-        sync: false
-      - key: ALLOWED_HOSTS
-        sync: false
       - key: DATABASE_URL
         sync: false
       - key: DIRECT_DATABASE_URL
@@ -75,6 +79,4 @@ services:
       - key: R2_BUCKET
         sync: false
       - key: BACKUP_ENCRYPTION_KEY
-        sync: false
-      - key: GOOGLE_OAUTH_CLIENT_ID
         sync: false
