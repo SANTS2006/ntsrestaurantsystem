@@ -16,6 +16,7 @@ from apps.payments.models import Payment, PaymentEvent
 
 from .conftest import client_for, host
 from .test_phase5_orders import clean, shop  # noqa: F401
+from .test_phase13_backups import local  # noqa: F401
 
 
 # ================================ Monime (contract from docs.monime.io, API caph.2025-08-23) ================================
@@ -361,3 +362,48 @@ def test_preflight_flags_a_weak_monime_webhook_secret(settings, db, capsys):
     with pytest.raises(CommandError):
         call_command("preflight")
     assert "webhook secret" in capsys.readouterr().out.lower()
+
+
+# ================================ free-plan operation: no worker, no scheduler process ================================
+def test_cron_endpoint_is_off_without_a_secret_and_needs_the_bearer_secret(world, local, settings):
+    c = APIClient(HTTP_HOST=host())
+    settings.CRON_SECRET = ""
+    assert c.post("/api/v1/system/cron/ping/").status_code == 404  # disabled
+    settings.CRON_SECRET = "c" * 40
+    assert c.post("/api/v1/system/cron/ping/").status_code == 401
+    assert c.post("/api/v1/system/cron/ping/", HTTP_AUTHORIZATION="Bearer wrong").status_code == 401
+    assert c.post("/api/v1/system/cron/ping/", HTTP_AUTHORIZATION="Bearer " + "c" * 40).json()["data"]["ok"] is True
+    assert c.post("/api/v1/system/cron/nonsense/", HTTP_AUTHORIZATION="Bearer " + "c" * 40).status_code == 404
+    assert c.get("/api/v1/system/cron/ping/", HTTP_AUTHORIZATION="Bearer " + "c" * 40).status_code == 405
+
+
+def test_cron_jobs_run_backup_once_prune_verify_and_reconcile(world, local, settings):
+    from apps.backups.models import BackupRecord
+
+    settings.CRON_SECRET = "c" * 40
+    h = {"HTTP_AUTHORIZATION": "Bearer " + "c" * 40}
+    c = APIClient(HTTP_HOST=host())
+    r = c.post("/api/v1/system/cron/backup/", **h)
+    assert r.status_code == 200 and r.json()["data"]["result"] == "succeeded"
+    assert BackupRecord.objects.filter(kind="scheduled", status="succeeded").count() == 1
+    again = c.post("/api/v1/system/cron/backup/", **h).json()["data"]
+    assert "skipped" in again and BackupRecord.objects.count() == 1  # a timer that fires twice does not create a second backup
+    assert c.post("/api/v1/system/cron/verify/", **h).json()["data"]["verified"] is True
+    assert c.post("/api/v1/system/cron/prune/", **h).json()["data"]["removed"] == 0
+    assert c.post("/api/v1/system/cron/reconcile/", **h).json()["data"]["checked"] == 0
+
+
+def test_production_starts_without_redis_only_in_single_instance_mode():
+    import os
+    import subprocess
+    import sys
+
+    base = {**os.environ, "DJANGO_SKIP_DOTENV": "1", "DJANGO_SETTINGS_MODULE": "config.settings.prod", "PLATFORM_DOMAIN": "example.com", "REDIS_URL": "", "EMAIL_PROVIDER": "brevo", "BREVO_API_KEY": "k",
+            "BREVO_SENDER_EMAIL": "a@b.c", "PAYMENT_PROVIDER": "monime", "MONIME_API_KEY": "k", "MONIME_SPACE_ID": "spc-1", "MONIME_WEBHOOK_SECRET": "s" * 40, "DJANGO_SECRET_KEY": "x" * 60,
+            "DATABASE_URL": "sqlite://:memory:", "CLOUDINARY_CLOUD_NAME": "c", "CLOUDINARY_API_KEY": "k", "CLOUDINARY_API_SECRET": "s", "UPLOAD_SCANNER": "builtin", "MFA_ENFORCEMENT": "true"}
+    base.pop("SINGLE_INSTANCE", None)
+    run = lambda env: subprocess.run([sys.executable, "-c", "import django;django.setup();print('started')"], env=env, capture_output=True, text=True)  # noqa: E731
+    refused = run(base)
+    assert refused.returncode != 0 and "SINGLE_INSTANCE" in refused.stderr
+    ok = run({**base, "SINGLE_INSTANCE": "true"})
+    assert ok.returncode == 0 and "started" in ok.stdout, ok.stderr[-400:]

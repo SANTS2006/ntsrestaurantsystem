@@ -304,3 +304,5 @@ if _RENDER_HOST:
     PLATFORM_HOSTS = list(dict.fromkeys([*PLATFORM_HOSTS, _RENDER_HOST]))
     ALLOWED_HOSTS = list(dict.fromkeys([*ALLOWED_HOSTS, _RENDER_HOST]))
     CSRF_TRUSTED_ORIGINS = list(dict.fromkeys([*CSRF_TRUSTED_ORIGINS, f"https://{_RENDER_HOST}"]))
+
+CRON_SECRET = env("CRON_SECRET", "")  # enables /api/v1/system/cron/<job>/ for external schedulers; leave empty to disable

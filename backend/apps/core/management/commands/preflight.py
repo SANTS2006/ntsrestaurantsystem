@@ -3,6 +3,8 @@
 It inspects the ACTIVE configuration and live dependencies and prints PASS / WARN / FAIL for each item.
 Exit code 1 if anything fails. It never prints secret values.
 """
+import os
+
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.db import connection
@@ -47,7 +49,8 @@ class Command(BaseCommand):
             add("WARN", "All migrations applied", "could not check")
 
         redis_url = getattr(s, "REDIS_URL", "")
-        add("PASS" if redis_url else "FAIL", "Redis is configured (cache, rate limits, Celery, WebSockets)")
+        single = bool(os.environ.get("SINGLE_INSTANCE"))
+        add("PASS" if redis_url else ("WARN" if single else "FAIL"), "Redis is configured (cache, rate limits, Celery, WebSockets)", "single-instance mode: in-memory cache and inline tasks, one process only" if not redis_url and single else "")
         if redis_url:
             try:
                 import redis
@@ -56,9 +59,9 @@ class Command(BaseCommand):
                 add("PASS", "Redis answers PING")
             except Exception as e:  # noqa: BLE001
                 add("FAIL", "Redis answers PING", type(e).__name__)
-        add("PASS" if "Redis" in s.CHANNEL_LAYERS["default"]["BACKEND"] else "FAIL", "WebSocket channel layer uses Redis")
-        add("PASS" if not s.CELERY_TASK_ALWAYS_EAGER else "FAIL", "Celery tasks run on a worker (not inline)")
-        add("PASS" if s.CELERY_BEAT_SCHEDULE else "WARN", "Celery beat schedule defined", "also confirm a beat process is running")
+        add("PASS" if "Redis" in s.CHANNEL_LAYERS["default"]["BACKEND"] else ("WARN" if single else "FAIL"), "WebSocket channel layer uses Redis")
+        add("PASS" if not s.CELERY_TASK_ALWAYS_EAGER else ("WARN" if single else "FAIL"), "Celery tasks run on a worker (not inline)")
+        add("PASS" if (s.CELERY_BEAT_SCHEDULE and not single) or getattr(s, "CRON_SECRET", "") else "WARN", "Scheduled jobs are triggered", "Celery beat, or an external scheduler calling /api/v1/system/cron/<job>/ with CRON_SECRET")
 
         add("PASS" if s.EMAIL_PROVIDER == "brevo" and s.BREVO_API_KEY and s.BREVO_SENDER_EMAIL else "FAIL", "Email provider is Brevo and configured")
         add("PASS" if s.PAYMENT_PROVIDER == "monime" and s.MONIME_API_KEY and s.MONIME_SPACE_ID else "FAIL", "Payments use Monime with an API key and Space ID")

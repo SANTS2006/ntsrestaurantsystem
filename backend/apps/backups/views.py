@@ -111,3 +111,41 @@ class BackupRestoreView(APIView):
         if job.status != "succeeded":
             return Response({"success": False, "error": {"code": "restore_failed", "message": job.error or "The restore failed. Nothing was changed.", "details": restore_json(job)}}, status=500)
         return Response(restore_json(job))
+
+
+class CronView(APIView):
+    """Scheduled jobs for hosts that have no always-on scheduler (Render free plan): an external timer (cron-job.org, GitHub Actions...)
+    calls `POST /api/v1/system/cron/<job>/` with `Authorization: Bearer <CRON_SECRET>`. Disabled (404) when CRON_SECRET is not set."""
+
+    permission_classes = []
+    authentication_classes: list = []
+    JOBS = ("ping", "backup", "prune", "verify", "reconcile")
+
+    def post(self, request, job):
+        import hmac
+
+        secret = getattr(settings, "CRON_SECRET", "")
+        if not secret or job not in self.JOBS:
+            raise NotFound()
+        given = request.headers.get("Authorization", "").removeprefix("Bearer ").strip()
+        if not hmac.compare_digest(given.encode(), secret.encode()):
+            audit("cron.refused", metadata={"job": job}, request=request)
+            return Response({"success": False, "error": {"code": "unauthorized", "message": "Unauthorized."}}, status=401)
+        if job == "ping":
+            return Response({"ok": True})
+        if job == "backup":
+            recent = BackupRecord.objects.filter(kind="scheduled", status="succeeded", created_at__gte=timezone.now() - timedelta(hours=12)).exists()
+            if recent:
+                return Response({"ok": True, "skipped": "A scheduled backup already ran in the last 12 hours."})
+            from .tasks import scheduled_backup
+
+            return Response({"ok": True, "result": scheduled_backup()})
+        if job == "prune":
+            return Response({"ok": True, "removed": service.prune()})
+        if job == "verify":
+            from .tasks import verify_latest
+
+            return Response({"ok": True, "verified": verify_latest()})
+        from apps.payments.services import reconcile_pending
+
+        return Response({"ok": True, "checked": len(reconcile_pending())})

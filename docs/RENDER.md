@@ -1,54 +1,60 @@
-# Hosting on Render: step by step
+# Hosting on Render (FREE plan): step by step
 
-The whole product runs from ONE Git repository and three Render resources defined in `render.yaml`:
+`render.yaml` defines ONE free web service. It serves the website, the API and the WebSocket channel from a single process. There is no paid worker and no paid Redis, so **no card is needed**: tasks (email, backups) run inside the web process and the daily jobs are triggered by a free external timer (step 4). External services you already configured: **Neon** (PostgreSQL), **Brevo** (email), **Monime** (payments), **Cloudinary** (images), **Cloudflare R2** (backups).
 
-| Resource | What it does |
-|---|---|
-| `nts-restaurant-platform` (web) | Builds the React website, serves it, the API and the WebSocket channel (Daphne). Applies database migrations on every start. |
-| `nts-worker` (worker) | Celery: sends email through Brevo, reconciles payments, takes the daily backup, prunes old backups. Run **one** instance. |
-| `nts-redis` (key value) | Cache, rate limits, job queue, live updates. Private to your account. |
-
-External services you already configured: **Neon** (PostgreSQL), **Brevo** (email), **Monime** (payments), **Cloudinary** (images), **Cloudflare R2** (backups).
+## What the free plan means in practice
+* The service **sleeps after 15 minutes without traffic** and takes up to about a minute to wake on the next request. A customer or a Monime webhook that arrives while it sleeps wakes it (Monime retries; the reconciliation job also catches any missed payment). The timer in step 4 pings the service every 10 minutes, which keeps it awake (a free account has about 750 instance-hours a month, enough for one service running all month).
+* **One instance only.** That is why `SINGLE_INSTANCE=true`: the cache, rate limits and live updates are held in memory. Do not scale it to more than one instance on the free plan.
+* About 512 MB of memory and shared CPU: fine for a start, not for heavy load. Move to a paid plan when you have real traffic (then add the Redis and worker services and remove `SINGLE_INSTANCE`).
+* The server disk is temporary. Nothing important lives on it: data is in Neon, pictures in Cloudinary, backups in R2.
 
 ## 1. Before you deploy
-1. **Put the code in a private Git repository** (GitHub, GitLab or Bitbucket). `.gitignore` already excludes `.env`, databases, media and build output. Check with `git status` that `backend/.env` is NOT listed before the first commit. If a secret was ever committed, rotate it.
-2. **Have a domain you control.** Each restaurant lives at `<slug>.yourdomain.com`, so you need the platform domain and a **wildcard** record (`*.yourdomain.com`). On Render add both `yourdomain.com` and `*.yourdomain.com` as custom domains of the web service and create the DNS records Render shows. Without your own domain only the `*.onrender.com` address works (platform site and platform admin; restaurants cannot be reached).
-3. **Create the Monime webhook.** In the Monime dashboard add a webhook to `https://yourdomain.com/api/v1/payments/webhooks/monime/` for the `checkout_session.completed`, `checkout_session.cancelled` and `checkout_session.expired` events. Monime shows (or lets you choose) a **32 to 100 character secret**: that is `MONIME_WEBHOOK_SECRET`. The value currently in your local `.env` is only a few characters long and will not work. Payments still settle through the reconciliation job, but only slowly, until this is set.
-4. **Brevo:** the sender address must stay verified in Brevo (it is). The free plan allows 300 emails a day.
+1. **Put the code in a private Git repository** (GitHub, GitLab or Bitbucket). `.gitignore` excludes `.env`, databases and build output. Run `git status` before the first commit and make sure `backend/.env` is NOT listed. If a secret was ever committed, rotate it.
+2. **Domain.** Each restaurant lives at `<slug>.yourdomain.com`, so you need a domain you control with a **wildcard** record (`*.yourdomain.com`); add `yourdomain.com` and `*.yourdomain.com` as custom domains of the web service in Render and create the DNS records Render shows (check that wildcard domains are allowed on your Render plan). Without your own domain only the `*.onrender.com` address works: you get the platform website and platform admin, but restaurants cannot be reached.
+3. **Monime webhook.** In the Monime dashboard add a webhook for `https://yourdomain.com/api/v1/payments/webhooks/monime/` with the `checkout_session.completed`, `checkout_session.cancelled` and `checkout_session.expired` events. Monime gives (or lets you choose) a **32 to 100 character secret**: that is `MONIME_WEBHOOK_SECRET`. The value in your local `.env` is only a few characters long and will not work.
+4. **Brevo** sender stays verified (it is). The free Brevo plan allows 300 emails a day.
 
-## 2. Create the services
-1. Render dashboard, **New, Blueprint**, pick the repository. Render reads `render.yaml`.
-2. Fill in the variables marked `sync: false` (same values as your local `backend/.env`, plus):
+## 2. Create the service
+1. Render dashboard, **New, Blueprint**, pick the repository. Render reads `render.yaml` and should no longer ask for payment details (a single free web service). If it still asks, choose **New, Web Service** instead with: runtime Python, build command `bash render-build.sh`, start command `cd backend && python manage.py migrate --noinput && daphne --proxy-headers -b 0.0.0.0 -p $PORT config.asgi:application`, health check path `/healthz`, instance type Free, and add the variables listed in `render.yaml`.
+2. Fill in the variables marked `sync: false` (same values as your local `backend/.env`):
    * `PLATFORM_DOMAIN` = `yourdomain.com`, `PLATFORM_HOSTS` = `yourdomain.com`, `ALLOWED_HOSTS` = `.yourdomain.com,yourdomain.com`
    * `DATABASE_URL` = Neon **pooled** URL, `DIRECT_DATABASE_URL` = Neon **direct** URL
    * `BACKUP_ENCRYPTION_KEY` = the key from your `.env`. **Keep a second copy in a password manager: without it every backup is unreadable.**
-   * `DJANGO_SECRET_KEY` is generated by Render. `MFA_ENFORCEMENT`, `UPLOAD_SCANNER`, `PAYMENT_PROVIDER`, `EMAIL_PROVIDER` are preset.
-3. Deploy. The build installs Python packages, builds the website, copies it into the backend and collects static files (`render-build.sh`).
-4. Wait for `/healthz` to turn green.
+   * `DJANGO_SECRET_KEY` and `CRON_SECRET` are generated by Render (open the service's Environment tab to read `CRON_SECRET` for step 4).
+3. Deploy and wait for `/healthz` to turn green.
 
 ## 3. First run
-1. **Create the platform administrator** (Render dashboard, web service, **Shell**):
+1. **Create the platform administrator** (service, **Shell**; on the free plan the Shell may be unavailable: then run the same command locally against Neon with `PLATFORM_ADMIN_*` set in your terminal):
    `cd backend && PLATFORM_ADMIN_EMAIL=you@yourdomain.com PLATFORM_ADMIN_PASSWORD='a-long-unique-password' python manage.py create_platform_admin`
-2. Open `https://yourdomain.com/login`, sign in. Production **requires two-step verification**: you are taken to the setup screen, scan the QR code with an authenticator app and **store the ten recovery codes offline**.
-3. **Admin, System**: every check should be green or explained. Press **Back up now**, then **Verify**.
-4. In the Shell run `cd backend && python manage.py preflight`. Every line must be PASS (`WARN` for upload scanning is expected on Render, see below).
-5. Register a test restaurant (Admin, Restaurants). Its administrator receives a real email from Brevo with a link to set the password, then must set up two-step verification too.
-6. Make one small real payment through a restaurant's checkout and confirm the order is marked paid.
+2. Open `https://yourdomain.com/login`. Production **requires two-step verification**: you are taken to the setup screen; scan the QR code with an authenticator app and store the ten recovery codes offline.
+3. **Admin, System**: review the checks. Press **Back up now**, then **Verify**.
+4. Register a test restaurant (Admin, Restaurants). Its administrator gets a real Brevo email with a link to set a password and must set up two-step verification as well.
+5. Make one small real payment through a restaurant checkout and confirm the order turns paid.
 
-## 4. Backup and restore (all from Admin, System)
-* **Back up now** creates an encrypted archive in your R2 bucket (also daily at 02:00 UTC by the worker, verified weekly, old ones pruned after 30 days keeping the newest 7).
-* **Verify** downloads it, checks the checksum, decrypts and reads every row without touching live data.
-* **Restore** replaces ALL platform data with a backup. It asks for your password, an authenticator code and the typed phrase `RESTORE <id>`; it first takes and verifies a safety snapshot of the current data (so a restore can be undone by restoring that snapshot), puts the platform in maintenance mode, replaces the data in one transaction (all or nothing), signs everybody out and records the result. The audit log is part of the restored data: entries written after the backup remain only in the safety snapshot.
-* Uploaded pictures live in Cloudinary, which keeps its own copies; they are not part of the archive.
-* Disaster recovery into a brand-new empty database is still available to an operator: `python manage.py restore_backup --list`, then `restore_backup --key <key> --apply --confirm RESTORE`.
+## 4. Scheduled jobs (free external timer)
+Create free jobs at <https://cron-job.org> (or any scheduler, for example GitHub Actions). Each is an HTTPS **POST** to `https://yourdomain.com/api/v1/system/cron/<job>/` with the header `Authorization: Bearer <CRON_SECRET>`:
 
-## 5. Security that is enforced in production
-HTTPS only (redirect, HSTS 1 year, secure cookies), explicit allowed hosts, a strict Content-Security-Policy, `X-Frame-Options: DENY`, Permissions-Policy, no API caching, API documentation not published, mandatory two-step verification for platform and restaurant administrators, login lockout and throttles, signed and replay-protected payment webhooks that only act as hints (the server asks Monime for the real status and checks the amount), encrypted backups, uploads checked and re-encoded, secrets only in environment variables, maintenance mode during restores. The application refuses to start in production if Redis, Brevo, Monime, Cloudinary, the secret key, MFA enforcement or the upload scanner setting is missing or weak (`config/settings/prod.py`).
+| Job | How often | What it does |
+|---|---|---|
+| `ping` | every 10 minutes | keeps the free service awake |
+| `reconcile` | every 5 to 10 minutes | settles online payments whose webhook was missed |
+| `backup` | once a day (for example 02:00 UTC) | encrypted backup to R2 (skipped if one already ran in the last 12 hours) |
+| `verify` | once a week | proves the newest backup can be read |
+| `prune` | once a day | removes backups older than 30 days, keeping the newest 7 |
 
-## 6. Things to know
-* **Plans:** the web service and the worker need an always-on plan (`starter` or better); the free plan sleeps and would drop WebSockets and scheduled jobs.
-* **Upload scanning:** Render cannot run ClamAV without a Docker service. The blueprint sets `UPLOAD_SCANNER=builtin`: uploads are limited to PNG/JPEG/WebP, decoded, checked for embedded code and **re-encoded from their pixels** (this removes anything hidden in the file and strips location data). If you later run a `clamd` daemon, set `UPLOAD_SCANNER=clamav`, `CLAMAV_HOST` and `CLAMAV_PORT`.
-* **Monime refunds:** Monime has no refund API. To refund a mobile-money payment, refund the customer in the Monime dashboard, then record it in the order screen with the reference of that refund.
-* **Never run anything destructive against the production database from your laptop.** Your local `.env` points at the same Neon database as production unless you create a separate Neon branch for development (recommended: Neon branches are free and instant).
-* **Deploys:** `autoDeploy` is off. Deploy deliberately from the dashboard after `preflight` passes in a staging copy.
-* **Not verified end to end:** a live deployment on Render, wildcard-domain routing, a real Monime payment and webhook, real Brevo delivery to a customer inbox and a restore on the production database. Do each of these once on a staging service before launch.
+Without these jobs nothing breaks, but there are no automatic backups and missed payment webhooks are not recovered. The System page shows a warning when the newest backup is old.
+
+## 5. Backup and restore (Admin, System)
+* **Back up now**, **Verify** and **Restore** work from the System page. Restore asks for your password, an authenticator code and the typed phrase `RESTORE <id>`; it first takes and verifies a safety snapshot of the current data (so a restore can be undone by restoring that snapshot), puts the platform in maintenance mode, replaces the data in one transaction (all or nothing), signs everybody out and records the result. The audit log is part of the restored data: entries written after the backup remain only in the safety snapshot.
+* Pictures live in Cloudinary, which keeps its own copies; they are not in the archive.
+* Disaster recovery into a brand-new empty database is also available to an operator: `python manage.py restore_backup --list`, then `restore_backup --key <key> --apply --confirm RESTORE`.
+
+## 6. Security that is enforced in production
+HTTPS only (redirect, HSTS, secure cookies), explicit allowed hosts, a strict Content-Security-Policy, `X-Frame-Options: DENY`, Permissions-Policy, no API caching, API documentation not published, mandatory two-step verification for platform and restaurant administrators, login lockout and throttles, signed and replay-protected payment webhooks that only act as hints (the server asks Monime for the real status and checks the amount), encrypted backups, uploads checked and re-encoded, secrets only in environment variables, maintenance mode during restores, the cron endpoint disabled unless `CRON_SECRET` is set and compared in constant time. The application refuses to start in production if Brevo, Monime, Cloudinary, the secret key, MFA enforcement or the upload scanner setting is missing or weak, or if Redis is missing without `SINGLE_INSTANCE=true`.
+
+## 7. Things to know
+* **Upload scanning:** Render cannot run ClamAV without a Docker service. The blueprint sets `UPLOAD_SCANNER=builtin`: uploads are limited to PNG/JPEG/WebP, decoded, checked for embedded code and **re-encoded from their pixels** (this removes anything hidden in the file and strips location data).
+* **Monime refunds:** Monime has no refund API. Refund the customer in the Monime dashboard, then record it in the order screen with that refund's reference.
+* **Never run anything destructive against the production database from your laptop.** Your local `.env` points at the same Neon database as production unless you create a separate Neon branch for development (recommended; Neon branches are free).
+* **Deploys:** `autoDeploy` is off. Deploy deliberately from the dashboard.
+* **Not verified end to end:** a live deployment on Render, wildcard-domain routing, a real Monime payment and webhook, real Brevo delivery to a customer inbox, a restore on the production database, and cold-start behaviour of the free plan. Do each of these once before launch.

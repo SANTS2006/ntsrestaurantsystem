@@ -25,7 +25,7 @@ PUBLIC = [
     r"^api/v1/auth/(register|login|refresh|token/refresh|mfa/verify|password-reset|verify-email|resend-verification|forgot-password|reset-password|google|setup-password|logout)/?",
     r"^api/v1/platform/public/", r"^api/v1/restaurants/current/", r"^api/v1/catalog/public/",
     r"^api/v1/catering/public/", r"^api/v1/floor/public/", r"^api/v1/qr-menu/public/", r"^api/v1/orders/(quote|checkout)/",
-    r"^api/v1/payments/(webhooks|simulate|public)", r"^api/v1/system/health",  # system is platform-admin only: checked separately
+    r"^api/v1/payments/(webhooks|simulate|public)", r"^api/v1/system/health", r"^api/v1/system/cron/",  # system is platform-admin only: checked separately
 ]
 SKIP = [r"^django-admin/"]
 CONVERTERS = {"int": "1", "str": "x", "slug": "x", "uuid": str(uuid.uuid4()), "path": "x"}

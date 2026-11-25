@@ -1,10 +1,17 @@
-# Render Blueprint: one web service (website + API + WebSockets), one background worker (email, payments reconciliation,
-# scheduled backups) and a private Redis. The database is Neon PostgreSQL, files are on Cloudinary, backups on Cloudflare R2.
+# Render Blueprint for the FREE plan: one web service that serves the website, the API and the WebSocket channel.
+# No worker and no paid Redis: tasks run inside the web process (single instance) and scheduled jobs are triggered by an
+# external timer that calls /api/v1/system/cron/<job>/ (see docs/RENDER.md). Nothing here needs a card on file.
 # Secrets are NOT stored here: every `sync: false` variable is entered once in the Render dashboard.
-# See docs/RENDER.md for the step-by-step guide.
 
-envVarGroups:
-  - name: ntsrestaurant
+services:
+  - type: web
+    name: nts-restaurant-platform
+    runtime: python
+    plan: free
+    buildCommand: bash render-build.sh
+    startCommand: cd backend && python manage.py migrate --noinput && daphne --proxy-headers -b 0.0.0.0 -p $PORT config.asgi:application
+    healthCheckPath: /healthz
+    autoDeploy: false
     envVars:
       - key: PYTHON_VERSION
         value: 3.13.5
@@ -12,12 +19,16 @@ envVarGroups:
         value: config.settings.prod
       - key: DJANGO_SECRET_KEY
         generateValue: true
+      - key: CRON_SECRET
+        generateValue: true
+      - key: SINGLE_INSTANCE
+        value: "true"            # in-memory cache, WebSockets and inline tasks: correct for exactly one instance
       - key: PUBLIC_URL_SCHEME
         value: https
       - key: MFA_ENFORCEMENT
         value: "true"
       - key: UPLOAD_SCANNER
-        value: builtin           # no ClamAV service on Render without Docker: images are checked and re-encoded (see docs/SECURITY.md)
+        value: builtin
       - key: UPLOAD_SCAN_FAIL_CLOSED
         value: "true"
       - key: EMAIL_PROVIDER
@@ -67,42 +78,3 @@ envVarGroups:
         sync: false
       - key: GOOGLE_OAUTH_CLIENT_ID
         sync: false
-
-services:
-  - type: web
-    name: nts-restaurant-platform
-    runtime: python
-    plan: starter            # WebSockets and the worker need an always-on instance: the free plan sleeps
-    buildCommand: bash render-build.sh
-    startCommand: cd backend && python manage.py migrate --noinput && daphne --proxy-headers -b 0.0.0.0 -p $PORT config.asgi:application
-    healthCheckPath: /healthz
-    autoDeploy: false        # deploy deliberately, after running preflight (docs/RENDER.md)
-    envVars:
-      - fromGroup: nts-shared
-      - key: REDIS_URL
-        fromService:
-          type: keyvalue
-          name: nts-redis
-          property: connectionString
-
-  - type: worker
-    name: nts-worker
-    runtime: python
-    plan: starter
-    buildCommand: bash render-build.sh
-    # one instance only: -B embeds the scheduler (daily backup, backup pruning, payment reconciliation)
-    startCommand: cd backend && celery -A config worker -B -l info --concurrency 2
-    autoDeploy: false
-    envVars:
-      - fromGroup: nts-shared
-      - key: REDIS_URL
-        fromService:
-          type: keyvalue
-          name: nts-redis
-          property: connectionString
-
-  - type: keyvalue
-    name: nts-redis
-    plan: starter
-    maxmemoryPolicy: noeviction   # queued jobs must never be evicted
-    ipAllowList: []               # reachable only from this account's private network

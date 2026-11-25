@@ -8,4 +8,5 @@ urlpatterns = [
     path("backups/<int:pk>/verify/", views.BackupVerifyView.as_view()),
     path("backups/<int:pk>/restore/", views.BackupRestoreView.as_view()),
     path("restores/", views.RestoresView.as_view()),
+    path("cron/<str:job>/", views.CronView.as_view()),
 ]

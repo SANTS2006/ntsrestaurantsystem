@@ -1,8 +1,11 @@
+import os
+
 from .base import *  # noqa: F401,F403
 
 DEBUG = False
-if not REDIS_URL:  # noqa: F405
-    raise RuntimeError("REDIS_URL is required in production (rate limiting, cache, Celery).")
+SINGLE_INSTANCE = os.environ.get("SINGLE_INSTANCE", "").lower() in ("1", "true", "yes")
+if not REDIS_URL and not SINGLE_INSTANCE:  # noqa: F405
+    raise RuntimeError("REDIS_URL is required in production (rate limiting, cache, Celery, WebSockets). A single-instance deployment may set SINGLE_INSTANCE=true instead.")
 if "insecure" in SECRET_KEY.lower() or len(SECRET_KEY) < 40:  # noqa: F405
     raise RuntimeError("DJANGO_SECRET_KEY must be a long random value in production.")
 SECURE_SSL_REDIRECT = True
