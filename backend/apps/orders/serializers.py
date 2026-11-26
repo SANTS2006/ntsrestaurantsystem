@@ -74,7 +74,8 @@ class OrderDetailSerializer(OrderListSerializer):
     def get_payments(self, o):
         return [{"id": p.pk, "method": p.method, "status": p.status, "amount": str(p.amount), "paid_at": p.paid_at.isoformat() if p.paid_at else None,
                  "receipt_id": p.receipt.pk if hasattr(p, "receipt") else None,
-                 "checkout_url": p.checkout_url if p.status == "pending" else ""} for p in o.payments.all()]
+                 "checkout_url": p.checkout_url if p.status == "pending" else "",
+                 "ussd_code": p.ussd_code if p.status == "pending" else ""} for p in o.payments.all()]
 
     class Meta(OrderListSerializer.Meta):
         fields = OrderListSerializer.Meta.fields + [

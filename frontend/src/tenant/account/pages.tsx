@@ -1,10 +1,16 @@
-import { Bell, Home, LifeBuoy, LogOut, MapPin, Package, Shield, User } from 'lucide-react'
+import { Bell, Home, LifeBuoy, MapPin, Package, Shield, User } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link, NavLink, Navigate, Outlet, useNavigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { ApiError, api, tokenStore, type Page } from '../../lib/api'
 import { useAuth } from '../../lib/auth'
-import { PasswordInput, Empty, ErrorState, Field, Modal, Skeleton, Spinner, useAsync, useDocumentTitle, useToast } from '../../ui/kit'
+import { PasswordInput, Empty, PageLoader, ErrorState, Field, Modal, Skeleton, Spinner, useAsync, useDocumentTitle, useToast } from '../../ui/kit'
 import { useSite } from '../SiteContext'
+import { API_URL } from '../../lib/config'
+import { useNotifications } from '../../lib/live'
+import { MfaSettings } from '../../ui/Mfa'
+import { ProfileSettings } from '../../ui/Profile'
+import Shell, { type NavGroup } from '../../ui/Shell'
+import { UssdCode } from '../UssdCode'
 import { useConfirm, usePrompt } from '../../ui/dialogs'
 import { BackButton } from '../../ui/BackButton'
 
@@ -14,21 +20,28 @@ export function AccountLayout() {
   const { me, loading, signOut } = useAuth()
   const { site } = useSite()
   const navigate = useNavigate()
-  if (loading) return <div className="container section"><Spinner /></div>
+  const { unread } = useNotifications()
+  if (loading) return <PageLoader />
   if (!me) return <Navigate to="/login?next=/account" replace />
   if (me.role !== 'customer') return <Navigate to="/manage" replace />
-  const items = [['/account', 'Overview', Home, true], ['/account/orders', 'My orders', Package, false], ['/account/notifications', 'Notifications', Bell, false], ['/account/profile', 'Profile', User, false],
-    ['/account/addresses', 'Addresses', MapPin, false], ['/account/security', 'Security', Shield, false], ['/account/support', 'Support', LifeBuoy, false]] as const
+  const r = site.restaurant
+  const logo = r.logo ? (r.logo.startsWith('http') ? r.logo : `${API_URL}${r.logo}`) : null
+  const groups: NavGroup[] = [
+    { label: 'My account', items: [
+      { to: '/account', label: 'Overview', icon: Home, end: true },
+      { to: '/account/orders', label: 'My orders', icon: Package },
+      { to: '/account/notifications', label: 'Notifications', icon: Bell, count: unread || undefined },
+      { to: '/account/addresses', label: 'Addresses', icon: MapPin },
+      { to: '/account/support', label: 'Support', icon: LifeBuoy },
+    ] },
+    { label: 'Settings', items: [
+      { to: '/account/profile', label: 'Profile', icon: User },
+      { to: '/account/security', label: 'Security', icon: Shield },
+    ] },
+  ]
   return (
-    <div className="admin" style={{ minHeight: 'calc(100vh - 64px)' }}>
-      <aside className="side" aria-label="My account">
-        <strong style={{ padding: '6px 12px' }}>{me.full_name || me.email}</strong>
-        {items.map(([to, l, Icon, end]) => <NavLink key={to} to={to} end={end}><Icon size={18} aria-hidden /> {l}</NavLink>)}
-        <BackButton to="/menu">{site.restaurant.name}</BackButton>
-        <button className="btn secondary sm" style={{ marginTop: 'auto' }} onClick={() => { void signOut().then(() => navigate('/')) }}><LogOut size={16} aria-hidden /> Sign out</button>
-      </aside>
-      <div className="main"><Outlet /></div>
-    </div>
+    <Shell brand={r.name} tagline="My account" logo={logo} groups={groups} user={{ name: me.full_name || me.email, role: 'Customer', email: me.email, avatar: me.avatar }}
+      onLogout={() => void signOut().then(() => navigate('/'))} profilePath="/account/profile" footerLink={{ to: '/menu', label: 'Order food' }} />
   )
 }
 
@@ -37,7 +50,7 @@ export type OrderRow = { id: number; number: string; contact_name: string; statu
 type Detail = OrderRow & {
   contact_name: string; contact_phone: string; delivery_address: Record<string, string>; customer_notes: string; subtotal: string; tax_total: string; tax_rate_percent: string; delivery_fee: string
   amount_paid: string; discount_total: string; can_cancel: boolean; can_request_cancel: boolean; cancellation_reason: string
-  payments: { id: number; method: string; status: string; amount: string; receipt_id: number | null; checkout_url?: string }[]
+  payments: { id: number; method: string; status: string; amount: string; receipt_id: number | null; checkout_url?: string; ussd_code?: string }[]
   items: { product_name: string; variation_name: string; unit_price: string; quantity: number; line_total: string; addons: { name: string; quantity: number }[]; instructions: string }[]
   history: { status: string; status_label: string; note: string; created_at: string; actor_role: string }[]
 }
@@ -57,15 +70,15 @@ function PayPanel({ order, onChange }: { order: Detail; onChange: (o: Detail) =>
     setBusy(true)
     try {
       const r = await api<{ redirect_url: string }>('/payments/initiate/', { body: { order_id: order.id, phone }, headers: { 'Idempotency-Key': crypto.randomUUID() } })
-      if (r.redirect_url) { window.location.assign(r.redirect_url); return } // Monime brings the customer back to this order
-      onChange(await api<Detail>(`/orders/my/${order.id}/`)); toast('Waiting for the payment to be confirmed.')
+      if (r.redirect_url) { window.location.assign(r.redirect_url); return } // Monime brings the customer back to the success page
+      onChange(await api<Detail>(`/orders/my/${order.id}/`)) // the dial code appears below
     } catch (e) { toast(msg(e)) } finally { setBusy(false) }
   }
   const receipts = order.payments.filter((p) => p.receipt_id)
   return (
     <div style={{ marginTop: 12 }}>
       {order.payment_method === 'mobile_money' && ['awaiting_payment', 'payment_processing'].includes(order.status) && order.payment_status !== 'paid' && (
-        pending ? <div className="alert" aria-live="polite">Waiting for payment confirmation… <Spinner />{pending.checkout_url && <p><a className="btn sm" href={pending.checkout_url}>Continue to the Monime payment page</a></p>}</div> : (
+        pending ? <div className="alert" aria-live="polite">Waiting for payment confirmation… <Spinner />{pending.checkout_url && <p><a className="btn sm" href={pending.checkout_url}>Continue to the Monime payment page</a></p>}{pending.ussd_code && <UssdCode code={pending.ussd_code} />}</div> : (
           <div className="alert"><label>Mobile money number <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Enter your phone number" /></label>
             <button className="btn" style={{ marginTop: 8 }} disabled={busy} onClick={pay}>{busy ? <Spinner /> : 'Pay now'}</button></div>))}
       {order.payments.some((p) => p.status === 'failed') && !pending && order.payment_status !== 'paid' && <p className="err">The last payment attempt did not go through.</p>}
@@ -115,8 +128,8 @@ export function Orders() {
       {list.error && <ErrorState message={list.error} onRetry={list.reload} />}
       <div className="card table-wrap">
         {list.loading && !list.data ? <Skeleton h={100} /> : !list.data?.results.length ? <Empty title="You have not placed an order yet"><Link className="btn" to="/menu">Browse the menu</Link></Empty> : (
-          <table className="tbl"><thead><tr><th>Order</th><th>Date</th><th>Status</th><th>Total</th><th /></tr></thead><tbody>
-            {list.data.results.map((o) => <tr key={o.id}><td>{o.number}</td><td>{new Date(o.created_at).toLocaleDateString()}</td><td><StatusBadge s={o.status} label={o.status_label} /></td><td>{money(o.total)}</td><td><Link className="btn sm secondary" to={`/account/orders/${o.id}`}>View</Link></td></tr>)}
+          <table className="tbl stack"><thead><tr><th>Order</th><th>Date</th><th>Status</th><th>Total</th><th /></tr></thead><tbody>
+            {list.data.results.map((o) => <tr key={o.id}><td data-label="Order"><b>{o.number}</b></td><td data-label="Date">{new Date(o.created_at).toLocaleDateString()}</td><td data-label="Status"><StatusBadge s={o.status} label={o.status_label} /></td><td data-label="Total">{money(o.total)}</td><td><Link className="btn sm secondary" to={`/account/orders/${o.id}`}>View</Link></td></tr>)}
           </tbody></table>
         )}
       </div>
@@ -203,87 +216,32 @@ export function OrderDetail() {
 
 /* ------------------------------------------------------------------ profile */
 type Prof = { email: string; full_name: string; phone: string; avatar: string | null; preferences: { order_emails: boolean; promotions: boolean } }
-export function Profile() {
-  useDocumentTitle('Profile')
-  const toast = useToast()
-  const { reload } = useAuth()
-  const p = useAsync(() => api<Prof>('/customers/me/'), [])
-  const [v, setV] = useState({ full_name: '', phone: '' })
-  const [prefs, setPrefs] = useState({ order_emails: true, promotions: false })
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const [busy, setBusy] = useState(false)
-  const [emailOpen, setEmailOpen] = useState(false)
-  useEffect(() => { if (p.data) { setV({ full_name: p.data.full_name, phone: p.data.phone }); setPrefs(p.data.preferences) } }, [p.data])
-
-  async function save(e: FormEvent) {
-    e.preventDefault()
-    if (!v.full_name.trim()) return setErrors({ full_name: 'Enter your full name.' })
-    setBusy(true); setErrors({})
-    try { await api('/customers/me/', { method: 'PATCH', body: { ...v, preferences: prefs } }); toast('Profile saved.'); await reload(); p.reload() } catch (err) { setErrors(err instanceof ApiError ? { ...err.fieldErrors(), form: err.message } : { form: 'Error' }) } finally { setBusy(false) }
-  }
-  async function avatar(file: File | undefined) {
-    if (!file) return
-    const fd = new FormData(); fd.append('image', file)
-    try { await api('/customers/me/avatar/', { body: fd }); toast('Photo updated.'); p.reload() } catch (err) { toast(err instanceof ApiError ? (err.fieldErrors().image ?? err.message) : 'Upload failed.') }
-  }
+/** The same profile page as everyone else (picture, details, verified email change, appearance), plus what only customers have. */
+export function CustomerProfile() {
   return (
     <>
-      <h1 className="page-title">Profile</h1>
-      {p.error && <ErrorState message={p.error} onRetry={p.reload} />}
-      {p.loading ? <Skeleton h={160} /> : p.data && (
-        <form className="card" style={{ maxWidth: 560 }} onSubmit={save} noValidate>
-          {errors.form && !errors.full_name && !errors.phone && <div className="alert error">{errors.form}</div>}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
-            {p.data.avatar ? <img src={p.data.avatar} alt="Your photo" width={72} height={72} style={{ borderRadius: '50%', objectFit: 'cover' }} /> : <span className="swatch" style={{ width: 72, height: 72, borderRadius: '50%' }} aria-hidden />}
-            <label className="btn sm secondary">Change photo<input type="file" hidden accept="image/png,image/jpeg,image/webp" onChange={(e) => avatar(e.target.files?.[0])} /></label>
-          </div>
-          <Field label="Full name" error={errors.full_name}>{(f) => <input {...f} className="input" placeholder="Enter your full name" value={v.full_name} onChange={(e) => setV({ ...v, full_name: e.target.value })} />}</Field>
-          <Field label="Phone number" error={errors.phone}>{(f) => <input {...f} className="input" type="tel" placeholder="Enter your phone number" value={v.phone} onChange={(e) => setV({ ...v, phone: e.target.value })} />}</Field>
-          <Field label="Email address" hint="Changing it requires your password and a code sent to the new address.">{(f) => <span style={{ display: 'flex', gap: 8 }}><input {...f} className="input" value={p.data!.email} readOnly /><button type="button" className="btn secondary" onClick={() => setEmailOpen(true)}>Change</button></span>}</Field>
-          <fieldset style={{ border: '1px solid var(--border)', borderRadius: 10, marginBottom: 14 }}><legend>Notifications</legend>
-            <label style={{ display: 'block' }}><input type="checkbox" checked={prefs.order_emails} onChange={(e) => setPrefs({ ...prefs, order_emails: e.target.checked })} /> Email me when my order status changes</label>
-            <label style={{ display: 'block' }}><input type="checkbox" checked={prefs.promotions} onChange={(e) => setPrefs({ ...prefs, promotions: e.target.checked })} /> Send me offers and news</label>
-          </fieldset>
-          <button className="btn" disabled={busy}>{busy ? <Spinner /> : 'Save changes'}</button>
-        </form>
-      )}
-      {emailOpen && <EmailChange onClose={() => setEmailOpen(false)} onDone={() => { setEmailOpen(false); void reload(); p.reload() }} />}
+      <ProfileSettings />
+      <EmailPreferences />
     </>
   )
 }
 
-function EmailChange({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+function EmailPreferences() {
   const toast = useToast()
-  const [step, setStep] = useState<'request' | 'confirm'>('request')
-  const [v, setV] = useState({ new_email: '', password: '', code: '' })
-  const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
-  async function submit(e: FormEvent) {
-    e.preventDefault(); setError('')
-    if (step === 'request') {
-      if (!/^\S+@\S+\.\S+$/.test(v.new_email)) return setError('Enter a valid email address.')
-      if (!v.password) return setError('Enter your password.')
-    } else if (v.code.trim().length !== 6) return setError('Enter the 6-character code.')
-    setBusy(true)
-    try {
-      if (step === 'request') { await api('/customers/me/email-change/', { body: { new_email: v.new_email.trim(), password: v.password } }); setStep('confirm') }
-      else { const t = await api<{ access: string; refresh: string }>('/customers/me/email-change/confirm/', { body: { code: v.code.trim() } }); tokenStore.set(t); toast('Email address changed.'); onDone() }
-    } catch (err) { setError(msg(err)) } finally { setBusy(false) }
+  const p = useAsync(() => api<Prof>('/customers/me/'), [])
+  const [prefs, setPrefs] = useState<Prof['preferences'] | null>(null)
+  const current = prefs ?? p.data?.preferences
+  async function change(next: Prof['preferences']) {
+    setPrefs(next)
+    try { await api('/customers/me/', { method: 'PATCH', body: { preferences: next } }); toast('Preferences saved.') } catch (e) { setPrefs(null); toast(msg(e)) }
   }
+  if (!current) return null
   return (
-    <Modal title="Change email address" onClose={onClose}>
-      <form onSubmit={submit} noValidate>
-        {error && <div className="alert error" role="alert">{error}</div>}
-        {step === 'request' ? <>
-          <Field label="New email address">{(f) => <input {...f} className="input" type="email" placeholder="Enter your new email address" value={v.new_email} onChange={(e) => setV({ ...v, new_email: e.target.value })} />}</Field>
-          <Field label="Current password">{(f) => <PasswordInput {...f} placeholder="Enter your password" value={v.password} onChange={(e) => setV({ ...v, password: e.target.value })} />}</Field>
-        </> : <>
-          <div className="alert">If the address can be used, a code was sent to it. It expires in 10 minutes.</div>
-          <Field label="Verification code">{(f) => <input {...f} className="input" maxLength={6} placeholder="Enter the 6-character code" value={v.code} onChange={(e) => setV({ ...v, code: e.target.value.toUpperCase() })} />}</Field>
-        </>}
-        <button className="btn" disabled={busy}>{busy ? <Spinner /> : step === 'request' ? 'Send code' : 'Confirm change'}</button>
-      </form>
-    </Modal>
+    <section className="card" style={{ marginTop: 16 }}>
+      <h3>Email preferences</h3>
+      <div className="toggle-row" style={{ marginBottom: 10 }}><span>Updates about my orders</span><button type="button" role="switch" className="switch" aria-checked={!!current.order_emails} aria-label="Order emails" onClick={() => void change({ ...current, order_emails: !current.order_emails })} /></div>
+      <div className="toggle-row"><span>Offers and news from the restaurant</span><button type="button" role="switch" className="switch" aria-checked={!!current.promotions} aria-label="Promotional emails" onClick={() => void change({ ...current, promotions: !current.promotions })} /></div>
+    </section>
   )
 }
 
@@ -338,7 +296,17 @@ function AddressForm({ initial, onClose, onSaved }: { initial: Addr | null; onCl
 }
 
 /* ------------------------------------------------------------------ security & support */
-export function Security() {
+/** Password and two-step verification. */
+export function CustomerSecurity() {
+  return (
+    <>
+      <Security />
+      <MfaSettings />
+    </>
+  )
+}
+
+function Security() {
   useDocumentTitle('Security')
   const toast = useToast()
   const { reload } = useAuth()

@@ -196,8 +196,12 @@ export function ProductPage() {
         <p style={{ marginTop: 12 }}>{p.description}</p>
         {p.prep_time_minutes && <p className="muted"><Clock size={16} aria-hidden /> About {p.prep_time_minutes} minutes</p>}
         {p.ingredients.length > 0 && <p><b>Ingredients:</b> {p.ingredients.join(', ')}</p>}
-        {p.variations.length > 0 && <><h3>Options</h3><ul>{p.variations.map((v) => <li key={v.id}>{v.name} {Number(v.price_delta) > 0 && <span className="muted">(+{money(v.price_delta)})</span>}</li>)}</ul></>}
-        {p.addons.length > 0 && <><h3>Extras</h3><ul>{p.addons.map((a) => <li key={a.id}>{a.name} <span className="muted">(+{money(a.price)})</span></li>)}</ul></>}
+        {(p.variations.length > 0 || p.addons.length > 0) && (
+          <div className="opt-cols">
+            {p.variations.length > 0 && <div className="opt-box"><h3>Options</h3><ul>{p.variations.map((v) => <li key={v.id}><span>{v.name}</span>{Number(v.price_delta) > 0 && <span className="muted">+{money(v.price_delta)}</span>}</li>)}</ul></div>}
+            {p.addons.length > 0 && <div className="opt-box"><h3>Extras</h3><ul>{p.addons.map((a) => <li key={a.id}><span>{a.name}</span><span className="muted">+{money(a.price)}</span></li>)}</ul></div>}
+          </div>
+        )}
         <ProductBuy p={p} />
       </div>
     </div></section>

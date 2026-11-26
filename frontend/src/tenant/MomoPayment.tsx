@@ -3,8 +3,9 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
 import { Spinner } from '../ui/kit'
+import { UssdCode } from './UssdCode'
 
-type Status = { id: number; status: string; amount: string; currency: string; checkout_url: string; qr: string; receipt_id: number | null; order_number: string; failure_reason: string }
+type Status = { id: number; status: string; amount: string; currency: string; checkout_url: string; ussd_code?: string; qr: string; receipt_id: number | null; order_number: string; failure_reason: string }
 
 const POLL_MS = 5000
 
@@ -58,7 +59,8 @@ export function MomoPayment({ paymentId, onPaid }: { paymentId: number; onPaid?:
   return (
     <div className="momo" role="status" aria-live="polite">
       <h3><Smartphone size={20} aria-hidden /> Mobile money: {s.currency} {s.amount}</h3>
-      <p className="muted">Ask the customer to scan this code with their phone and pay on the Monime page.</p>
+      <p className="muted">{s.ussd_code ? 'The customer can dial the code below, or scan the square code to open their dialler.' : 'Ask the customer to scan this code with their phone and pay on the Monime page.'}</p>
+      {s.ussd_code && <UssdCode code={s.ussd_code} forStaff />}
       {s.qr && <img src={s.qr} alt="QR code of the mobile money payment page" width={220} height={220} />}
       {s.checkout_url && <a className="btn secondary sm" href={s.checkout_url} target="_blank" rel="noopener noreferrer"><ExternalLink size={14} aria-hidden /> Open payment page</a>}
       <p className="waiting"><Spinner size={18} /> Waiting for the payment to be confirmed…</p>

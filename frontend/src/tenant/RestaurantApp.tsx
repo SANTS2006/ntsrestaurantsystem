@@ -1,4 +1,4 @@
-import { Menu as MenuIcon, ShoppingCart, User, X } from 'lucide-react'
+import { Menu as MenuIcon, ShoppingCart, User } from 'lucide-react'
 import { useState, Suspense, lazy } from 'react'
 import { Link, NavLink, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { API_URL } from '../lib/config'
@@ -7,9 +7,11 @@ import { can } from '../lib/permissions'
 import { NotificationBell, ThemeToggle } from '../ui/TopTools'
 import { Avatar } from '../ui/Shell'
 import { ScrollFx } from '../ui/fx'
+import { MobileMenu } from '../ui/MobileMenu'
 import { CartProvider, useCart } from './cart'
 import { Login, Register, VerifyEmail } from './CustomerAuth'
 import { CartPage, CheckoutPage } from './shop'
+import { PayPage, PaymentComplete } from './PaymentPages'
 import { Empty, PageLoader } from '../ui/kit'
 import { About, Contact, Faq, Gallery, Home, Menu, Policy, ProductPage, Services } from './pages'
 import { SiteProvider, useSite } from './SiteContext'
@@ -21,8 +23,8 @@ const Addresses = lazy(() => import('./account/pages').then((m) => ({ default: m
 const MyOrders = lazy(() => import('./account/pages').then((m) => ({ default: m.Orders })))
 const OrderDetail = lazy(() => import('./account/pages').then((m) => ({ default: m.OrderDetail })))
 const Overview = lazy(() => import('./account/pages').then((m) => ({ default: m.Overview })))
-const Profile = lazy(() => import('./account/pages').then((m) => ({ default: m.Profile })))
-const Security = lazy(() => import('./account/pages').then((m) => ({ default: m.Security })))
+const CustomerProfile = lazy(() => import('./account/pages').then((m) => ({ default: m.CustomerProfile })))
+const CustomerSecurity = lazy(() => import('./account/pages').then((m) => ({ default: m.CustomerSecurity })))
 const Support = lazy(() => import('./account/pages').then((m) => ({ default: m.Support })))
 const CateringAdmin = lazy(() => import('./catering/Admin'))
 const MyPay = lazy(() => import('./manage/MyPay'))
@@ -74,8 +76,8 @@ function PublicLayout() {
       <header className="nav">
         <div className="container row">
           <Link to="/" className="logo" aria-label={r.name}>{logo && <img src={logo} alt="" height={36} />}<span className="logo-name">{r.name}</span></Link>
-          <nav className={`links ${open ? 'open' : ''}`} aria-label="Main">
-            {links.map(([to, l]) => <NavLink key={to} to={to} end={to === '/'} onClick={() => setOpen(false)}>{l}</NavLink>)}
+          <nav className="links" aria-label="Main">
+            {links.map(([to, l]) => <NavLink key={to} to={to} end={to === '/'}>{l}</NavLink>)}
           </nav>
           <div className="nav-end">
           <div className="secret" aria-hidden="true" />
@@ -85,11 +87,16 @@ function PublicLayout() {
             <Link to="/cart" className="btn sm secondary" aria-label={`Cart, ${cart.count} items`}><ShoppingCart size={18} aria-hidden /> {cart.count}</Link>
             {me ? <Link to={me.role === 'customer' ? '/account' : '/manage'} className="btn sm secondary">{me.avatar ? <Avatar name={me.full_name || me.email} src={me.avatar} /> : <User size={18} aria-hidden />} <span className="hide-sm">Account</span></Link>
               : <><Link to="/login" className="btn sm secondary" aria-label="Log in"><User size={18} aria-hidden /> <span className="hide-sm">Log in</span></Link><Link to="/register" className="btn sm hide-sm">Sign up</Link></>}
-            <button className="menu-btn" onClick={() => setOpen(!open)} aria-label="Toggle menu" aria-expanded={open}>{open ? <X /> : <MenuIcon />}</button>
+            <button className="menu-btn" onClick={() => setOpen(true)} aria-label="Toggle menu" aria-expanded={open}><MenuIcon /></button>
           </div>
           </div>
         </div>
       </header>
+      <MobileMenu open={open} onClose={() => setOpen(false)} brand={r.name} logo={logo} links={[...links, ['/faq', 'FAQ']]}>
+        {me ? <Link to={me.role === 'customer' ? '/account' : '/manage'} className="btn">{me.role === 'customer' ? 'My account' : 'Open workspace'}</Link>
+          : <><Link to="/login" className="btn secondary">Log in</Link><Link to="/register" className="btn">Sign up</Link></>}
+        <Link to="/cart" className="btn secondary"><ShoppingCart size={18} aria-hidden /> Cart ({cart.count})</Link>
+      </MobileMenu>
       <main><Outlet /></main>
       <footer className="footer">
         <div className="container">
@@ -144,19 +151,20 @@ export default function RestaurantApp() {
           <Route path="faq" element={<Faq />} />
           <Route path="policies/:slug" element={<Policy />} />
           <Route path="cart" element={<CartPage />} />
-          <Route path="payment-complete" element={<div className="container section"><Empty title="Thank you">Your payment page is complete. You can return to the counter: the restaurant confirms the payment automatically.</Empty></div>} />
+          <Route path="payment-complete" element={<PaymentComplete />} />
+          <Route path="pay/:paymentId" element={<PayPage />} />
           <Route path="checkout" element={<CheckoutPage />} />
-          <Route path="account" element={<AccountLayout />}>
-            <Route index element={<Overview />} />
-            <Route path="orders" element={<MyOrders />} />
-            <Route path="orders/:id" element={<OrderDetail />} />
-            <Route path="profile" element={<Profile />} />
-            <Route path="addresses" element={<Addresses />} />
-            <Route path="security" element={<Security />} />
-            <Route path="notifications" element={<Notifications />} />
-            <Route path="notifications/:nid" element={<NotificationDetail />} />
-            <Route path="support" element={<Support />} />
-          </Route>
+        </Route>
+        <Route path="account" element={<AccountLayout />}>
+          <Route index element={<Overview />} />
+          <Route path="orders" element={<MyOrders />} />
+          <Route path="orders/:id" element={<OrderDetail />} />
+          <Route path="profile" element={<CustomerProfile />} />
+          <Route path="addresses" element={<Addresses />} />
+          <Route path="security" element={<CustomerSecurity />} />
+          <Route path="notifications" element={<Notifications />} />
+          <Route path="notifications/:nid" element={<NotificationDetail />} />
+          <Route path="support" element={<Support />} />
         </Route>
         <Route path="receipts/:id" element={<Receipt />} />
         <Route path="t/:token" element={<QRMenu />} />

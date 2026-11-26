@@ -32,8 +32,9 @@ def _key(request):
 
 
 def payment_json(p, redirect_url=""):
-    checkout = p.checkout_url if p.status == Payment.Status.PENDING else ""  # only a payment still waiting can be (re)opened
-    return {"checkout_url": checkout, "id": p.pk, "reference": p.reference, "order_id": p.order_id, "method": p.method, "status": p.status,
+    waiting = p.status == Payment.Status.PENDING  # only a payment still waiting can be (re)opened or dialled
+    checkout = p.checkout_url if waiting else ""
+    return {"checkout_url": checkout, "ussd_code": p.ussd_code if waiting else "", "id": p.pk, "reference": p.reference, "order_id": p.order_id, "method": p.method, "status": p.status,
             "amount": str(p.amount), "currency": p.currency, "redirect_url": redirect_url or getattr(p, "redirect_url", "") or checkout,
             "provider": p.provider, "paid_at": p.paid_at.isoformat() if p.paid_at else None, "failure_reason": p.failure_reason,
             "receipt_id": p.receipt.pk if hasattr(p, "receipt") else None}
@@ -75,6 +76,10 @@ class MyPaymentStatusView(APIView):
         return Response(payment_json(p))
 
 
+def dial_link(code):
+    return "tel:" + code.replace("#", "%23")
+
+
 def qr_data_url(text):
     """PNG of `text` as a data: URL, so the till can show the payment page for the customer to scan."""
     img = qrcode.make(text, box_size=8, border=2)
@@ -97,7 +102,9 @@ class StaffPaymentStatusView(APIView):
             p = services.settle_payment(p.pk, source="poll")
         data = payment_json(p)
         data["order_number"] = p.order.number
-        data["qr"] = qr_data_url(data["checkout_url"]) if data["checkout_url"] else ""
+        # the code is for the customer's phone: scanning opens the payment page, or the dialler with the code filled in
+        target = data["checkout_url"] or (dial_link(data["ussd_code"]) if data["ussd_code"] else "")
+        data["qr"] = qr_data_url(target) if target else ""
         return Response(data)
 
 

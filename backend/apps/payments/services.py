@@ -152,15 +152,18 @@ def start_provider_payment(request, order, phone):
                       currency=order.currency, payer_phone=phone, recorded_by=None)
     payment.save()
     try:
+        # a signed-in customer lands on the success page of their order; paying again after cancelling starts from the order itself
+        base = order.restaurant.public_url
         created = get_provider(payment.provider).create_payment(
             reference=payment.reference, amount=payment.amount, currency=payment.currency, phone=phone,
-            # a signed-in customer returns to their order; a guest paying at the till has no account, so gets a plain thank-you page
-            return_url=f"{order.restaurant.public_url}/account/orders/{order.pk}" if order.customer_id else f"{order.restaurant.public_url}/payment-complete")
+            cancel_url=f"{base}/account/orders/{order.pk}" if order.customer_id else f"{base}/payment-complete",
+            return_url=f"{base}/payment-complete?order={order.pk}" if order.customer_id else f"{base}/payment-complete")
     except ProviderError as exc:
         log.error("payment initiation failed: %s", exc)
         raise serializers.ValidationError({"detail": "The payment service is unavailable. Please try again or pay with cash."})
     payment.provider_ref = created.provider_ref
     payment.checkout_url = created.redirect_url
+    payment.ussd_code = created.ussd_code
     payment.save()
     payment.redirect_url = created.redirect_url
     system_transition(order, Status.PAYMENT_PROCESSING, note="Payment started")

@@ -1,9 +1,9 @@
-import { Minus, Plus, ShoppingCart, Trash2 } from 'lucide-react'
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { Banknote, Check, Minus, Plus, ShoppingCart, Smartphone, Trash2 } from 'lucide-react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { ApiError, api } from '../lib/api'
 import { useAuth } from '../lib/auth'
-import { Empty, ErrorState, Field, Skeleton, Spinner, useAsync, useDocumentTitle, useToast } from '../ui/kit'
+import { Empty, ErrorState, Field, PageLoader, Skeleton, Spinner, useAsync, useDocumentTitle, useToast } from '../ui/kit'
 import { useCart, type CartLine } from './cart'
 import { useSite, type PublicProduct } from './SiteContext'
 
@@ -32,6 +32,7 @@ export function ProductBuy({ p }: { p: PublicProduct }) {
   }
   return (
     <form onSubmit={add} style={{ marginTop: 16 }}>
+      <div className="opt-cols">
       {p.variations.length > 0 && (
         <Field label="Choose an option">
           {(f) => <select {...f} className="input" value={vid ?? ''} onChange={(e) => setVid(e.target.value ? Number(e.target.value) : null)}>
@@ -47,11 +48,12 @@ export function ProductBuy({ p }: { p: PublicProduct }) {
             <label key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
               <input type="number" min={0} max={a.max_quantity} style={{ width: 64 }} className="input" aria-label={`${a.name} quantity`} value={adds[a.id] ?? 0}
                 onChange={(e) => setAdds({ ...adds, [a.id]: Math.max(0, Math.min(a.max_quantity, Number(e.target.value) || 0)) })} />
-              {a.name} <span className="muted">(+{money(a.price)} each, max {a.max_quantity})</span>
+              <span className="extra-text"><b>{a.name}</b><span className="muted">+{money(a.price)} each, max {a.max_quantity}</span></span>
             </label>
           ))}
         </fieldset>
       )}
+      </div>
       {p.allow_instructions && (
         <Field label="Special instructions (optional)">
           {(f) => <textarea {...f} className="input" rows={2} maxLength={200} placeholder="e.g. no pepper, extra sauce" value={note} onChange={(e) => setNote(e.target.value)} />}
@@ -149,6 +151,17 @@ export function CartPage() {
 }
 
 /* ------------------------------------------------------------------ checkout */
+function PayOption({ checked, onSelect, icon, title, note, children }: { checked: boolean; onSelect: () => void; icon: ReactNode; title: string; note: string; children?: ReactNode }) {
+  return (
+    <label className={`pay-option ${checked ? 'selected' : ''}`}>
+      <input type="radio" name="pay" checked={checked} onChange={onSelect} />
+      <span className="ico">{icon}</span>
+      <span className="text"><b>{title}</b><small>{note}</small>{children && <span className="brands">{children}</span>}</span>
+      <span className="mark" aria-hidden><Check size={14} strokeWidth={3} /></span>
+    </label>
+  )
+}
+
 type Addr = { id: number; label: string; line1: string; line2: string; city: string; phone: string; is_default: boolean }
 type Placed = { id: number }
 
@@ -168,6 +181,7 @@ export function CheckoutPage() {
   const [addr, setAddr] = useState({ line1: '', line2: '', city: '', delivery_notes: '' })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
+  const [placing, setPlacing] = useState('')
   const quote = useQuote(fulfilment)
   const saved = useAsync(() => (me ? api<Addr[]>('/customers/addresses/') : Promise.resolve([])), [me?.id])
   const profile = useAsync(() => (me ? api<{ phone: string }>('/customers/me/') : Promise.resolve(null)), [me?.id])
@@ -182,6 +196,7 @@ export function CheckoutPage() {
   if (loading) return <div className="container section"><Spinner /></div>
   if (!me) return <Navigate to="/login?next=/checkout" replace />
   if (me.role !== 'customer') return <div className="container section"><Empty title="Checkout is for customer accounts">Sign in with a customer account to order.</Empty></div>
+  if (placing) return <PageLoader label={placing} /> // keeps the emptied cart from flashing while the payment opens
   if (!cart.lines.length) return <div className="container section"><Empty title="Your cart is empty"><Link className="btn" to="/menu">Browse the menu</Link></Empty></div>
 
   async function place(e: FormEvent) {
@@ -204,18 +219,25 @@ export function CheckoutPage() {
     setBusy(true)
     try {
       const order = await api<Placed>('/orders/checkout/', { body: payload, headers: { 'Idempotency-Key': attempt.current.key } })
-      cart.clear()
       if (payMethod === 'mobile_money') {
+        setPlacing('Opening your payment')
+        cart.clear()
         try {
-          const pay = await api<{ redirect_url: string }>('/payments/initiate/', { body: { order_id: order.id, phone: phone.trim() }, headers: { 'Idempotency-Key': crypto.randomUUID() } })
+          const pay = await api<{ id: number; redirect_url: string; ussd_code: string }>('/payments/initiate/', { body: { order_id: order.id, phone: phone.trim() }, headers: { 'Idempotency-Key': crypto.randomUUID() } })
           if (pay.redirect_url) {
-            toast('Order placed. Opening the Monime payment page…')
-            window.location.assign(pay.redirect_url) // same tab: Monime sends the customer back to this order afterwards
+            window.location.assign(pay.redirect_url) // same tab: Monime brings the customer back to the success page
             return
           }
-          toast('Order placed. Waiting for the payment to be confirmed.')
-        } catch { toast('Order placed. Open it to retry the payment.') }
-      } else toast('Order placed. The restaurant will confirm it shortly.')
+          navigate(`/pay/${pay.id}?order=${order.id}`) // the dial-code payment screen; it moves to the success page by itself
+          return
+        } catch (e) {
+          toast(e instanceof ApiError ? (e.fieldErrors().detail ?? e.message) : 'The payment could not be started.')
+          navigate(`/account/orders/${order.id}`) // the order is kept: the customer can pay from here
+          return
+        }
+      }
+      cart.clear()
+      toast('Order placed. The restaurant will confirm it shortly.')
       navigate(`/account/orders/${order.id}`)
     } catch (err) {
       if (err instanceof ApiError) {
@@ -263,12 +285,6 @@ export function CheckoutPage() {
           )}
           <Field label="Phone number" error={errors.phone ?? errors.contact_phone}>{(f) => <input {...f} className="input" type="tel" autoComplete="tel" placeholder="Enter your phone number" value={phone} onChange={(e) => setPhone(e.target.value)} />}</Field>
           <Field label="Notes for the restaurant (optional)">{(f) => <textarea {...f} className="input" rows={2} maxLength={300} placeholder="Anything we should know?" value={notes} onChange={(e) => setNotes(e.target.value)} />}</Field>
-          <fieldset style={{ border: 0, padding: 0, margin: '0 0 14px' }}>
-            <legend style={{ fontWeight: 600 }}>Payment</legend>
-            <label style={{ display: 'block' }}><input type="radio" name="pay" checked={payMethod === 'cash'} onChange={() => setPayMethod('cash')} /> Cash when you {fulfilment === 'delivery' ? 'receive' : 'pick up'} your order</label>
-            {site.online_payments && <label style={{ display: 'block' }}><input type="radio" name="pay" checked={payMethod === 'mobile_money'} onChange={() => setPayMethod('mobile_money')} /> Mobile money with Monime (pay now)</label>}
-            {payMethod === 'mobile_money' && <p className="hint">After placing the order you are taken to the secure Monime page to pay with mobile money, card or bank. The order is confirmed only after the payment is verified.</p>}
-          </fieldset>
         </div>
         <div className="card">
           <h2 style={{ fontSize: '1.2rem' }}>Order summary</h2>
@@ -276,7 +292,16 @@ export function CheckoutPage() {
           <hr style={{ border: 0, borderTop: '1px solid var(--border)' }} />
           {quote.error && <ErrorState message={quote.error} onRetry={quote.reload} />}
           {quote.loading && !quote.data ? <Skeleton h={90} /> : quote.data && <Totals q={quote.data} delivery={fulfilment === 'delivery'} />}
-          <button className="btn" style={{ width: '100%', marginTop: 16 }} disabled={busy || !!quote.error || !quote.data}>{busy ? <Spinner /> : 'Place order'}</button>
+          <fieldset className="pay-options">
+            <legend>Payment method</legend>
+            <PayOption checked={payMethod === 'cash'} onSelect={() => setPayMethod('cash')} icon={<Banknote size={22} aria-hidden />} title="Cash" note={`Pay when you ${fulfilment === 'delivery' ? 'receive' : 'pick up'} your order`} />
+            {site.online_payments && (
+              <PayOption checked={payMethod === 'mobile_money'} onSelect={() => setPayMethod('mobile_money')} icon={<Smartphone size={22} aria-hidden />} title="Mobile money" note="Orange Money or Afrimoney">
+                <span className="pay-brand orange">Orange Money</span><span className="pay-brand afri">Afrimoney</span>
+              </PayOption>
+            )}
+          </fieldset>
+          <button className="btn lg" style={{ width: '100%', marginTop: 4 }} disabled={busy || !!quote.error || !quote.data}>{busy ? <Spinner /> : payMethod === 'mobile_money' && quote.data ? `Place order and pay ${money(quote.data.total)}` : 'Place order'}</button>
           <p className="hint">The total shown is calculated by the restaurant&apos;s system when you place the order.</p>
         </div>
       </form>

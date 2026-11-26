@@ -147,3 +147,50 @@ pre, code { white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* the restaurant name stays readable beside the buttons: two short lines instead of a cut-off one */
 @media (max-width: 480px) { .nav .logo .logo-name { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.12; font-size: .9rem; } }
+
+/* ================================ Website menu on phones and tablets: slides in from the right, and out again ================================ */
+.mobile-menu { display: none; }
+@media (max-width: 1000px) {
+  .nav .links, .nav .links.open { display: none; }
+  .mobile-menu { display: block; position: fixed; inset: 0; z-index: 200; visibility: hidden; pointer-events: none; transition: visibility 0s linear .45s; }
+  .mobile-menu.open { visibility: visible; pointer-events: auto; transition-delay: 0s; }
+  .mm-scrim { position: absolute; inset: 0; background: rgb(4 12 30 / 55%); backdrop-filter: blur(3px); opacity: 0; transition: opacity .35s ease; }
+  .mobile-menu.open .mm-scrim { opacity: 1; }
+  .mm-panel { position: absolute; top: 0; right: 0; bottom: 0; width: min(340px, 86vw); display: flex; flex-direction: column; background: var(--surface); color: var(--text); border-left: 1px solid var(--border); border-radius: 22px 0 0 22px; box-shadow: -30px 0 60px -30px rgb(0 10 40 / 70%); transform: translateX(105%); transition: transform .45s cubic-bezier(.22,1,.36,1); overflow: hidden; }
+  .mobile-menu.open .mm-panel { transform: none; }
+  .mm-head { display: flex; align-items: center; gap: 12px; padding: 18px 16px 14px; border-bottom: 1px solid var(--border); background: linear-gradient(135deg, color-mix(in srgb, var(--brand) 16%, var(--surface)), var(--surface)); }
+  .mm-head img { width: 40px; height: 40px; object-fit: contain; border-radius: 12px; background: #fff; padding: 3px; flex: none; }
+  .mm-head b { flex: 1; min-width: 0; font-size: 1.05rem; line-height: 1.2; overflow-wrap: anywhere; }
+  .mm-close { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 12px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); cursor: pointer; transition: transform .2s; } .mm-close:hover { transform: rotate(90deg); }
+  .mm-panel nav { flex: 1; overflow-y: auto; padding: 10px 12px; display: grid; align-content: start; gap: 4px; }
+  .mm-panel nav a { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; padding: 10px 14px; border-radius: 14px; color: var(--text); font-weight: 700; opacity: 0; transform: translateX(34px); transition: opacity .3s ease, transform .4s cubic-bezier(.22,1,.36,1), background .2s; }
+  .mobile-menu.open .mm-panel nav a { opacity: 1; transform: none; transition-delay: calc(90ms + var(--i) * 45ms), calc(90ms + var(--i) * 45ms), 0s; }
+  .mm-panel nav a svg { color: var(--muted); flex: none; }
+  .mm-panel nav a:hover { background: var(--bg-soft); color: var(--text); }
+  .mm-panel nav a.active { background: linear-gradient(135deg, var(--brand), var(--brand-2)); color: #fff; } .mm-panel nav a.active svg { color: #fff; }
+  .mm-foot { display: grid; gap: 8px; padding: 14px 14px calc(16px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border); }
+  .mm-foot .btn { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) { .mm-panel, .mm-scrim, .mm-panel nav a { transition: none !important; } .mm-panel nav a { opacity: 1; transform: none; } }
+
+/* small screens show just the logo in the header; the name is in the menu panel */
+@media (max-width: 560px) {
+  .nav .logo img + .logo-name { display: none; }
+  .nav .logo img { width: auto; height: 38px; max-width: 120px; object-fit: contain; }
+}
+
+/* ---- System (staff and customer) top bar: the logo replaces the restaurant name on small screens ---- */
+.top-logo { display: none; width: 34px; height: 34px; object-fit: contain; border-radius: 9px; flex: none; }
+@media (max-width: 1024px) { .top-logo { display: block; } }
+@media (max-width: 560px) { .topbar .crumb small { display: none; } }
+@media (max-width: 360px) { .topbar .crumb { display: none; } }
+
+/* ---- Tables marked "stack" become one card per row on phones ---- */
+@media (max-width: 560px) {
+  .tbl.stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .tbl.stack, .tbl.stack tbody, .tbl.stack tr, .tbl.stack td { display: block; width: 100%; }
+  .tbl.stack tr { padding: 10px 14px 14px; border-bottom: 1px solid var(--border); } .tbl.stack tr:last-child { border-bottom: 0; }
+  .tbl.stack td { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 5px 0; border: 0; white-space: normal; text-align: right; }
+  .tbl.stack td[data-label]::before { content: attr(data-label); color: var(--muted); font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; text-align: left; }
+  .tbl.stack td:not([data-label]) .btn { width: 100%; margin-top: 6px; }
+}

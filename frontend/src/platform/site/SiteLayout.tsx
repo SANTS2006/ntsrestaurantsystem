@@ -1,4 +1,4 @@
-import { Menu, MessageCircle, X } from 'lucide-react'
+import { Menu, MessageCircle } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { api } from '../../lib/api'
@@ -6,6 +6,7 @@ import { useSecretClicks } from '../../lib/useSecretClicks'
 import { useAsync } from '../../ui/kit'
 import { ThemeToggle } from '../../ui/TopTools'
 import { ScrollFx } from '../../ui/fx'
+import { MobileMenu } from '../../ui/MobileMenu'
 
 export type PublicSettings = { platform_name: string; whatsapp_number: string; support_email: string }
 
@@ -45,8 +46,8 @@ export default function SiteLayout() {
       <header className="nav">
         <div className="container row">
           <Link to="/" className="logo" aria-label={name}><img src="/logo-64.png" alt="" width={36} height={36} /> <span className="logo-name">{name}</span></Link>
-          <nav className={`links ${open ? 'open' : ''}`} aria-label="Main">
-            {links.map(([to, label]) => <NavLink key={to} to={to} onClick={() => setOpen(false)}>{label}</NavLink>)}
+          <nav className="links" aria-label="Main">
+            {links.map(([to, label]) => <NavLink key={to} to={to}>{label}</NavLink>)}
           </nav>
           <div className="nav-end">
           {/* Intentionally empty, unlabelled area: five quick clicks open the sign-in page. */}
@@ -54,13 +55,14 @@ export default function SiteLayout() {
           <div className="actions">
             <ThemeToggle />
             <Link to="/contact" className="btn sm hide-sm">Contact us</Link>
-            <button className="menu-btn" onClick={() => setOpen(!open)} aria-label="Toggle menu" aria-expanded={open}>
-              {open ? <X /> : <Menu />}
-            </button>
+            <button className="menu-btn" onClick={() => setOpen(true)} aria-label="Toggle menu" aria-expanded={open}><Menu /></button>
           </div>
           </div>
         </div>
       </header>
+      <MobileMenu open={open} onClose={() => setOpen(false)} brand={name} logo="/logo-64.png" links={[['/', 'Home'], ...links]}>
+        <Link to="/contact" className="btn">Contact us</Link>
+      </MobileMenu>
       <main><Outlet /></main>
       <footer className="footer">
         <div className="container">

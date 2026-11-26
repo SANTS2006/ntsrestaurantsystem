@@ -7,6 +7,8 @@ from rest_framework.test import APIClient
 
 from apps.payments import providers
 
+from .test_phase5_orders import checkout, clean, line, shop  # noqa: F401
+
 
 class Reply:
     def __init__(self, body):
@@ -21,6 +23,9 @@ class Reply:
 
 @pytest.fixture
 def monime(settings, monkeypatch):
+    from django.core.cache import cache
+
+    cache.clear()
     settings.MONIME_ACCESS_TOKEN, settings.MONIME_SPACE_ID, settings.MONIME_WEBHOOK_SECRET = "mon_test_x", "spc-x", "w" * 40
     monkeypatch.setattr(providers.MonimeProvider, "RETRY_WAIT", 0)
     return providers.MonimeProvider()
@@ -34,40 +39,131 @@ def serve(monkeypatch, handler):
     monkeypatch.setattr(providers.urllib.request, "urlopen", handler)
 
 
-def test_a_brief_outage_is_retried_with_the_same_idempotency_key(monime, monkeypatch):
-    seen = []
+def route(monkeypatch, handlers, log):
+    """handlers: {(method, path prefix): callable() -> Reply | raises}."""
 
     def urlopen(req, timeout):
-        seen.append((req.get_header("Authorization"), req.get_header("Idempotency-key")))
-        if len(seen) < 3:
-            raise gateway_error()
-        return Reply(b'{"success":true,"result":{"id":"sps-1","redirectUrl":"https://pay.monime.io/s/1"}}')
+        method, path = req.get_method(), req.full_url.split("/v1", 1)[1]
+        log.append((method, path, req.get_header("Idempotency-key"), timeout))
+        for (m, prefix), handler in handlers.items():
+            if method == m and path.startswith(prefix):
+                return handler()
+        raise AssertionError((method, path))
 
     serve(monkeypatch, urlopen)
-    made = monime.create_payment(reference="PAY-1", amount="12.50", currency="SLE", phone="", return_url="https://x/y")
-    assert made.provider_ref == "sps-1" and len(seen) == 3
-    assert {s[1] for s in seen} == {"PAY-1"} and seen[0][0] == "Bearer mon_test_x"
+
+
+def reply(body):
+    return lambda: Reply(body)
+
+
+def fail(code):
+    def handler():
+        raise gateway_error(code)
+
+    return handler
+
+
+SESSION = b'{"success":true,"result":{"id":"sps-1","redirectUrl":"https://pay.monime.io/s/1"}}'
+CODE = b'{"success":true,"result":{"id":"pmc-1","status":"pending","ussdCode":"*715*123456#","amount":{"currency":"SLE","value":1250}}}'
+
+
+def create(monime, reference="PAY-1"):
+    return monime.create_payment(reference=reference, amount="12.50", currency="SLE", phone="", return_url="https://x/ok", cancel_url="https://x/no")
+
+
+def test_the_hosted_payment_page_is_used_when_it_works(monime, monkeypatch):
+    calls = []
+    route(monkeypatch, {("POST", "/checkout-sessions"): reply(SESSION)}, calls)
+    made = create(monime)
+    assert made.redirect_url == "https://pay.monime.io/s/1" and not made.ussd_code and len(calls) == 1
+
+
+def test_when_the_checkout_service_fails_a_dial_code_is_offered_and_nobody_waits_for_it_again(monime, monkeypatch):
+    calls = []
+    route(monkeypatch, {("POST", "/checkout-sessions"): fail(500), ("POST", "/payment-codes"): reply(CODE)}, calls)
+    made = create(monime)
+    assert made.provider_ref == "pmc-1" and made.ussd_code == "*715*123456#" and not made.redirect_url
+    assert [c[1] for c in calls] == ["/checkout-sessions", "/payment-codes"] and calls[0][3] == monime.CHECKOUT_TIMEOUT
+    assert calls[1][2] == "PAY-1-code"
+    calls.clear()
+    create(monime, "PAY-2")
+    assert [c[1] for c in calls] == ["/payment-codes"]  # the broken service is skipped for a few minutes
+
+
+def test_a_brief_outage_is_retried_with_the_same_idempotency_key(monime, monkeypatch):
+    calls, tries = [], []
+
+    def flaky():
+        tries.append(1)
+        if len(tries) < 3:
+            raise gateway_error(503)
+        return Reply(CODE)
+
+    route(monkeypatch, {("POST", "/checkout-sessions"): fail(500), ("POST", "/payment-codes"): flaky}, calls)
+    assert create(monime).provider_ref == "pmc-1"
+    assert [c[2] for c in calls if c[1] == "/payment-codes"] == ["PAY-1-code"] * 3
 
 
 def test_refusals_are_not_retried_and_a_lasting_outage_gives_up(monime, monkeypatch):
     calls = []
-
-    def fail_with(code):
-        def urlopen(req, timeout):
-            calls.append(1)
-            raise gateway_error(code)
-
-        return urlopen
-
-    serve(monkeypatch, fail_with(403))
+    route(monkeypatch, {("POST", "/checkout-sessions"): fail(403), ("POST", "/payment-codes"): fail(403)}, calls)
     with pytest.raises(providers.ProviderError, match="403"):
-        monime.create_payment(reference="PAY-2", amount="1.00", currency="SLE", phone="", return_url="https://x/y")
-    assert len(calls) == 1
+        create(monime)
+    assert len(calls) == 2  # one try each
     calls.clear()
-    serve(monkeypatch, fail_with(503))
+    route(monkeypatch, {("GET", "/payment-codes/"): fail(503)}, calls)
     with pytest.raises(providers.ProviderError, match="503"):
-        monime.fetch_status("sps-1")
+        monime.fetch_status("pmc-1")
     assert len(calls) == 3
+
+
+@pytest.mark.parametrize("remote,ours", [("pending", "pending"), ("processing", "pending"), ("completed", "succeeded"), ("expired", "failed"), ("cancelled", "failed")])
+def test_dial_code_status_mapping(monime, monkeypatch, remote, ours):
+    body = b'{"success":true,"result":{"status":"' + remote.encode() + b'","amount":{"currency":"SLE","value":1250}}}'
+    route(monkeypatch, {("GET", "/payment-codes/pmc-1"): reply(body)}, [])
+    status = monime.fetch_status("pmc-1")
+    assert (status.status, str(status.amount), status.currency) == (ours, "12.50", "SLE")
+
+
+def test_payment_code_webhooks_are_recognised(monime):
+    event = monime.parse_event({"event": {"id": "wke-1", "name": "payment_code.completed"}, "object": {"id": "pmc-1"}})
+    assert event.provider_ref == "pmc-1"
+    with pytest.raises(providers.IgnoredEvent):
+        monime.parse_event({"event": {"id": "wke-2", "name": "payout.completed"}, "object": {"id": "x"}})
+
+
+def test_customer_pays_by_dial_code_and_the_order_is_confirmed_only_after_monime_says_so(world, shop, clean, monime, monkeypatch, settings):  # noqa: F811
+    from apps.orders.models import Order
+    from apps.tenants.models import RestaurantSettings
+
+    from .conftest import client_for
+
+    settings.PAYMENT_PROVIDER = "monime"
+    RestaurantSettings.objects.filter(restaurant=world["a"]).update(online_payments_enabled=True)
+    state = {"status": "pending", "value": 0}
+
+    def create_code():
+        return Reply(('{"success":true,"result":{"id":"pmc-9","ussdCode":"*715*999#","status":"pending"}}').encode())
+
+    def read_code():
+        return Reply(('{"success":true,"result":{"status":"%s","amount":{"currency":"SLE","value":%d}}}' % (state["status"], state["value"])).encode())
+
+    route(monkeypatch, {("POST", "/checkout-sessions"): fail(500), ("POST", "/payment-codes"): create_code, ("GET", "/payment-codes/pmc-9"): read_code}, [])
+    c = client_for(world["cust_a"], "alpha")
+    order = checkout(world, [line(shop["rice"], 1)], key="ussd-1", payment_method="mobile_money").data
+    started = c.post("/api/v1/payments/initiate/", {"order_id": order["id"], "phone": "+23276123456"}, format="json", HTTP_IDEMPOTENCY_KEY="ussd-init")
+    assert started.status_code == 201, started.content
+    pay = started.data
+    assert pay["ussd_code"] == "*715*999#" and pay["redirect_url"] == "" and pay["status"] == "pending"
+    assert c.get(f"/api/v1/orders/my/{order['id']}/").data["payments"][0]["ussd_code"] == "*715*999#"
+    assert c.get(f"/api/v1/payments/my/{pay['id']}/").data["status"] == "pending"
+    assert Order.unscoped.get(pk=order["id"]).payment_status == "unpaid"
+    state.update(status="completed", value=int(Order.unscoped.get(pk=order["id"]).total * 100))
+    done = c.get(f"/api/v1/payments/my/{pay['id']}/").data
+    assert done["status"] == "succeeded" and done["ussd_code"] == ""
+    paid = Order.unscoped.get(pk=order["id"])
+    assert paid.payment_status == "paid" and paid.status == "confirmed"
 
 
 def test_only_sle_is_sent_and_both_item_list_shapes_are_read(monime, monkeypatch):
@@ -105,7 +201,6 @@ def test_currency_is_sle_everywhere_and_cannot_be_changed(world, db):
 
 
 # ------------------------------------------------------------------ 80 mm receipt
-from .test_phase5_orders import clean, shop  # noqa: E402,F401
 from .test_phase6_payments import cash, place  # noqa: E402
 
 

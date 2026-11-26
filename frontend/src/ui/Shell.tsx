@@ -51,6 +51,7 @@ export default function Shell({ brand, tagline, logo, groups, user, onLogout, ch
       <div className="content">
         <header className="topbar">
           <button className="icon-btn burger" aria-label="Open navigation" aria-expanded={open} onClick={() => setOpen(true)}><MenuIcon size={20} aria-hidden /></button>
+          {logo && <img className="top-logo" src={logo} alt={brand} width={34} height={34} />}
           <div className="crumb"><small>{brand}</small><b>{current?.label ?? 'Workspace'}</b></div>
           <span className="spacer" />
           <div className="tools">

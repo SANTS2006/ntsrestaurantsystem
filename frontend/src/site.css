@@ -83,11 +83,65 @@ main { overflow-x: clip; }
 .back-btn { --puck: 34px; position: relative; isolation: isolate; display: inline-flex; align-items: center; gap: 10px; min-height: 42px; max-width: 100%; padding: 4px 18px 4px 4px; border-radius: 999px;
   border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); font: inherit; font-weight: 700; font-size: .9rem; line-height: 1.2; cursor: pointer; box-shadow: var(--shadow-sm); overflow: hidden; transition: color .25s, border-color .25s, box-shadow .25s, transform .15s; }
 .back-btn .back-puck { position: absolute; z-index: -1; left: 4px; top: 50%; width: var(--puck); height: var(--puck); margin-top: calc(var(--puck) / -2); border-radius: 999px; display: grid; place-items: center; justify-content: start; padding-left: 8.5px;
-  color: #fff; background: linear-gradient(135deg, var(--brand), var(--brand-2)); box-shadow: 0 8px 18px -10px var(--brand); transition: width .35s cubic-bezier(.2,.8,.2,1); }
+  color: #fff; background: linear-gradient(135deg, var(--brand), var(--brand-2)); box-shadow: 0 8px 18px -10px var(--brand); transition: transform .25s cubic-bezier(.2,.8,.2,1); }
 .back-btn .back-puck svg { transition: transform .25s; }
 .back-btn .back-label { margin-left: calc(var(--puck) + 2px); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.back-btn:hover, .back-btn:focus-visible { color: #fff; border-color: var(--brand); box-shadow: var(--shadow); }
-.back-btn:hover .back-puck, .back-btn:focus-visible .back-puck { width: calc(100% - 8px); }
+.back-btn:hover, .back-btn:focus-visible, .back-btn:active { color: var(--text); border-color: var(--brand); background: color-mix(in srgb, var(--brand) 12%, var(--surface)); box-shadow: 0 12px 26px -18px var(--brand); }
+.back-btn:hover .back-puck, .back-btn:focus-visible .back-puck { transform: scale(1.07); }
 .back-btn:hover .back-puck svg, .back-btn:focus-visible .back-puck svg { transform: translateX(-3px); }
 .back-btn:active { transform: scale(.97); }
 @media (prefers-reduced-motion: reduce) { .back-btn .back-puck, .back-btn .back-puck svg { transition: none; } }
+
+/* ================================ Dish options and extras: side by side, stacked on small screens ================================ */
+.opt-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 16px; align-items: start; margin: 14px 0; }
+.opt-cols:empty { display: none; }
+.opt-cols > .field, .opt-cols > fieldset { margin: 0; }
+.opt-cols > fieldset { border: 1px solid var(--border); border-radius: 14px; padding: 6px 14px 10px; min-width: 0; }
+.opt-cols > fieldset legend { font-weight: 700; padding: 0 6px; }
+.opt-cols > fieldset label { flex-wrap: wrap; }
+.opt-box { border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; background: var(--surface); }
+.opt-box h3 { margin: 0 0 8px; }
+.opt-box ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.opt-box li { display: flex; justify-content: space-between; gap: 12px; padding-bottom: 8px; border-bottom: 1px dashed var(--border); } .opt-box li:last-child { border-bottom: 0; padding-bottom: 0; }
+.opt-box li .muted { white-space: nowrap; }
+
+/* ================================ Payment method cards ================================ */
+.pay-options { border: 0; padding: 0; margin: 18px 0 12px; display: grid; gap: 10px; }
+.pay-options legend { font-weight: 800; margin-bottom: 8px; padding: 0; }
+.pay-option { position: relative; display: flex; align-items: center; gap: 14px; padding: 14px 16px; border: 2px solid var(--border-strong); border-radius: 16px; background: var(--surface); cursor: pointer; transition: border-color .2s, box-shadow .2s, transform .15s, background .2s; }
+.pay-option:hover { border-color: color-mix(in srgb, var(--brand) 60%, var(--border-strong)); transform: translateY(-1px); }
+.pay-option.selected { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 9%, var(--surface)); box-shadow: 0 14px 28px -20px var(--brand); }
+.pay-option input { position: absolute; opacity: 0; pointer-events: none; }
+.pay-option:focus-within { outline: 3px solid color-mix(in srgb, var(--brand) 45%, transparent); outline-offset: 2px; }
+.pay-option .ico { width: 46px; height: 46px; flex: none; display: grid; place-items: center; border-radius: 14px; background: var(--bg-soft); color: var(--brand); transition: background .2s, color .2s; }
+.pay-option.selected .ico { background: linear-gradient(135deg, var(--brand), var(--brand-2)); color: #fff; }
+.pay-option .text { flex: 1; min-width: 0; display: grid; gap: 2px; } .pay-option .text b { font-size: 1.02rem; } .pay-option .text small { color: var(--muted); }
+.pay-option .brands { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.pay-brand { font-size: .72rem; font-weight: 800; padding: 3px 10px; border-radius: 999px; color: #fff; }
+.pay-brand.orange { background: #c2530a; } .pay-brand.afri { background: #6d1fa8; }
+.pay-option .mark { width: 24px; height: 24px; flex: none; border-radius: 50%; border: 2px solid var(--border-strong); display: grid; place-items: center; color: transparent; transition: all .2s; }
+.pay-option.selected .mark { background: var(--brand); border-color: var(--brand); color: #fff; }
+
+/* ================================ Payment screens ================================ */
+.pay-screen { display: grid; justify-items: center; }
+.pay-card { width: min(560px, 100%); text-align: center; padding: clamp(18px, 5vw, 36px); border-radius: 24px; }
+.pay-card h1 { font-size: clamp(1.7rem, 6vw, 2.4rem); margin: 4px 0 14px; }
+.pay-result { display: grid; justify-items: center; gap: 10px; } .pay-result.ok > .tick { color: var(--ok); animation: pop-tick .6s cubic-bezier(.2,1.6,.4,1) both; } .pay-result.bad > svg { color: var(--danger); } .pay-result > svg { color: var(--brand); }
+@keyframes pop-tick { from { transform: scale(.2); opacity: 0; } }
+.pay-waiting { display: flex; gap: 10px; align-items: center; justify-content: center; color: var(--brand); font-weight: 700; margin: 16px 0; }
+.ussd { display: grid; justify-items: center; gap: 12px; margin: 10px 0; text-align: center; }
+.ussd-label { margin: 0; font-weight: 700; }
+.ussd-code { margin: 0; font: 800 clamp(1.5rem, 7.5vw, 2.4rem)/1.2 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .02em; padding: 12px 18px; border: 2px dashed var(--brand); border-radius: 16px; background: color-mix(in srgb, var(--brand) 8%, var(--surface)); color: var(--text); max-width: 100%; overflow-wrap: anywhere; user-select: all; }
+.ussd-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.ussd-steps { text-align: left; margin: 4px 0 0; padding-left: 20px; display: grid; gap: 4px; color: var(--muted); }
+
+/* ---- Button text stays readable while hovering, pressing and focusing ---- */
+.btn:hover, .btn:focus-visible, .btn:active { text-decoration: none; }
+.btn.secondary:active, .btn.ghost:active, .icon-btn:hover, .icon-btn:active { color: var(--text); }
+.btn.secondary:hover, .btn.secondary:focus-visible { border-color: var(--brand); }
+.btn:active:not(:disabled) { filter: brightness(.94); }
+
+/* quantity boxes of the extras stay small, with the name and price beside them */
+.opt-cols input.input[type='number'] { width: 68px !important; min-width: 0 !important; flex: none; text-align: center; padding-inline: 6px; }
+.opt-cols > fieldset label { flex-wrap: nowrap !important; }
+.extra-text { display: grid; min-width: 0; line-height: 1.3; } .extra-text .muted { font-size: .85rem; }

@@ -26,7 +26,8 @@ class Payment(BranchOwnedModel):
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     currency = models.CharField(max_length=3)
     provider_ref = models.CharField(max_length=100, blank=True)
-    checkout_url = models.URLField(max_length=500, blank=True)  # the provider's hosted payment page, kept so it can be reopened while pending
+    ussd_code = models.CharField(max_length=60, blank=True)  # a dial code the customer pays with, when there is no hosted page
+    checkout_url = models.URLField(max_length=1000, blank=True)  # the provider's hosted payment page, kept so it can be reopened while pending
     payer_phone = models.CharField(max_length=30, blank=True)
     amount_received = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)  # cash tendered
     change_given = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))

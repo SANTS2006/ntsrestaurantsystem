@@ -2,6 +2,10 @@
 
 Adding a provider = one class implementing ``BaseProvider`` + one entry in ``REGISTRY``.
 
+Monime has two ways to collect: the hosted Checkout Session page (preferred: the customer is redirected there) and Payment Codes
+(a USSD code the customer dials to pay with Orange Money or Afrimoney). If the checkout service fails, the adapter falls back to a
+payment code, so customers can still pay; after a failure the checkout service is skipped for a few minutes, so nobody waits on it.
+
 Monime: implemented from the official docs (docs.monime.io, API version caph.2025-08-23): hosted Checkout
 Sessions (`POST /v1/checkout-sessions`, the customer is redirected to `redirectUrl` and picks card, bank, mobile
 money or wallet on Monime's page), status by `GET /v1/checkout-sessions/{id}`, and signed webhooks
@@ -16,6 +20,7 @@ import hashlib
 import hmac
 import json
 import logging
+import re
 import time
 import urllib.error
 import urllib.request
@@ -41,7 +46,8 @@ class IgnoredEvent(Exception):
 @dataclass
 class Created:
     provider_ref: str
-    redirect_url: str = ""
+    redirect_url: str = ""  # a hosted payment page to send the customer to ...
+    ussd_code: str = ""  # ... or a code the customer dials on their phone
 
 
 @dataclass
@@ -62,7 +68,7 @@ class BaseProvider:
     name = ""
     supports_refunds = True
 
-    def create_payment(self, *, reference, amount, currency, phone, return_url) -> Created:
+    def create_payment(self, *, reference, amount, currency, phone, return_url, cancel_url="") -> Created:
         raise NotImplementedError
 
     def fetch_status(self, provider_ref) -> RemoteStatus:
@@ -92,7 +98,7 @@ class SimulatedProvider(BaseProvider):
     def _key(ref):
         return f"sim-payment:{ref}"
 
-    def create_payment(self, *, reference, amount, currency, phone, return_url):
+    def create_payment(self, *, reference, amount, currency, phone, return_url, cancel_url=""):
         ref = f"SIM-{uuid.uuid4().hex[:16]}"
         cache.set(self._key(ref), {"status": "pending", "amount": str(amount), "currency": currency}, 3600)
         return Created(provider_ref=ref, redirect_url="")
@@ -142,6 +148,10 @@ class MonimeProvider(BaseProvider):
     MINOR = {"SLE": 100}  # the platform trades in Sierra Leone leones only; amounts are sent in the minor unit (cents)
     ATTEMPTS = 3
     RETRY_WAIT = 1.0  # seconds, multiplied by the attempt number
+    CHECKOUT_TIMEOUT = 8  # seconds: the customer is waiting; past this we offer the dial code instead
+    CHECKOUT_PAUSE = 300  # seconds the checkout service is skipped after it failed
+    CHECKOUT_DOWN_KEY = "monime-checkout-down"
+    CODE_LIFETIME = "30m"
 
     def _cfg(self):
         c = settings
@@ -149,7 +159,8 @@ class MonimeProvider(BaseProvider):
             raise ProviderError("Monime is not configured (MONIME_ACCESS_TOKEN / MONIME_SPACE_ID).")
         return c
 
-    def _request(self, method, path, payload=None, idempotency_key=""):
+    def _request(self, method, path, payload=None, idempotency_key="", timeout=20, attempts=None):
+        attempts = attempts or self.ATTEMPTS
         c = self._cfg()
         headers = {"Authorization": f"Bearer {c.MONIME_ACCESS_TOKEN}", "Monime-Space-Id": c.MONIME_SPACE_ID, "Monime-Version": c.MONIME_VERSION,
                    "Content-Type": "application/json", "Accept": "application/json", "User-Agent": "RestaurantPlatform/1.0"}
@@ -159,13 +170,13 @@ class MonimeProvider(BaseProvider):
                                      data=json.dumps(payload).encode() if payload is not None else None)
         # A gateway error (Monime briefly unavailable) is retried: reads are harmless and creating carries an Idempotency-Key,
         # so a retry can never make a second payment.
-        for attempt in range(1, self.ATTEMPTS + 1):
+        for attempt in range(1, attempts + 1):
             try:
-                with urllib.request.urlopen(req, timeout=20) as resp:
+                with urllib.request.urlopen(req, timeout=timeout) as resp:
                     body = json.loads(resp.read() or b"{}")
                 break
             except urllib.error.HTTPError as exc:
-                if exc.code in (502, 503, 504) and attempt < self.ATTEMPTS and (method == "GET" or idempotency_key):
+                if exc.code in (502, 503, 504) and attempt < attempts and (method == "GET" or idempotency_key):
                     time.sleep(self.RETRY_WAIT * attempt)
                     continue
                 raise ProviderError(f"Monime HTTP {exc.code}{_monime_reason(exc)}") from exc
@@ -175,24 +186,58 @@ class MonimeProvider(BaseProvider):
             raise ProviderError("Monime returned an unexpected response.")
         return body["result"]
 
-    def create_payment(self, *, reference, amount, currency, phone, return_url):
+    def create_payment(self, *, reference, amount, currency, phone, return_url, cancel_url=""):
         cur = currency.upper()
         if cur not in self.MINOR:
             raise ProviderError("Payments are made in SLE only.")
         value = int((Decimal(amount) * self.MINOR[cur]).to_integral_value())
         if value <= 0:
             raise ProviderError("Invalid amount.")
+        self._cfg()
+        if not cache.get(self.CHECKOUT_DOWN_KEY):
+            try:
+                return self._checkout_session(reference, cur, value, return_url, cancel_url or return_url)
+            except ProviderError as exc:
+                log.error("Monime checkout page unavailable, offering a dial code instead: %s", exc)
+                cache.set(self.CHECKOUT_DOWN_KEY, 1, self.CHECKOUT_PAUSE)
+        return self._payment_code(reference, cur, value)
+
+    def _checkout_session(self, reference, cur, value, return_url, cancel_url):
         # One line item carrying the whole amount: the order total was already computed (and taxed) by this server.
         result = self._request("POST", "/checkout-sessions", {
-            "name": f"Order payment {reference}"[:150], "reference": reference[:255], "successUrl": return_url[:255], "cancelUrl": return_url[:255],
+            "name": f"Order payment {reference}"[:150], "reference": reference[:255], "successUrl": return_url[:255], "cancelUrl": cancel_url[:255],
             "lineItems": [{"type": "custom", "name": "Order total", "quantity": 1, "price": {"currency": cur, "value": value}}],
-            "metadata": {"reference": reference[:100]}}, idempotency_key=reference)
+            "metadata": {"reference": reference[:100]}}, idempotency_key=reference, timeout=self.CHECKOUT_TIMEOUT, attempts=1)
         ref, url = str(result.get("id") or ""), str(result.get("redirectUrl") or "")
         if not ref or not url.startswith("https://"):
             raise ProviderError("Monime response had no checkout session or redirect URL.")
         return Created(provider_ref=ref, redirect_url=url)
 
+    def _payment_code(self, reference, cur, value):
+        """A one-time USSD code for exactly this amount (Orange Money / Afrimoney)."""
+        result = self._request("POST", "/payment-codes", {
+            "name": f"Order payment {reference}"[:64], "mode": "one_time", "duration": self.CODE_LIFETIME, "reference": reference[:64],
+            "amount": {"currency": cur, "value": value}, "metadata": {"reference": reference[:100]}}, idempotency_key=f"{reference}-code")
+        ref, code = str(result.get("id") or ""), str(result.get("ussdCode") or "")
+        if not ref.startswith("pmc-") or not re.fullmatch(r"\*[0-9*]+#", code):
+            raise ProviderError("Monime response had no usable payment code.")
+        return Created(provider_ref=ref, ussd_code=code)
+
+    def _code_status(self, provider_ref):
+        r = self._request("GET", f"/payment-codes/{provider_ref}")
+        raw = str(r.get("status", "")).lower()
+        status = "succeeded" if raw == "completed" else "failed" if raw in ("cancelled", "expired") else "pending"
+        try:
+            cur = str(r["amount"]["currency"]).upper()
+            total = Decimal(int(r["amount"]["value"])) / self.MINOR[cur]
+        except (KeyError, TypeError, ValueError, ArithmeticError) as exc:
+            log.error("Monime payment code %s has an unexpected shape; fields: %s", provider_ref, sorted(r))
+            raise ProviderError("Monime payment code response has no usable amount.") from exc
+        return RemoteStatus(status, total.quantize(Decimal("0.01")), cur)
+
     def fetch_status(self, provider_ref):
+        if provider_ref.startswith("pmc-"):
+            return self._code_status(provider_ref)
         r = self._request("GET", f"/checkout-sessions/{provider_ref}")
         raw = str(r.get("status", "")).lower()
         status = "succeeded" if raw == "completed" else "failed" if raw in ("cancelled", "expired") else "pending"
@@ -229,7 +274,7 @@ class MonimeProvider(BaseProvider):
     def parse_event(self, body):
         ev, obj = body.get("event") or {}, body.get("object") or {}
         name = str(ev.get("name", ""))
-        if not name.startswith("checkout_session."):
+        if not name.startswith(("checkout_session.", "payment_code.")):
             raise IgnoredEvent(name)  # payments, payouts, transfers... are not ours to act on
         if not ev.get("id") or not obj.get("id"):
             raise ValueError("unrecognised event")

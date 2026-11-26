@@ -47,7 +47,7 @@ html { scroll-behavior: smooth; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 15.5px/1.6 var(--font-body); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
 h1, h2, h3 { line-height: 1.2; margin: 0 0 .5em; letter-spacing: -0.02em; font-family: var(--font-display); font-weight: 700; }
 h1 { font-size: clamp(2rem, 5vw, 3.4rem); } h2 { font-size: clamp(1.5rem, 3vw, 2.2rem); } h3 { font-size: 1.12rem; }
-p { margin: 0 0 1em; } a { color: var(--link); text-decoration: none; } a:hover, a:focus, a:active, a:visited { text-decoration: none; } a:hover { color: var(--brand); } code { background: var(--bg-soft); padding: 1px 6px; border-radius: 6px; font-size: .88em; }
+p { margin: 0 0 1em; } a { color: var(--link); text-decoration: none; } a:hover, a:focus, a:active, a:visited { text-decoration: none; } :where(a:hover) { color: var(--brand); } code { background: var(--bg-soft); padding: 1px 6px; border-radius: 6px; font-size: .88em; }
 img, svg { max-width: 100%; }
 :focus-visible { outline: 2.5px solid color-mix(in srgb, var(--brand) 65%, white); outline-offset: 2px; border-radius: 6px; }
 * { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted) 45%, transparent) transparent; }
