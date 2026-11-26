@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { ApiError, api, type Page } from '../../lib/api'
 import { useStaffSocket } from '../../lib/realtime'
 import { Empty, ErrorState, Field, Modal, Skeleton, Spinner, useAsync, useToast } from '../../ui/kit'
+import { MomoPayment } from '../MomoPayment'
 import { useSite } from '../SiteContext'
 import { usePrompt } from '../../ui/dialogs'
 
@@ -75,7 +76,7 @@ function ConvertModal({ req, onClose, onDone }: { req: Req; onClose: () => void;
   const [phone, setPhone] = useState(req.customer_phone)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const [done, setDone] = useState<{ number: string; change: string | null; receipt: number | null } | null>(null)
+  const [done, setDone] = useState<{ number: string; change: string | null; receipt: number | null; momo: number | null } | null>(null)
   const key = useRef(crypto.randomUUID()) // retrying the same confirmation can never create two orders
   const change = /^\d+(\.\d{1,2})?$/.test(received) ? Number(received) - Number(req.summary.total) : null
 
@@ -85,13 +86,14 @@ function ConvertModal({ req, onClose, onDone }: { req: Req; onClose: () => void;
     if (payment === 'mobile_money' && !phone.trim()) return setError("Enter the customer's mobile money number.")
     setBusy(true)
     try {
-      const r = await api<{ order: { number: string }; payment?: { receipt_id: number | null }; change_given?: string | null }>(`/qr-menu/requests/${req.id}/convert/`, {
+      const r = await api<{ order: { number: string }; payment?: { id: number; method: string; status: string; receipt_id: number | null }; change_given?: string | null }>(`/qr-menu/requests/${req.id}/convert/`, {
         body: { payment, ...(payment === 'cash' ? { amount_received: received } : {}), ...(payment === 'mobile_money' ? { payer_phone: phone } : {}) }, headers: { 'Idempotency-Key': key.current } })
-      setDone({ number: r.order.number, change: r.change_given ?? null, receipt: r.payment?.receipt_id ?? null })
+      setDone({ number: r.order.number, change: r.change_given ?? null, receipt: r.payment?.receipt_id ?? null, momo: r.payment?.method === 'mobile_money' && r.payment.status === 'pending' ? r.payment.id : null })
     } catch (err) { setError(msg(err)) } finally { setBusy(false) }
   }
   if (done) return (
     <Modal title={`Order ${done.number} created`} onClose={onDone}>
+      {done.momo !== null && <MomoPayment paymentId={done.momo} />}
       {done.change !== null && <p style={{ fontSize: '1.4rem' }}>Change to give: <b>{money(done.change)}</b></p>}
       <div style={{ display: 'flex', gap: 8 }}>{done.receipt && <Link className="btn" to={`/receipts/${done.receipt}`} target="_blank">Print receipt</Link>}<button className="btn secondary" onClick={onDone}>Done</button></div>
     </Modal>

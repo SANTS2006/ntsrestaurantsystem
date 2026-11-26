@@ -1,9 +1,13 @@
-import { Banknote, Building2, Check, ChefHat, ClipboardList, Lock, QrCode, ShoppingCart, Users, Wallet } from 'lucide-react'
+import { ArrowRight, Banknote, Building2, Check, ChefHat, ClipboardList, Lock, QrCode, ShoppingCart, Users, Wallet } from 'lucide-react'
+import { Suspense, lazy } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../../lib/api'
-import { Empty, ErrorState, Reveal, Skeleton, useAsync, useDocumentTitle } from '../../ui/kit'
+import { Empty, ErrorState, Skeleton, useAsync, useDocumentTitle } from '../../ui/kit'
+import { Rise, SectionHead, Tilt } from '../../ui/fx'
 import { legal, usePublicSettings } from './SiteLayout'
 import { legalDocs } from './legalContent'
+
+const Scene3D = lazy(() => import('../../ui/Scene3D'))
 
 const features = [
   [ShoppingCart, 'Online ordering', 'A branded website for every restaurant with menu, cart and checkout.'],
@@ -25,71 +29,79 @@ const faqs = [
 ]
 
 export function Home() {
-  useDocumentTitle('Restaurant management and online ordering platform', 'Websites, ordering, payments, staff and reporting for restaurants, in one platform.')
+  useDocumentTitle('Restaurant management and online ordering platform', 'Websites, online ordering, mobile money, point of sale, kitchen display, staff, payroll and reporting for restaurants, in one platform.')
   const plans = useAsync(() => api<{ results?: unknown[] } | Plan[]>('/platform/public/plans/', { auth: false }), [])
   return (
     <>
-      <section className="hero">
+      <section className="hero-x">
+        <span className="blob a" aria-hidden /><span className="blob b" aria-hidden />
         <div className="container cols">
           <div>
-            <p className="eyebrow">For restaurants and restaurant groups</p>
-            <h1>Run every branch, till and order from one place.</h1>
-            <p className="muted" style={{ fontSize: '1.15rem' }}>
-              Give each restaurant its own branded website with online ordering, payments, staff and payroll tools, and clear financial reports.
-            </p>
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              <Link className="btn" to="/contact">Talk to us</Link>
-              <Link className="btn secondary" to="/features">See features</Link>
+            <p className="pill"><ChefHat size={14} aria-hidden /> For restaurants and restaurant groups</p>
+            <h1>Run every branch, till and order <span className="grad">from one place.</span></h1>
+            <p className="lead">Give each restaurant its own branded website with online ordering and mobile money, plus a point of sale, kitchen display, staff and payroll tools and clear financial reports.</p>
+            <div className="cta">
+              <Link className="btn lg" to="/contact">Talk to us <ArrowRight size={18} aria-hidden /></Link>
+              <Link className="btn lg secondary" to="/features">See features</Link>
             </div>
+            <div className="perks"><span><ShoppingCart size={17} aria-hidden /> Online ordering</span><span><Banknote size={17} aria-hidden /> Cash and mobile money</span><span><Lock size={17} aria-hidden /> Secure by design</span></div>
           </div>
-          <div className="mock" aria-hidden>
-            <div className="card panel">
-              <small className="muted">Illustrative preview</small>
-              <h3>Today at Ocean View</h3>
-              {['Order #1042 · Preparing', 'Order #1043 · Ready for pickup', 'Order #1044 · Awaiting payment'].map((t) => (
-                <div key={t} className="alert" style={{ margin: '8px 0' }}>{t}</div>
-              ))}
-            </div>
+          <div className="stage">
+            <Suspense fallback={null}><Scene3D /></Suspense>
+            <span className="float one" aria-hidden><ShoppingCart size={18} /> Online orders</span>
+            <span className="float two" aria-hidden><QrCode size={18} /> QR table ordering</span>
+            <span className="float three" aria-hidden><ChefHat size={18} /> Kitchen display</span>
           </div>
         </div>
       </section>
 
-      <section className="section" id="features">
+      <section className="section-x" id="features">
         <div className="container">
-          <Reveal><p className="eyebrow">Capabilities</p><h2>Everything a restaurant needs to operate</h2></Reveal>
-          <div className="grid g3" style={{ marginTop: 24 }}>
-            {features.map(([Icon, t, d]) => (
-              <Reveal key={t}><div className="card lift"><div className="icon-box"><Icon aria-hidden /></div><h3>{t}</h3><p className="muted">{d}</p></div></Reveal>
+          <SectionHead eyebrow="Capabilities" title="Everything a restaurant needs to operate" text="One system for the website, the counter, the kitchen and the office." />
+          <div className="cards">
+            {features.map(([Icon, t, d], i) => (
+              <Rise key={t} index={i % 4}><Tilt><div className="feature"><div className="icon-box"><Icon aria-hidden /></div><h3>{t}</h3><p>{d}</p></div></Tilt></Rise>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="section soft">
-        <div className="container center">
-          <ChefHat size={36} aria-hidden color="var(--brand)" />
-          <h2>Built for security from the start</h2>
-          <p className="muted" style={{ maxWidth: 640, margin: '0 auto' }}>
-            Permissions are enforced on the server, each restaurant’s records are isolated, and every sensitive action leaves an audit trail.
-          </p>
-          <Link to="/legal/security-policy">Read our security policy</Link>
+      <section className="section-x alt">
+        <div className="container">
+          <SectionHead eyebrow="Getting started" title="From registration to your first order" />
+          <div className="steps">
+            {[['Register', 'The platform team registers your restaurant and emails the administrator a secure one-time link.'],
+              ['Set up', 'Add branches, staff, your menu, prices and your own logo and colours.'],
+              ['Sell', 'Take orders online, at the counter and from QR codes on your tables.'],
+              ['Grow', 'Follow sales, stock, payroll and expenses for every branch.']].map(([t, d], i) => <Rise key={t} index={i} from="zoom"><div className="step"><h3>{t}</h3><p>{d}</p></div></Rise>)}
+          </div>
         </div>
       </section>
 
-      <section className="section">
+      <section className="section-x">
         <div className="container center">
-          <h2>Pricing</h2>
+          <Rise from="zoom">
+            <Lock size={38} aria-hidden color="var(--brand)" />
+            <h2>Built for security from the start</h2>
+            <p className="muted" style={{ maxWidth: 640, margin: '0 auto 14px' }}>Permissions are enforced on the server, each restaurant’s records are isolated, and every sensitive action leaves an audit trail.</p>
+            <Link className="btn secondary" to="/legal/security-policy">Read our security policy</Link>
+          </Rise>
+        </div>
+      </section>
+
+      <section className="section-x alt">
+        <div className="container center">
+          <SectionHead eyebrow="Plans" title="Pricing" />
           {plans.loading ? <Skeleton h={120} /> : <PlanList data={plans.data} compact />}
           <p style={{ marginTop: 20 }}><Link to="/pricing">View all plans</Link></p>
         </div>
       </section>
 
-      <section className="section soft">
-        <div className="container center">
-          <h2>Ready to bring your restaurant online?</h2>
-          <Link className="btn" to="/contact">Contact us</Link>
-        </div>
-      </section>
+      <section className="section-x"><div className="container"><Rise from="zoom"><div className="cta-band">
+        <h2>Ready to bring your restaurant online?</h2>
+        <p>Tell us about your restaurant and we will set it up with you.</p>
+        <div className="cta"><Link className="btn lg" to="/contact">Contact us</Link><Link className="btn lg outline" to="/pricing">See pricing</Link></div>
+      </div></Rise></div></section>
     </>
   )
 }

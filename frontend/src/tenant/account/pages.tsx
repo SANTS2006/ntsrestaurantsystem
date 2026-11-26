@@ -1,4 +1,4 @@
-import { Home, LifeBuoy, LogOut, MapPin, Package, Shield, User } from 'lucide-react'
+import { Bell, Home, LifeBuoy, LogOut, MapPin, Package, Shield, User } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, NavLink, Navigate, Outlet, useNavigate, useParams } from 'react-router-dom'
 import { ApiError, api, tokenStore, type Page } from '../../lib/api'
@@ -16,7 +16,7 @@ export function AccountLayout() {
   if (loading) return <div className="container section"><Spinner /></div>
   if (!me) return <Navigate to="/login?next=/account" replace />
   if (me.role !== 'customer') return <Navigate to="/manage" replace />
-  const items = [['/account', 'Overview', Home, true], ['/account/orders', 'My orders', Package, false], ['/account/profile', 'Profile', User, false],
+  const items = [['/account', 'Overview', Home, true], ['/account/orders', 'My orders', Package, false], ['/account/notifications', 'Notifications', Bell, false], ['/account/profile', 'Profile', User, false],
     ['/account/addresses', 'Addresses', MapPin, false], ['/account/security', 'Security', Shield, false], ['/account/support', 'Support', LifeBuoy, false]] as const
   return (
     <div className="admin" style={{ minHeight: 'calc(100vh - 64px)' }}>
@@ -36,7 +36,7 @@ export type OrderRow = { id: number; number: string; contact_name: string; statu
 type Detail = OrderRow & {
   contact_name: string; contact_phone: string; delivery_address: Record<string, string>; customer_notes: string; subtotal: string; tax_total: string; tax_rate_percent: string; delivery_fee: string
   amount_paid: string; discount_total: string; can_cancel: boolean; can_request_cancel: boolean; cancellation_reason: string
-  payments: { id: number; method: string; status: string; amount: string; receipt_id: number | null }[]
+  payments: { id: number; method: string; status: string; amount: string; receipt_id: number | null; checkout_url?: string }[]
   items: { product_name: string; variation_name: string; unit_price: string; quantity: number; line_total: string; addons: { name: string; quantity: number }[]; instructions: string }[]
   history: { status: string; status_label: string; note: string; created_at: string; actor_role: string }[]
 }
@@ -56,15 +56,15 @@ function PayPanel({ order, onChange }: { order: Detail; onChange: (o: Detail) =>
     setBusy(true)
     try {
       const r = await api<{ redirect_url: string }>('/payments/initiate/', { body: { order_id: order.id, phone }, headers: { 'Idempotency-Key': crypto.randomUUID() } })
-      if (r.redirect_url) window.open(r.redirect_url, '_blank', 'noopener')
-      onChange(await api<Detail>(`/orders/my/${order.id}/`)); toast('Approve the payment on your phone.')
+      if (r.redirect_url) { window.location.assign(r.redirect_url); return } // Monime brings the customer back to this order
+      onChange(await api<Detail>(`/orders/my/${order.id}/`)); toast('Waiting for the payment to be confirmed.')
     } catch (e) { toast(msg(e)) } finally { setBusy(false) }
   }
   const receipts = order.payments.filter((p) => p.receipt_id)
   return (
     <div style={{ marginTop: 12 }}>
       {order.payment_method === 'mobile_money' && ['awaiting_payment', 'payment_processing'].includes(order.status) && order.payment_status !== 'paid' && (
-        pending ? <div className="alert" aria-live="polite">Waiting for payment confirmation… <Spinner /></div> : (
+        pending ? <div className="alert" aria-live="polite">Waiting for payment confirmation… <Spinner />{pending.checkout_url && <p><a className="btn sm" href={pending.checkout_url}>Continue to the Monime payment page</a></p>}</div> : (
           <div className="alert"><label>Mobile money number <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Enter your phone number" /></label>
             <button className="btn" style={{ marginTop: 8 }} disabled={busy} onClick={pay}>{busy ? <Spinner /> : 'Pay now'}</button></div>))}
       {order.payments.some((p) => p.status === 'failed') && !pending && order.payment_status !== 'paid' && <p className="err">The last payment attempt did not go through.</p>}

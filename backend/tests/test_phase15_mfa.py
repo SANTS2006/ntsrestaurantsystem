@@ -59,7 +59,7 @@ def test_unenrolled_privileged_accounts_can_only_reach_enrolment(world):
     c = client(token=d["access"])
     r = c.get("/api/v1/payroll/employees/")
     assert r.status_code == 403 and r.json()["error"]["code"] == "mfa_enrollment_required"
-    assert c.get(A + "me/").json()["data"]["mfa"] == {"enabled": False, "required": True, "enforced": True}
+    assert c.get(A + "me/").json()["data"]["mfa"] == {"enabled": False, "required": True, "enforced": True, "challenge": False, "switched_on": True}
     assert c.get(A + "mfa/status/").status_code == 200
     # a manager or customer is not forced
     for email in ("mgr1@a.com", "cust@a.com"):

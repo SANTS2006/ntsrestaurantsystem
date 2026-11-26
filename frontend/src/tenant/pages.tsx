@@ -1,13 +1,15 @@
-import { Clock, Mail, MapPin, Phone, Search, Truck } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { ArrowRight, CalendarCheck, Clock, Mail, MapPin, Phone, Search, ShoppingBag, Smartphone, Sparkles, Truck, UtensilsCrossed } from 'lucide-react'
+import { Suspense, lazy, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../lib/api'
-import { Empty, ErrorState, Reveal, Skeleton, useAsync } from '../ui/kit'
+import { Empty, ErrorState, Skeleton, useAsync } from '../ui/kit'
+import { Rise, SectionHead, Tilt } from '../ui/fx'
 import { useSeo } from './seo'
 import { ProductBuy } from './shop'
 import { useSite, type MenuCategory, type PublicProduct } from './SiteContext'
 
 const A = { auth: false } as const
+const Scene3D = lazy(() => import('../ui/Scene3D'))
 
 function useMenu(params: Record<string, string> = {}) {
   const key = JSON.stringify(params)
@@ -19,7 +21,7 @@ export function ProductCard({ p }: { p: PublicProduct }) {
   return (
     <Link to={`/menu/${p.slug}`} className="card lift product-card" style={{ textDecoration: 'none', color: 'inherit', padding: 0, overflow: 'hidden', display: 'block' }}>
       {p.image ? <img src={p.image} alt={`${p.name}`} loading="lazy" width={400} height={240} style={{ width: '100%', height: 170, objectFit: 'cover', display: 'block' }} />
-        : <div style={{ height: 170, background: 'var(--bg-soft)', display: 'grid', placeItems: 'center' }} aria-hidden>🍽️</div>}
+        : <div className="dish-ph" aria-hidden>{p.name.charAt(0)}</div>}
       <div style={{ padding: 16 }}>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
           {p.on_offer && <span className="badge" style={{ color: 'var(--brand)' }}>{p.offer_label || 'Special offer'}</span>}
@@ -36,7 +38,7 @@ export function ProductCard({ p }: { p: PublicProduct }) {
 }
 
 function Grid({ items }: { items: PublicProduct[] }) {
-  return <div className="grid g3">{items.map((p) => <Reveal key={p.id}><ProductCard p={p} /></Reveal>)}</div>
+  return <div className="cards">{items.map((p, i) => <Rise key={p.id} index={i % 4}><Tilt><ProductCard p={p} /></Tilt></Rise>)}</div>
 }
 
 function Hours({ hours }: { hours: Record<string, string> }) {
@@ -49,10 +51,11 @@ export function Home() {
   const r = site.restaurant
   const menu = useMenu()
   const all = useMemo(() => (menu.data ?? []).flatMap((c) => c.products), [menu.data])
-  const featured = all.filter((p) => p.is_featured).slice(0, 6)
-  const popular = all.filter((p) => p.is_popular && !p.is_featured).slice(0, 6)
-  const offers = all.filter((p) => p.on_offer).slice(0, 6)
+  const featured = all.filter((p) => p.is_featured).slice(0, 8)
+  const popular = all.filter((p) => p.is_popular && !p.is_featured).slice(0, 8)
+  const offers = all.filter((p) => p.on_offer).slice(0, 8)
   const services = useAsync(() => api<{ slug: string; name: string; description: string }[]>('/catalog/public/services/', A), [])
+  const gallery = useAsync(() => api<{ id: number; image: string; caption: string }[]>('/catalog/public/gallery/', A), [])
   useSeo({
     title: site.seo_title, description: site.seo_description, image: r.logo, path: '/',
     jsonLd: {
@@ -61,38 +64,85 @@ export function Home() {
       address: r.address || r.city ? { '@type': 'PostalAddress', streetAddress: r.address, addressLocality: r.city, addressCountry: r.country } : undefined,
     },
   })
+  const photos = (gallery.data ?? []).slice(0, 8)
+  const where = [r.city, r.country].filter(Boolean).join(', ')
   return (
     <>
-      <section className="hero" style={{ background: `linear-gradient(135deg, color-mix(in srgb, var(--brand) 18%, var(--bg)), var(--bg))` }}>
-        <div className="container">
-          <p className="eyebrow">{r.city || 'Welcome'}</p>
-          <h1>{site.hero_title}</h1>
-          <p className="muted" style={{ fontSize: '1.15rem', maxWidth: 640 }}>{site.hero_subtitle}</p>
-          <Link className="btn" to="/menu">View the menu</Link>
+      <section className="hero-x">
+        <span className="blob a" aria-hidden /><span className="blob b" aria-hidden />
+        <div className="container cols">
+          <div>
+            <p className="pill"><UtensilsCrossed size={14} aria-hidden /> {where || 'Welcome'}</p>
+            <h1><span className="grad">{site.hero_title}</span></h1>
+            {site.hero_subtitle && <p className="lead">{site.hero_subtitle}</p>}
+            <div className="cta">
+              <Link className="btn lg" to="/menu">View the menu <ArrowRight size={18} aria-hidden /></Link>
+              <Link className="btn lg secondary" to="/reserve"><CalendarCheck size={18} aria-hidden /> Reserve a table</Link>
+            </div>
+            <div className="perks">
+              {site.pickup_enabled && <span><ShoppingBag size={17} aria-hidden /> Order for pickup</span>}
+              {site.delivery_enabled && <span><Truck size={17} aria-hidden /> Delivery available</span>}
+              {site.online_payments && <span><Smartphone size={17} aria-hidden /> Pay with mobile money</span>}
+            </div>
+          </div>
+          <div className="stage">
+            <Suspense fallback={null}><Scene3D /></Suspense>
+            <span className="float one" aria-hidden><UtensilsCrossed size={18} /> Freshly prepared</span>
+            <span className="float two" aria-hidden><ShoppingBag size={18} /> Order online</span>
+          </div>
         </div>
       </section>
-      {menu.loading ? <div className="container section"><Skeleton h={200} /></div> : menu.error ? <div className="container section"><ErrorState message={menu.error} onRetry={menu.reload} /></div> : (
+
+      <section className="section-x">
+        <div className="container">
+          <SectionHead eyebrow="How it works" title="Good food in three steps" />
+          <div className="steps">
+            {[['Choose your dishes', 'Browse the menu, pick sizes and extras, and add them to your cart.'],
+              ['Place your order', `Choose ${[site.pickup_enabled && 'pickup', site.delivery_enabled && 'delivery'].filter(Boolean).join(' or ') || 'how you want it'} and how you will pay.`],
+              ['Enjoy', 'Follow your order as it is prepared. We tell you when it is ready.']].map(([t, d], i) => <Rise key={t} index={i} from="zoom"><div className="step"><h3>{t}</h3><p>{d}</p></div></Rise>)}
+          </div>
+        </div>
+      </section>
+
+      {menu.loading ? <div className="container section-x"><Skeleton h={240} /></div> : menu.error ? <div className="container section-x"><ErrorState message={menu.error} onRetry={menu.reload} /></div> : (
         <>
-          {offers.length > 0 && <section className="section"><div className="container"><h2>Special offers</h2><Grid items={offers} /></div></section>}
-          {featured.length > 0 && <section className="section soft"><div className="container"><h2>Featured dishes</h2><Grid items={featured} /></div></section>}
-          {popular.length > 0 && <section className="section"><div className="container"><h2>Popular dishes</h2><Grid items={popular} /></div></section>}
+          {offers.length > 0 && <section className="section-x alt"><div className="container"><SectionHead eyebrow="Limited time" title="Special offers" /><Grid items={offers} /></div></section>}
+          {featured.length > 0 && <section className="section-x"><div className="container"><SectionHead eyebrow="From our kitchen" title="Featured dishes" /><Grid items={featured} /></div></section>}
+          {popular.length > 0 && <section className="section-x alt"><div className="container"><SectionHead eyebrow="Guests love these" title="Popular dishes" /><Grid items={popular} /></div></section>}
           {(menu.data ?? []).length > 0 && (
-            <section className="section soft"><div className="container"><h2>Browse by category</h2>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>{menu.data!.map((c) => <Link key={c.slug} className="btn secondary" to={`/menu?category=${c.slug}`}>{c.name}</Link>)}</div>
+            <section className="section-x"><div className="container"><SectionHead eyebrow="Explore" title="Browse by category" />
+              <div className="cards">{menu.data!.map((c, i) => <Rise key={c.slug} index={i % 4}><Link className="cat-card" to={`/menu?category=${c.slug}`}><span>{c.name}<small>{c.products.length} dish{c.products.length === 1 ? '' : 'es'}</small></span><ArrowRight size={20} aria-hidden /></Link></Rise>)}</div>
             </div></section>
           )}
         </>
       )}
-      {(services.data ?? []).length > 0 && (
-        <section className="section"><div className="container"><h2>Our services</h2>
-          <div className="grid g3">{services.data!.map((s) => <div className="card" key={s.slug}><h3>{s.name}</h3><p className="muted">{s.description}</p></div>)}</div>
-          <p style={{ marginTop: 16 }}><Link to="/services">All services</Link></p>
+
+      {photos.length > 0 && (
+        <section className="section-x alt"><div className="container"><SectionHead eyebrow="Gallery" title={`A taste of ${r.name}`} />
+          <div className="gallery-strip">{photos.map((g, i) => <Rise key={g.id} index={i % 4} from="zoom"><figure><img src={g.image} alt={g.caption || `Photo from ${r.name}`} loading="lazy" decoding="async" width={440} height={330} /></figure></Rise>)}</div>
+          <p className="center" style={{ marginTop: 22 }}><Link className="btn secondary" to="/gallery">See the gallery</Link></p>
         </div></section>
       )}
-      <section className="section soft"><div className="container grid g2">
-        <div><h2><MapPin aria-hidden size={22} /> Find us</h2>{site.branches.map((b) => <div key={b.name} style={{ marginBottom: 12 }}><b>{b.name}</b><br />{b.address}<Hours hours={b.operating_hours} /></div>)}</div>
-        {(site.delivery_info || site.delivery_enabled) && <div><h2><Truck aria-hidden size={22} /> Delivery</h2><p>{site.delivery_info || 'Delivery is available. Details are shown at checkout.'}</p></div>}
+
+      {(services.data ?? []).length > 0 && (
+        <section className="section-x"><div className="container"><SectionHead eyebrow="What we offer" title="Our services" />
+          <div className="cards">{services.data!.map((v, i) => <Rise key={v.slug} index={i % 4}><Tilt><div className="feature"><div className="icon-box"><Sparkles aria-hidden /></div><h3>{v.name}</h3><p>{v.description}</p></div></Tilt></Rise>)}</div>
+          <p className="center" style={{ marginTop: 22 }}><Link className="btn secondary" to="/services">All services</Link></p>
+        </div></section>
+      )}
+
+      <section className="section-x alt"><div className="container"><SectionHead eyebrow="Visit" title="Find us" />
+        <div className="visit">
+          {site.branches.map((b, i) => <Rise key={b.name} index={i} from="left"><div className="card"><h3><MapPin aria-hidden size={20} /> {b.name}</h3>{b.address && <p>{b.address}</p>}{b.phone && <p><Phone size={15} aria-hidden /> <a href={`tel:${b.phone}`}>{b.phone}</a></p>}<Hours hours={b.operating_hours} /></div></Rise>)}
+          {(site.delivery_info || site.delivery_enabled) && <Rise from="right"><div className="card"><h3><Truck aria-hidden size={20} /> Delivery</h3><p>{site.delivery_info || 'Delivery is available. Details are shown at checkout.'}</p></div></Rise>}
+        </div>
       </div></section>
+
+      <section className="section-x"><div className="container"><Rise from="zoom"><div className="cta-band">
+        <h2>Hungry? Order from {r.name}</h2>
+        <p>Choose your favourites online, or book a table and let us look after you.</p>
+        <div className="cta"><Link className="btn lg" to="/menu">Start your order</Link><Link className="btn lg outline" to="/catering">Plan an event</Link></div>
+      </div></Rise></div></section>
     </>
   )
 }

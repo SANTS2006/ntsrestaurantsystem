@@ -208,8 +208,12 @@ export function CheckoutPage() {
       if (payMethod === 'mobile_money') {
         try {
           const pay = await api<{ redirect_url: string }>('/payments/initiate/', { body: { order_id: order.id, phone: phone.trim() }, headers: { 'Idempotency-Key': crypto.randomUUID() } })
-          toast('Order placed. Approve the payment on your phone.')
-          if (pay.redirect_url) window.open(pay.redirect_url, '_blank', 'noopener')
+          if (pay.redirect_url) {
+            toast('Order placed. Opening the Monime payment page…')
+            window.location.assign(pay.redirect_url) // same tab: Monime sends the customer back to this order afterwards
+            return
+          }
+          toast('Order placed. Waiting for the payment to be confirmed.')
         } catch { toast('Order placed. Open it to retry the payment.') }
       } else toast('Order placed. The restaurant will confirm it shortly.')
       navigate(`/account/orders/${order.id}`)
@@ -262,8 +266,8 @@ export function CheckoutPage() {
           <fieldset style={{ border: 0, padding: 0, margin: '0 0 14px' }}>
             <legend style={{ fontWeight: 600 }}>Payment</legend>
             <label style={{ display: 'block' }}><input type="radio" name="pay" checked={payMethod === 'cash'} onChange={() => setPayMethod('cash')} /> Cash when you {fulfilment === 'delivery' ? 'receive' : 'pick up'} your order</label>
-            {site.online_payments && <label style={{ display: 'block' }}><input type="radio" name="pay" checked={payMethod === 'mobile_money'} onChange={() => setPayMethod('mobile_money')} /> Mobile money (pay now)</label>}
-            {payMethod === 'mobile_money' && <p className="hint">You will be asked to approve the payment on the phone number above. The order is confirmed only after the payment is verified.</p>}
+            {site.online_payments && <label style={{ display: 'block' }}><input type="radio" name="pay" checked={payMethod === 'mobile_money'} onChange={() => setPayMethod('mobile_money')} /> Mobile money with Monime (pay now)</label>}
+            {payMethod === 'mobile_money' && <p className="hint">After placing the order you are taken to the secure Monime page to pay with mobile money, card or bank. The order is confirmed only after the payment is verified.</p>}
           </fieldset>
         </div>
         <div className="card">

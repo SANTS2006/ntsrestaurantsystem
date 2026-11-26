@@ -122,6 +122,16 @@ class SimulatedProvider(BaseProvider):
         return Event(str(body["id"]), str(body.get("type", "")), str(body["data"]["provider_ref"]))
 
 
+def _monime_reason(exc) -> str:
+    """Monime's own explanation of a refused request, for the server log (never shown to customers). Contains no credentials."""
+    try:
+        err = json.loads(exc.read() or b"{}").get("error") or {}
+        parts = [str(err.get(k)) for k in ("reason", "message", "code") if err.get(k)]
+        return (": " + " | ".join(parts))[:300] if parts else ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 class MonimeProvider(BaseProvider):
     name = "monime"
     supports_refunds = False  # no refund endpoint in the API: refunds are made in the Monime dashboard
@@ -136,7 +146,7 @@ class MonimeProvider(BaseProvider):
     def _request(self, method, path, payload=None, idempotency_key=""):
         c = self._cfg()
         headers = {"Authorization": f"Bearer {c.MONIME_API_KEY}", "Monime-Space-Id": c.MONIME_SPACE_ID, "Monime-Version": c.MONIME_VERSION,
-                   "Content-Type": "application/json", "Accept": "application/json"}
+                   "Content-Type": "application/json", "Accept": "application/json", "User-Agent": "RestaurantPlatform/1.0"}
         if idempotency_key:
             headers["Idempotency-Key"] = idempotency_key[:100]
         req = urllib.request.Request(c.MONIME_BASE_URL.rstrip("/") + path, method=method, headers=headers,
@@ -145,7 +155,7 @@ class MonimeProvider(BaseProvider):
             with urllib.request.urlopen(req, timeout=20) as resp:
                 body = json.loads(resp.read() or b"{}")
         except urllib.error.HTTPError as exc:
-            raise ProviderError(f"Monime HTTP {exc.code}") from exc
+            raise ProviderError(f"Monime HTTP {exc.code}{_monime_reason(exc)}") from exc
         except (urllib.error.URLError, TimeoutError, ValueError) as exc:
             raise ProviderError("Monime unreachable or returned invalid data") from exc
         if not isinstance(body, dict) or body.get("success") is not True or not isinstance(body.get("result"), dict):

@@ -21,7 +21,8 @@ def _base(request):
 
 def robots_txt(request):
     base = _base(request)
-    disallow = ["/admin", "/login"] if request.tenant is None else ["/manage", "/account", "/login", "/setup-password", "/quotation", "/t/"]
+    private = ["manage", "account", "cart", "checkout", "login", "register", "setup-password", "forgot-password", "verify-email", "receipts", "quotation", "reservation/", "t/", "payment-complete"]
+    disallow = ["/admin", "/login", "/forgot-password", *[f"/*/{p}" for p in private]] if request.tenant is None else ["/manage", "/account", "/login", "/setup-password", "/quotation", "/t/"]
     body = "User-agent: *\n" + "".join(f"Disallow: {p}\n" for p in disallow) + f"Sitemap: {base}/sitemap.xml\n"
     return HttpResponse(body, content_type="text/plain")
 
@@ -33,6 +34,12 @@ def sitemap_xml(request):
         slugs = (Product.unscoped.filter(restaurant=request.tenant, is_archived=False, is_available=True,
                                          category__is_active=True).values_list("slug", flat=True))
         paths += [f"/menu/{s}" for s in slugs]
-    urls = "".join(f"<url><loc>{escape(base + p)}</loc></url>" for p in paths)
+    locations = [base + p for p in paths]
+    if request.tenant is None:
+        from apps.tenants.models import Restaurant
+
+        for r in Restaurant.unscoped_objects.filter(status="active").order_by("slug")[:2000]:
+            locations += [r.public_url, f"{r.public_url}/menu", f"{r.public_url}/reserve", f"{r.public_url}/contact"]
+    urls = "".join(f"<url><loc>{escape(u)}</loc></url>" for u in locations)
     xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>'
     return HttpResponse(xml, content_type="application/xml")

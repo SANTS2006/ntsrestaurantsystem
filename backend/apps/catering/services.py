@@ -105,7 +105,7 @@ def submit_public(request, data):
         notify_branch(tenant.pk, branch.pk, {"type": "catering.request.created", "id": req.pk, "reference": req.reference, "branch_id": branch.pk})
         from apps.notifications import inapp
 
-        inapp.notify_staff(tenant, branch.pk, ("restaurant_admin", "manager"), "catering", f"New catering request {req.reference}", req.get_event_type_display(), "/manage/catering")
+        inapp.notify_staff(tenant, branch.pk, ("restaurant_admin", "manager"), "catering", f"New catering request {req.reference}", req.get_event_type_display(), "/manage/catering", about=("catering", req.pk))
     return req
 
 
@@ -133,7 +133,7 @@ def _move(req, to, actor, note="", notify=True):
 
 
 def lock(request_id, tenant, qs):
-    req = qs.select_for_update().select_related("restaurant", "branch").filter(pk=request_id, restaurant=tenant).first()
+    req = qs.select_for_update(of=("self",)).select_related("restaurant", "branch").filter(pk=request_id, restaurant=tenant).first()
     if req is None:
         raise NotFound()
     return req
@@ -305,8 +305,8 @@ def quotation_by_token(token, tenant):
 @transaction.atomic
 def respond_public(request, token, accept, note):
     q = quotation_by_token(token, request.tenant)
-    q = Quotation.unscoped.select_for_update().select_related("request", "restaurant").get(pk=q.pk)
-    req = CateringRequest.objects.select_for_update().select_related("restaurant", "branch").get(pk=q.request_id)
+    q = Quotation.unscoped.select_for_update(of=("self",)).select_related("request", "restaurant").get(pk=q.pk)
+    req = CateringRequest.objects.select_for_update(of=("self",)).select_related("restaurant", "branch").get(pk=q.request_id)
     if q.status != Quotation.QStatus.SENT or req.status != S.QUOTATION_SENT:
         raise NotFound("This link is no longer valid.")
     if q.valid_until < timezone.now().date():

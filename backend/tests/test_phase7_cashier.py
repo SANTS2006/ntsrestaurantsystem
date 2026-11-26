@@ -263,6 +263,9 @@ def test_in_person_mobile_money_starts_a_pending_provider_payment(world, shop):
 
 
 def test_mobile_money_refused_when_online_payments_are_off(world, shop):
+    from apps.tenants.models import RestaurantSettings
+
+    RestaurantSettings.objects.filter(restaurant=world["a"]).update(online_payments_enabled=False)  # the restaurant switched it off
     open_shift(world)
     assert place(world, shop, key="mm", payment="mobile_money", amount_received=None, payer_phone="+23276123456").status_code == 400
     assert Order.unscoped.count() == 0

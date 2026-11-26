@@ -57,6 +57,8 @@ def paid_order(world, online, outcome="succeeded"):
 
 # ---- enabling online payment -------------------------------------------------------------------
 def test_mobile_money_checkout_needs_the_restaurant_to_enable_it(world, shop):
+    shop["settings"].online_payments_enabled = False
+    shop["settings"].save()
     c = client_for(world["cust_a"], "alpha")
     body = {"items": [line(shop["rice"])], "fulfilment": "pickup", "payment_method": "mobile_money", "contact_phone": "+23276123456", "branch_id": world["a1"].pk}
     assert c.post(O + "checkout/", body, format="json", HTTP_IDEMPOTENCY_KEY="a").status_code == 400

@@ -186,7 +186,7 @@ def receive_po(request, pk, received):
     po = _po(request, pk)
     if po.status not in (PurchaseOrder.Status.ORDERED, PurchaseOrder.Status.PARTIAL):
         _fail("Only an ordered purchase order can receive stock.")
-    lines = {l.pk: l for l in PurchaseOrderLine.unscoped.select_for_update().filter(order=po).select_related("ingredient")}
+    lines = {l.pk: l for l in PurchaseOrderLine.unscoped.select_for_update(of=("self",)).filter(order=po).select_related("ingredient")}
     got = 0
     for r in sorted(received, key=lambda r: r["line_id"]):
         line = lines.get(r["line_id"])

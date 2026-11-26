@@ -95,7 +95,7 @@ def request_adjustment(request, shift_id, kind, amount, reason):
 
 @transaction.atomic
 def decide_adjustment(request, adjustment_id, approve, note, branch_ids):
-    adj = (ShiftAdjustment.unscoped.select_for_update().select_related("shift")
+    adj = (ShiftAdjustment.unscoped.select_for_update(of=("self",)).select_related("shift")
            .filter(pk=adjustment_id, restaurant=request.tenant, branch_id__in=branch_ids).first())
     if adj is None:
         raise serializers.ValidationError({"detail": "Adjustment not found."})

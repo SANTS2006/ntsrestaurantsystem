@@ -1,8 +1,10 @@
-import { Bell, BellRing, Banknote, CalendarDays, CheckCheck, CircleCheck, Moon, QrCode, Receipt, RefreshCw, Sun, Trash2, Volume2, VolumeX } from 'lucide-react'
+import { Bell, BellRing, CheckCheck, Moon, RefreshCw, Sun, Trash2, Volume2, VolumeX } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { refreshAll, useNotifications, type AppNotification } from '../lib/live'
 import { useTheme } from '../lib/theme'
+import { useMaybeMe } from '../lib/auth'
+import { ago, kindIcon, notificationsBase } from './notificationMeta'
 
 /** Reloads everything on screen, without reloading the page. */
 export function RefreshButton() {
@@ -23,31 +25,14 @@ export function ThemeToggle() {
   )
 }
 
-function ago(iso: string): string {
-  const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000))
-  if (s < 45) return 'just now'
-  if (s < 3600) return `${Math.round(s / 60)} min ago`
-  if (s < 86400) return `${Math.round(s / 3600)} h ago`
-  return new Date(iso).toLocaleDateString()
-}
-
-function icon(kind: string) {
-  const p = { size: 18, 'aria-hidden': true } as const
-  if (kind === 'order_ready') return <BellRing {...p} />
-  if (kind === 'order_new') return <Receipt {...p} />
-  if (kind === 'order_update') return <CircleCheck {...p} />
-  if (kind === 'payment') return <Banknote {...p} />
-  if (kind === 'reservation' || kind === 'catering') return <CalendarDays {...p} />
-  if (kind === 'request') return <QrCode {...p} />
-  return <Bell {...p} />
-}
-
 /** The bell: unread count, the list of notifications, mark as read, mute sounds. */
 export function NotificationBell() {
   const { items, unread, muted, setMuted, markRead, clearRead } = useNotifications()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
+  const me = useMaybeMe()
+  const base = notificationsBase(me?.role)
   useEffect(() => {
     if (!open) return
     const off = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false)
@@ -59,7 +44,7 @@ export function NotificationBell() {
   const go = (n: AppNotification) => {
     void markRead([n.id])
     setOpen(false)
-    if (n.link) navigate(n.link)
+    navigate(`${base}/${n.id}`)
   }
   return (
     <div style={{ position: 'relative' }} ref={ref}>
@@ -80,11 +65,12 @@ export function NotificationBell() {
           <div className="list">
             {items.length === 0 ? <div className="notif-empty">You are all caught up.</div> : items.map((n) => (
               <button key={n.id} className={`notif ${n.read ? '' : 'unread'} ${n.kind === 'order_ready' ? 'ready' : ''}`} onClick={() => go(n)}>
-                <span className="ico">{icon(n.kind)}</span>
+                <span className="ico">{kindIcon(n.kind)}</span>
                 <span><b>{n.title}</b>{n.body && <p>{n.body}</p>}<span className="t">{ago(n.created_at)}</span></span>
               </button>
             ))}
           </div>
+          <button className="notif-all" onClick={() => { setOpen(false); navigate(base) }}>View all notifications</button>
         </div>
       )}
     </div>

@@ -211,7 +211,7 @@ class RequestViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.
         branches, role = accessible_branch_ids(request), effective_role(request)
 
         def handler():
-            r = (QRMenuRequest.unscoped.select_for_update().select_related("branch", "table")
+            r = (QRMenuRequest.unscoped.select_for_update(of=("self",)).select_related("branch", "table")
                  .filter(pk=pk, restaurant=request.tenant, branch_id__in=branches).first())
             if r is None:
                 raise NotFound()

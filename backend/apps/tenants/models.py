@@ -109,7 +109,7 @@ class RestaurantSettings(TimeStampedModel):
     delivery_enabled = models.BooleanField(default=True)
     pickup_enabled = models.BooleanField(default=True)
     allow_partial_payments = models.BooleanField(default=False)
-    online_payments_enabled = models.BooleanField(default=False)
+    online_payments_enabled = models.BooleanField(default=True)  # mobile money offered when the payment provider is configured
     qr_guest_orders_allowed = models.BooleanField(default=True)
     qr_identification = models.CharField(max_length=6, default="none", choices=[("none", "Nothing"), ("name", "Name"), ("phone", "Name and phone")])
     inventory_tracking_enabled = models.BooleanField(default=False)

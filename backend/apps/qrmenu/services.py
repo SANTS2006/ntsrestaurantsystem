@@ -61,13 +61,13 @@ def submit_request(request, token, data):
                                                  "currency": summary["currency"], "created_at": req.created_at.isoformat()})
     from apps.notifications import inapp
 
-    inapp.notify_staff(tenant, table.branch_id, inapp.FRONT_OF_HOUSE, "request", f"Table {table.label} sent an order request", f"{summary['currency']} {summary['total']}", "/manage/tables")
+    inapp.notify_staff(tenant, table.branch_id, inapp.FRONT_OF_HOUSE, "request", f"Table {table.label} sent an order request", f"{summary['currency']} {summary['total']}", "/manage/cashier", about=("qr_request", req.pk))
     return req
 
 
 @transaction.atomic
 def reject_request(request, request_id, reason, branch_ids):
-    r = (QRMenuRequest.unscoped.select_for_update().select_related("branch", "table")
+    r = (QRMenuRequest.unscoped.select_for_update(of=("self",)).select_related("branch", "table")
          .filter(pk=request_id, restaurant=request.tenant, branch_id__in=branch_ids).first())
     if r is None:
         raise NotFound()

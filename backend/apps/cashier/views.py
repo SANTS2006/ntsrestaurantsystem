@@ -180,7 +180,7 @@ def apply_payment_choice(request, order, choice, amount_received, payer_phone, b
         payment = pay.record_cash_payment(request, order.pk, amount_received, branches)
         change = str(payment.change_given)
     elif choice == "mobile_money":
-        locked = Order.unscoped.select_for_update().select_related("restaurant", "branch").get(pk=order.pk)
+        locked = Order.unscoped.select_for_update(of=("self",)).select_related("restaurant", "branch").get(pk=order.pk)
         payment = pay.start_provider_payment(request, locked, payer_phone)
     return payment, change
 

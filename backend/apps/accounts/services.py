@@ -154,7 +154,7 @@ def setup_url(restaurant, raw):
 
 def accept_setup(request, raw_token, password):
     with transaction.atomic():
-        token = (SetupToken.objects.select_for_update().select_related("user")
+        token = (SetupToken.objects.select_for_update(of=("self",)).select_related("user")
                  .filter(token_hash=_hash_token(raw_token or "")).first())
         if token is None or token.used_at or token.expires_at < timezone.now() or not token.user.is_active:
             raise FlowError("invalid_token", "This link is invalid or has expired.")

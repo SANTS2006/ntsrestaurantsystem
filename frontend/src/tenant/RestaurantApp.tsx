@@ -3,8 +3,10 @@ import { useState, Suspense, lazy } from 'react'
 import { Link, NavLink, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { API_URL } from '../lib/config'
 import { useAuth } from '../lib/auth'
+import { can } from '../lib/permissions'
 import { NotificationBell, ThemeToggle } from '../ui/TopTools'
 import { Avatar } from '../ui/Shell'
+import { ScrollFx } from '../ui/fx'
 import { CartProvider, useCart } from './cart'
 import { Login, Register, VerifyEmail } from './CustomerAuth'
 import { CartPage, CheckoutPage } from './shop'
@@ -33,6 +35,8 @@ const TablesPrint = lazy(() => import('./qr/Tables').then((m) => ({ default: m.T
 const Branches = lazy(() => import('./manage/Branches'))
 const SecurityMfa = lazy(() => import('../ui/Mfa').then((m) => ({ default: m.MfaSettings })))
 const ProfileSettings = lazy(() => import('../ui/Profile').then((m) => ({ default: m.ProfileSettings })))
+const Notifications = lazy(() => import('../ui/Notifications').then((m) => ({ default: m.NotificationsPage })))
+const NotificationDetail = lazy(() => import('../ui/Notifications').then((m) => ({ default: m.NotificationDetailPage })))
 const Customers = lazy(() => import('./manage/Customers'))
 const Floor = lazy(() => import('./manage/Floor'))
 const Stock = lazy(() => import('./manage/Stock'))
@@ -65,6 +69,7 @@ function PublicLayout() {
   const logo = r.logo ? (r.logo.startsWith('http') ? r.logo : `${API_URL}${r.logo}`) : null
   return (
     <>
+      <ScrollFx />
       <header className="nav">
         <div className="container row">
           <Link to="/" className="logo">{logo && <img src={logo} alt="" height={36} />}{r.name}</Link>
@@ -114,7 +119,7 @@ function PublicLayout() {
 function ManageHome() {
   const { me } = useAuth()
   if (me?.role === 'cashier') return <Navigate to="/manage/cashier" replace />
-  return me && ['restaurant_admin', 'manager', 'platform_admin'].includes(me.role ?? '') ? <Navigate to="/manage/dashboard" replace /> : <Navigate to="/manage/orders" replace />
+  return can(me?.role, 'manage.use') ? <Navigate to="/manage/dashboard" replace /> : <Navigate to="/manage/orders" replace />
 }
 
 export default function RestaurantApp() {
@@ -138,6 +143,7 @@ export default function RestaurantApp() {
           <Route path="faq" element={<Faq />} />
           <Route path="policies/:slug" element={<Policy />} />
           <Route path="cart" element={<CartPage />} />
+          <Route path="payment-complete" element={<div className="container section"><Empty title="Thank you">Your payment page is complete. You can return to the counter: the restaurant confirms the payment automatically.</Empty></div>} />
           <Route path="checkout" element={<CheckoutPage />} />
           <Route path="account" element={<AccountLayout />}>
             <Route index element={<Overview />} />
@@ -146,6 +152,8 @@ export default function RestaurantApp() {
             <Route path="profile" element={<Profile />} />
             <Route path="addresses" element={<Addresses />} />
             <Route path="security" element={<Security />} />
+            <Route path="notifications" element={<Notifications />} />
+            <Route path="notifications/:nid" element={<NotificationDetail />} />
             <Route path="support" element={<Support />} />
           </Route>
         </Route>
@@ -172,6 +180,8 @@ export default function RestaurantApp() {
           <Route path="finance" element={<Finance />} />
           <Route path="security" element={<SecurityMfa />} />
           <Route path="profile" element={<ProfileSettings />} />
+          <Route path="notifications" element={<Notifications />} />
+          <Route path="notifications/:nid" element={<NotificationDetail />} />
           <Route path="payroll" element={<Payroll />} />
           <Route path="reports" element={<Reports />} />
           <Route path="my-pay" element={<MyPay />} />

@@ -13,6 +13,7 @@ import { TENANT_BASE } from './lib/config'
 import './index.css'
 import './app.css'
 import './auth.css'
+import './site.css'
 
 installTableRefresh()
 installPlaceholders()

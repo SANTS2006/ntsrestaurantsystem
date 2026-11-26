@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { api, tokenStore } from './api'
 import { LogoutOverlay } from '../ui/Loaders'
 
-export type Me = { id: number; email: string; full_name: string; phone?: string; avatar?: string | null; role: string | null; branch_ids: number[]; must_change_password: boolean; mfa?: { enabled: boolean; required: boolean; enforced: boolean } }
+export type Me = { id: number; email: string; full_name: string; phone?: string; avatar?: string | null; role: string | null; branch_ids: number[]; must_change_password: boolean; mfa?: { enabled: boolean; required: boolean; enforced: boolean; challenge?: boolean; switched_on?: boolean } }
 export type MfaChallenge = { mfa_token: string }
 type Ctx = {
   me: Me | null
@@ -78,6 +78,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo(() => ({ me, loading, login, completeMfa, adoptTokens, logout, signOut, reload }), [me, loading, login, completeMfa, adoptTokens, logout, signOut, reload])
   return <AuthContext.Provider value={value}>{children}{leaving && <LogoutOverlay />}</AuthContext.Provider>
 }
+
+/** The signed-in person, or null: for shared widgets that also render where there is no sign-in context. */
+export const useMaybeMe = (): Me | null => useContext(AuthContext)?.me ?? null
 
 export function useAuth(): Ctx {
   const ctx = useContext(AuthContext)

@@ -190,7 +190,7 @@ def _restore_stock(order, actor):
 def transition_order(request, order_id, to, *, role, note="", customer_cancel=False):
     """Move an order through the state machine, under a row lock, recording who did it and why."""
     restaurant, actor = request.tenant, request.user
-    order = Order.unscoped.select_for_update().select_related("customer", "restaurant").get(pk=order_id, restaurant=restaurant)
+    order = Order.unscoped.select_for_update(of=("self",)).select_related("customer", "restaurant").get(pk=order_id, restaurant=restaurant)
     if not customer_cancel and to not in allowed_targets(order, role):
         raise serializers.ValidationError({"status": f"You cannot move this order from “{label(order.status)}” to “{label(to)}”."})
     if to == S.CANCELLED:

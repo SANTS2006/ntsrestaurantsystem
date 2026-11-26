@@ -10,6 +10,8 @@ urlpatterns = [
     path("initiate/", views.InitiateView.as_view()),
     path("my/<int:pk>/", views.MyPaymentStatusView.as_view()),
     path("cash/", views.CashView.as_view()),
+    path("mobile-money/", views.StaffMobileMoneyView.as_view()),
+    path("<int:pk>/status/", views.StaffPaymentStatusView.as_view()),
     path("<int:pk>/refund/", views.RefundView.as_view()),
     path("receipts/<int:pk>/", views.ReceiptView.as_view()),
     path("receipts/<int:pk>/pdf/", views.ReceiptPdfView.as_view()),

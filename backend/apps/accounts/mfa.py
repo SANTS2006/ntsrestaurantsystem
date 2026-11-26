@@ -94,6 +94,22 @@ def enforced() -> bool:
         return True
 
 
+def switched_on() -> bool:
+    """The platform owner's switch (Admin, Security). While it is off, no code is asked anywhere: not at sign-in (password or Google), not for
+    restores or policy changes. Enrolled authenticators are kept, so turning it back on restores two-step verification at once."""
+    from apps.tenants.models import PlatformSettings
+
+    try:
+        return PlatformSettings.load().mfa_enforced
+    except Exception:  # noqa: BLE001 - fail closed: keep asking for the code
+        return True
+
+
+def challenge_required(user) -> bool:
+    """Must this account give a code now? Only if it enrolled one AND the platform switch is on."""
+    return bool(user.mfa_enabled) and switched_on()
+
+
 def required_for(user) -> bool:
     """Platform administrators and the roles listed in MFA_REQUIRED_ROLES must use a second factor while enforcement is on."""
     if not enforced():

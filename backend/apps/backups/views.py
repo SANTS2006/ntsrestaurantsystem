@@ -96,7 +96,7 @@ class BackupRestoreView(APIView):
         if authenticate(request, username=u.email, password=str(request.data.get("password", ""))) is None:
             audit("backup.restore_refused", actor=u, obj=rec, metadata={"reason": "password"}, request=request)
             raise ValidationError({"password": "Your password is not correct."})
-        if u.mfa_enabled or mfa.enforced():
+        if mfa.challenge_required(u) or mfa.enforced():
             ok, how = mfa.verify(u, str(request.data.get("code", "")))
             if not ok:
                 audit("backup.restore_refused", actor=u, obj=rec, metadata={"reason": f"mfa:{how}"}, request=request)

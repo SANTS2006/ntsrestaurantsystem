@@ -5,6 +5,7 @@ import { api } from '../../lib/api'
 import { useSecretClicks } from '../../lib/useSecretClicks'
 import { useAsync } from '../../ui/kit'
 import { ThemeToggle } from '../../ui/TopTools'
+import { ScrollFx } from '../../ui/fx'
 
 export type PublicSettings = { platform_name: string; whatsapp_number: string; support_email: string }
 
@@ -40,6 +41,7 @@ export default function SiteLayout() {
 
   return (
     <>
+      <ScrollFx />
       <header className="nav">
         <div className="container row">
           <Link to="/" className="logo"><img src="/logo-64.png" alt="" width={36} height={36} /> {name}</Link>

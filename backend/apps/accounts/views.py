@@ -73,7 +73,7 @@ class LoginView(APIView):
             return Response(GENERIC_FAIL, status=401)  # expired bootstrap credential
 
         cache.delete(_fail_key(email))
-        if user.mfa_enabled:  # password alone never yields a session for an account with a second factor
+        if mfa.challenge_required(user):  # password alone never yields a session for an account with a second factor (while the switch is on)
             audit("auth.login_mfa_required", actor=user, restaurant=request.tenant, request=request)
             return Response({"success": True, "data": {"mfa_required": True, "mfa_token": mfa.login_token(user)}})
         audit("auth.login", actor=user, restaurant=request.tenant, request=request)
@@ -98,7 +98,7 @@ class MeView(APIView):
             "role": effective_role(request),  # derived server-side for display only
             "branch_ids": sorted(accessible_branch_ids(request)),
             "must_change_password": u.must_change_password,
-            "mfa": {"enabled": u.mfa_enabled, "required": mfa.required_for(u), "enforced": mfa.enforced()},
+            "mfa": {"enabled": u.mfa_enabled, "required": mfa.required_for(u), "enforced": mfa.enforced(), "challenge": mfa.challenge_required(u), "switched_on": mfa.switched_on()},
         }})
 
 
@@ -225,7 +225,7 @@ class GoogleLoginView(AnonAuthView):
             return err("invalid_google_token", "Google sign-in failed.", 401)
         except services.FlowError as e:
             return err(e.code, e.message, e.status)
-        if user.mfa_enabled:
+        if mfa.challenge_required(user):
             return Response({"success": True, "data": {"mfa_required": True, "mfa_token": mfa.login_token(user)}})
         return Response({"success": True, "data": {**services.issue_tokens(user), "must_change_password": False}})
 

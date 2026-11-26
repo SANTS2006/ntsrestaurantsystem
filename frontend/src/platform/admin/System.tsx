@@ -64,7 +64,7 @@ export default function System() {
 
 /** Replace ALL platform data with a backup. Needs the password, a fresh authenticator code and the typed phrase. */
 function RestoreModal({ backup, onClose }: { backup: Backup; onClose: () => void }) {
-  const { logout } = useAuth()
+  const { logout, me } = useAuth()
   const [f, setF] = useState({ password: '', code: '', confirm: '' })
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
@@ -87,7 +87,7 @@ function RestoreModal({ backup, onClose }: { backup: Backup; onClose: () => void
           <div className="alert warn"><b>This replaces everything on the platform</b> (restaurants, staff, orders, payments, settings) with the data as it was on <b>{new Date(backup.created_at).toLocaleString()}</b>. Anything created since then is removed from the live system. Before it starts, a safety snapshot of the current data is taken and verified, so this restore can itself be undone. Every user is signed out afterwards, and the platform is unavailable for a few moments.</div>
           {err && <div className="alert error" role="alert">{err}</div>}
           <Field label="Your password">{(p) => <PasswordInput {...p} autoComplete="current-password" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} />}</Field>
-          <Field label="Authenticator code" hint="Required when two-step verification is on for your account.">{(p) => <input {...p} className="input" inputMode="numeric" autoComplete="one-time-code" value={f.code} onChange={(e) => setF({ ...f, code: e.target.value })} />}</Field>
+          {(me?.mfa?.challenge || me?.mfa?.enforced) && <Field label="Authenticator code" hint="Required when two-step verification is on for your account.">{(p) => <input {...p} className="input" inputMode="numeric" autoComplete="one-time-code" value={f.code} onChange={(e) => setF({ ...f, code: e.target.value })} />}</Field>}
           <Field label={`Type ${phrase} to confirm`}>{(p) => <input {...p} className="input" autoComplete="off" value={f.confirm} onChange={(e) => setF({ ...f, confirm: e.target.value })} />}</Field>
           <button className="btn danger" disabled={busy || !f.password || f.confirm.trim() !== phrase}>{busy ? <><Spinner /> Restoring, do not close this page…</> : 'Restore this backup'}</button>
         </form>

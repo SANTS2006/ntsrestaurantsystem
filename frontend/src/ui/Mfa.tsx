@@ -64,7 +64,7 @@ function MfaPolicyCard() {
           <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}><ShieldCheck size={20} aria-hidden /> Require two-step verification</h3>
           <p className="muted" style={{ margin: '6px 0 0' }}>
             {policy.master_switch
-              ? (policy.enforced ? 'Platform and restaurant administrators must use an authenticator app to sign in.' : 'Off: administrators sign in with a password only. Anyone can still turn it on for their own account.')
+              ? (policy.enforced ? 'Platform and restaurant administrators must use an authenticator app to sign in.' : 'Off: nobody is asked for a code, at sign-in or anywhere else. Authenticators already set up are kept for when you turn it back on.')
               : 'Disabled in the server settings (MFA_ENFORCEMENT=false). Change it there to use this switch.'}
           </p>
         </div>
@@ -73,13 +73,13 @@ function MfaPolicyCard() {
       {target !== null && (
         <Modal title={target ? 'Require two-step verification' : 'Stop requiring two-step verification'} onClose={() => setTarget(null)}>
           <h2 style={{ marginTop: 0 }}>{target ? 'Turn the requirement on?' : 'Turn the requirement off?'}</h2>
-          <p className="muted">{target ? 'Administrators without it will be asked to set it up at their next sign-in.' : 'Your administrators will be able to sign in, and to turn their own factor off, without a code. This weakens protection of the platform.'}</p>
+          <p className="muted">{target ? 'Administrators without it will be asked to set it up at their next sign-in.' : 'No one will be asked for a code when signing in, including accounts that already use an authenticator. Passwords alone will protect every account until you turn it on again.'}</p>
           {error && <div className="alert error" role="alert">{error}</div>}
           <Field label="Your password">{(p) => <PasswordInput {...p} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />}</Field>
-          {me?.mfa?.enabled && <Field label="Current 6-digit code">{(p) => <input {...p} className="input" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} />}</Field>}
+          {me?.mfa?.challenge && <Field label="Current 6-digit code">{(p) => <input {...p} className="input" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} />}</Field>}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button className="btn secondary" onClick={() => setTarget(null)}>Cancel</button>
-            <button className={target ? 'btn' : 'btn danger'} disabled={busy || !password || (!!me?.mfa?.enabled && code.length < 6)} onClick={apply}>{busy ? <Spinner /> : target ? 'Turn on' : 'Turn off'}</button>
+            <button className={target ? 'btn' : 'btn danger'} disabled={busy || !password || (!!me?.mfa?.challenge && code.length < 6)} onClick={apply}>{busy ? <Spinner /> : target ? 'Turn on' : 'Turn off'}</button>
           </div>
         </Modal>
       )}
@@ -125,6 +125,7 @@ export function MfaSettings({ forced = false }: { forced?: boolean }) {
       {forced && <div className="alert warn"><b>Set up two-step verification to continue.</b> Your role requires it. It takes a minute and protects your restaurant if your password is ever stolen.</div>}
       <h1 className="page-title">Two-step verification</h1>
       {me?.role === 'platform_admin' && <MfaPolicyCard />}
+      {me?.mfa?.switched_on === false && <div className="alert warn">Two-step verification is switched off for the whole platform: no code is asked at sign-in. Authenticators that are already set up are kept and will be asked for again when it is switched back on.</div>}
       {error && <div className="alert error" role="alert">{error}</div>}
       {codes && (
         <div className="card" style={{ marginBottom: 16 }}>

@@ -152,7 +152,7 @@ def create_reservation(tenant, branch, d, *, source="public", user=None, table_i
     r.raw_token = raw  # handed to the caller once; never stored
     from apps.notifications import inapp
 
-    inapp.notify_staff(tenant, branch.pk, inapp.FRONT_OF_HOUSE, "reservation", f"New reservation {r.reference}", f"{r.customer_name} · {party} guest{'s' if party != 1 else ''} · {local_when(r, tenant)}", "/manage/floor")
+    inapp.notify_staff(tenant, branch.pk, inapp.FRONT_OF_HOUSE, "reservation", f"New reservation {r.reference}", f"{r.customer_name} · {party} guest{'s' if party != 1 else ''} · {local_when(r, tenant)}", "/manage/floor", about=("reservation", r.pk))
     return r
 
 
@@ -207,7 +207,7 @@ def _staff_get(request, pk, lock=False):
     from apps.accounts.permissions import accessible_branch_ids
 
     qs = Reservation.unscoped.filter(pk=pk, restaurant=request.tenant, branch_id__in=accessible_branch_ids(request))
-    r = (qs.select_for_update() if lock else qs).select_related("branch", "table").first()
+    r = (qs.select_for_update(of=("self",)) if lock else qs).select_related("branch", "table").first()
     if r is None:
         raise NotFound()
     return r

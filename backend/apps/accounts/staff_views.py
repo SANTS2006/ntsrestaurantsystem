@@ -80,7 +80,7 @@ class StaffViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.Ge
         return None
 
     def _locked(self, request, pk):
-        m = (Membership.objects.select_for_update().filter(pk=pk, restaurant=request.tenant).exclude(role=Role.CUSTOMER)
+        m = (Membership.objects.select_for_update(of=("self",)).filter(pk=pk, restaurant=request.tenant).exclude(role=Role.CUSTOMER)
              .select_related("user").first())
         if m is None or not self.get_queryset().filter(pk=pk).exists():
             raise NotFound()

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ApiError, api } from '../lib/api'
 import { KeyRound, Lock, Mail } from 'lucide-react'
@@ -52,7 +52,7 @@ export function SetupPassword() {
   )
 }
 
-export function ForgotPassword() {
+export function ForgotPassword({ Frame = Shell }: { Frame?: (p: { title: string; subtitle?: string; children: ReactNode }) => ReactNode }) {
   const [step, setStep] = useState<'email' | 'code' | 'done'>('email')
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
@@ -92,7 +92,7 @@ export function ForgotPassword() {
     }
   }
   return (
-    <Shell title="Reset your password" subtitle="We will email you a code.">
+    <Frame title="Reset your password" subtitle="We will email you a code.">
       {step === 'done' ? <div><div className="alert ok">Password updated. You can sign in now.</div><Link className="btn" to="/login">Sign in</Link></div>
         : step === 'email' ? (
           <form onSubmit={sendCode} noValidate>
@@ -109,6 +109,6 @@ export function ForgotPassword() {
             <button className="btn" style={{ width: '100%' }} disabled={busy}>{busy ? <Spinner /> : 'Reset password'}</button>
           </form>
         )}
-    </Shell>
+    </Frame>
   )
 }

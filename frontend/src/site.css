@@ -1,0 +1,82 @@
+/* ================================ Professional website look: hero, 3D, cards, scroll effects, scrollbar ================================ */
+
+/* ---- Custom scrollbar (whole app) ---- */
+html { scrollbar-width: thin; scrollbar-color: var(--brand) var(--bg-soft); }
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track { background: var(--bg-soft); }
+::-webkit-scrollbar-thumb { background: linear-gradient(180deg, var(--brand), var(--brand-2)); border-radius: 999px; border: 3px solid var(--bg-soft); }
+::-webkit-scrollbar-thumb:hover { background: var(--brand-2); }
+.shell .side nav::-webkit-scrollbar { width: 8px; } .shell .side nav::-webkit-scrollbar-track { background: transparent; } .shell .side nav::-webkit-scrollbar-thumb { border-color: transparent; background-clip: padding-box; background-color: color-mix(in srgb, var(--brand) 45%, transparent); }
+
+/* ---- Scroll progress and raised header ---- */
+.scroll-progress { position: fixed; inset: 0 0 auto 0; height: 3px; z-index: 120; pointer-events: none; }
+.scroll-progress span { display: block; height: 100%; transform-origin: 0 50%; background: linear-gradient(90deg, var(--brand), var(--gold)); }
+.nav { transition: box-shadow .25s, background .25s; }
+html.scrolled .nav { box-shadow: 0 10px 30px -18px rgb(5 30 80 / 45%); }
+
+/* ---- Hero with 3D model ---- */
+.hero-x { position: relative; overflow: hidden; padding: clamp(40px, 6vw, 88px) 0 clamp(48px, 6vw, 96px); isolation: isolate;
+  background: radial-gradient(900px 520px at 88% 8%, color-mix(in srgb, var(--gold) 22%, transparent), transparent 70%), radial-gradient(800px 480px at 4% 96%, color-mix(in srgb, var(--brand) 18%, transparent), transparent 70%), linear-gradient(180deg, var(--bg-soft), var(--bg)); }
+.hero-x::before { content: ''; position: absolute; inset: 0; z-index: -1; opacity: .5; background-image: radial-gradient(color-mix(in srgb, var(--brand) 22%, transparent) 1px, transparent 1px); background-size: 26px 26px; mask-image: linear-gradient(180deg, #000, transparent 85%); }
+.hero-x .blob { position: absolute; z-index: -1; border-radius: 50%; filter: blur(50px); opacity: .35; animation: drift 14s ease-in-out infinite alternate; }
+.hero-x .blob.a { width: 340px; height: 340px; background: var(--brand); top: -120px; left: 38%; }
+.hero-x .blob.b { width: 260px; height: 260px; background: var(--gold); bottom: -110px; right: 6%; animation-delay: -6s; }
+@keyframes drift { to { transform: translate3d(40px, 30px, 0) scale(1.12); } }
+.hero-x .cols { display: grid; grid-template-columns: 1.05fr 1fr; gap: clamp(20px, 4vw, 60px); align-items: center; }
+.hero-x h1 { font-size: clamp(2.3rem, 5.6vw, 4.4rem); line-height: 1.04; letter-spacing: -.035em; margin: 8px 0 18px; animation: hero-in .8s cubic-bezier(.2,.7,.2,1) both; }
+.hero-x h1 .grad { background: linear-gradient(100deg, var(--brand), var(--gold)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hero-x .lead { font-size: clamp(1.02rem, 1.5vw, 1.22rem); color: var(--muted); max-width: 54ch; animation: hero-in .8s .1s cubic-bezier(.2,.7,.2,1) both; }
+.hero-x .cta { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 26px; animation: hero-in .8s .2s cubic-bezier(.2,.7,.2,1) both; }
+.hero-x .pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; background: color-mix(in srgb, var(--surface) 80%, transparent); border: 1px solid var(--border-strong); font-size: .78rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); backdrop-filter: blur(8px); animation: hero-in .6s both; }
+.hero-x .perks { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 26px; color: var(--muted); font-size: .92rem; font-weight: 600; } .hero-x .perks span { display: inline-flex; align-items: center; gap: 7px; } .hero-x .perks svg { color: var(--brand); }
+@keyframes hero-in { from { opacity: 0; transform: translateY(22px); } }
+.stage { position: relative; min-height: 380px; height: clamp(340px, 42vw, 520px); }
+.scene3d { width: 100%; height: 100%; display: block; touch-action: pan-y; }
+.stage .float { position: absolute; display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 16px; background: color-mix(in srgb, var(--surface) 82%, transparent); border: 1px solid var(--border); box-shadow: var(--shadow-lg); backdrop-filter: blur(10px); font-weight: 700; font-size: .86rem; animation: floaty 6s ease-in-out infinite; }
+.stage .float svg { color: var(--brand); } .stage .float.one { top: 8%; left: 0; } .stage .float.two { bottom: 14%; right: 0; animation-delay: -2s; } .stage .float.three { top: 22%; right: 2%; animation-delay: -4s; }
+@keyframes floaty { 50% { transform: translateY(-12px); } }
+
+/* ---- Sections and cards ---- */
+.section-x { padding: clamp(48px, 6vw, 92px) 0; }
+.section-x.alt { background: linear-gradient(180deg, var(--bg-soft), var(--bg)); }
+.section-head { margin-bottom: 34px; } .section-head.center { text-align: center; } .section-head.center p.muted { margin-inline: auto; }
+.section-head h2 { font-size: clamp(1.7rem, 3.4vw, 2.6rem); letter-spacing: -.025em; margin: 6px 0 10px; } .section-head p.muted { max-width: 62ch; font-size: 1.02rem; }
+.cards { display: grid; gap: 22px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.tilt { --rx: 0deg; --ry: 0deg; --mx: 50%; --my: 50%; position: relative; height: 100%; transform: perspective(900px) rotateX(var(--rx)) rotateY(var(--ry)); transform-style: preserve-3d; transition: transform .18s ease-out; }
+.tilt::after { content: ''; position: absolute; inset: 0; border-radius: var(--radius); pointer-events: none; opacity: 0; transition: opacity .25s; background: radial-gradient(420px circle at var(--mx) var(--my), color-mix(in srgb, var(--gold) 20%, transparent), transparent 45%); }
+.tilt:hover::after { opacity: 1; }
+.tilt > .card, .tilt > a { height: 100%; }
+.feature { padding: 26px; border-radius: 20px; background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow); }
+.feature .icon-box { width: 52px; height: 52px; border-radius: 16px; background: linear-gradient(140deg, var(--brand), var(--brand-2)); color: #fff; box-shadow: 0 12px 24px -12px var(--brand); transform: translateZ(30px); }
+.feature h3 { font-size: 1.15rem; } .feature p { color: var(--muted); margin: 0; }
+.product-card { border-radius: 20px !important; transition: box-shadow .25s, border-color .25s; }
+.product-card img { transition: transform .5s cubic-bezier(.2,.7,.2,1); } .product-card:hover img { transform: scale(1.07); }
+.product-card:hover { box-shadow: var(--shadow-lg); border-color: var(--brand); color: inherit; }
+.cat-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px; border-radius: 18px; background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-sm); color: var(--text); font-weight: 700; transition: transform .2s, box-shadow .2s, border-color .2s; }
+.cat-card small { display: block; color: var(--muted); font-weight: 500; } .cat-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); border-color: var(--brand); color: var(--text); } .cat-card svg { color: var(--brand); transition: transform .2s; } .cat-card:hover svg { transform: translateX(4px); }
+.steps { display: grid; gap: 22px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); counter-reset: step; }
+.step { position: relative; padding: 28px 24px 22px; border-radius: 20px; background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-sm); height: 100%; }
+.step::before { counter-increment: step; content: counter(step); position: absolute; top: -18px; left: 22px; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 14px; font-weight: 800; color: #fff; background: linear-gradient(140deg, var(--brand), var(--brand-2)); box-shadow: 0 10px 20px -10px var(--brand); }
+.step h3 { margin-top: 6px; } .step p { color: var(--muted); margin: 0; }
+.gallery-strip { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.gallery-strip figure { margin: 0; overflow: hidden; border-radius: 18px; box-shadow: var(--shadow); aspect-ratio: 4 / 3; background: var(--bg-soft); } .gallery-strip img { width: 100%; height: 100%; object-fit: cover; transition: transform .6s cubic-bezier(.2,.7,.2,1); } .gallery-strip figure:hover img { transform: scale(1.1); }
+.visit { display: grid; gap: 22px; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); }
+.visit .card { border-radius: 20px; } .visit h3 { display: flex; align-items: center; gap: 9px; } .visit h3 svg { color: var(--brand); }
+.cta-band { position: relative; overflow: hidden; border-radius: 28px; padding: clamp(32px, 5vw, 62px) 24px; text-align: center; color: #fff; background: radial-gradient(600px 300px at 90% 0%, color-mix(in srgb, var(--gold) 60%, transparent), transparent 70%), linear-gradient(135deg, var(--brand), var(--brand-2)); box-shadow: 0 30px 60px -30px var(--brand-2); }
+.cta-band h2 { color: #fff; font-size: clamp(1.6rem, 3.2vw, 2.4rem); } .cta-band p { color: rgb(255 255 255 / 88%); max-width: 56ch; margin-inline: auto; }
+.cta-band .btn { background: #fff; color: #08214a; border-color: #fff; } .cta-band .btn.outline { background: transparent; color: #fff; border-color: rgb(255 255 255 / 65%); }
+.cta-band .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
+
+/* ---- Entrance animations ---- */
+.rise { height: 100%; } .rise > .reveal { height: 100%; transition-delay: var(--d, 0ms); }
+.reveal.from-left { transform: translateX(-34px); } .reveal.from-right { transform: translateX(34px); } .reveal.from-zoom { transform: scale(.92); }
+.reveal.from-left.in, .reveal.from-right.in, .reveal.from-zoom.in { transform: none; }
+
+@media (max-width: 900px) { .hero-x .cols { grid-template-columns: 1fr; } .stage { height: 330px; min-height: 300px; } .stage .float.three { display: none; } }
+@media (max-width: 520px) { .stage .float { font-size: .76rem; padding: 8px 10px; } }
+@media (prefers-reduced-motion: reduce) { .hero-x .blob, .stage .float { animation: none; } .tilt { transform: none; } .reveal { opacity: 1; transform: none; } }
+@media print { .scroll-progress, .stage { display: none; } }
+
+/* slide-in animations start off screen: never let that create a sideways scrollbar */
+main { overflow-x: clip; }
+.dish-ph { height: 170px; display: grid; place-items: center; font-family: var(--font-display); font-size: 3.2rem; font-weight: 800; color: #fff; background: radial-gradient(220px 140px at 80% 0%, color-mix(in srgb, var(--gold) 65%, transparent), transparent 70%), linear-gradient(135deg, var(--brand), var(--brand-2)); }

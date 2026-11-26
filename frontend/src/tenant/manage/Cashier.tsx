@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import RequestsPanel from '../qr/RequestsPanel'
 import { ApiError, api } from '../../lib/api'
 import { useAuth } from '../../lib/auth'
+import { MomoPayment } from '../MomoPayment'
 import { Empty, ErrorState, Field, Modal, PageHeader, SearchInput, Skeleton, Spinner, useAsync, useDocumentTitle, useToast } from '../../ui/kit'
 import { useSite, type MenuCategory, type PublicProduct } from '../SiteContext'
 
@@ -63,7 +64,7 @@ function NewOrder({ hasShift, goShift, onCreated }: { hasShift: boolean; goShift
   const [discount, setDiscount] = useState<Discount | null>(null)
   const [dForm, setDForm] = useState<Discount>({ type: 'percent', value: '', reason: '' })
   const [busy, setBusy] = useState(false)
-  const [done, setDone] = useState<{ number: string; change: string | null; receipt: number | null; status: string } | null>(null)
+  const [done, setDone] = useState<{ number: string; change: string | null; receipt: number | null; status: string; momo: number | null } | null>(null)
   const attempt = useRef({ payload: '', key: '' })
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value })
 
@@ -100,8 +101,8 @@ function NewOrder({ hasShift, goShift, onCreated }: { hasShift: boolean; goShift
     if (attempt.current.payload !== s) attempt.current = { payload: s, key: crypto.randomUUID() } // a retry of the same order reuses the key
     setBusy(true)
     try {
-      const r = await api<{ order: { number: string; status_label: string }; payment?: { receipt_id: number | null }; change_given?: string | null }>('/cashier/orders/', { body: payload, headers: { 'Idempotency-Key': attempt.current.key } })
-      setDone({ number: r.order.number, change: r.change_given ?? null, receipt: r.payment?.receipt_id ?? null, status: r.order.status_label })
+      const r = await api<{ order: { number: string; status_label: string }; payment?: { id: number; method: string; status: string; receipt_id: number | null }; change_given?: string | null }>('/cashier/orders/', { body: payload, headers: { 'Idempotency-Key': attempt.current.key } })
+      setDone({ number: r.order.number, change: r.change_given ?? null, receipt: r.payment?.receipt_id ?? null, status: r.order.status_label, momo: r.payment?.method === 'mobile_money' && r.payment.status === 'pending' ? r.payment.id : null })
       toast(`Order ${r.order.number} created.`)
       onCreated()
     } catch (err) {
@@ -114,6 +115,7 @@ function NewOrder({ hasShift, goShift, onCreated }: { hasShift: boolean; goShift
     <div className="card" style={{ maxWidth: 520 }}>
       <h2>Order {done.number} created</h2>
       <p>Status: <b>{done.status}</b></p>
+      {done.momo !== null && <MomoPayment paymentId={done.momo} onPaid={onCreated} />}
       {done.change !== null && <p style={{ fontSize: '1.5rem' }}>Change to give: <b>{money(done.change)}</b></p>}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {done.receipt && <Link className="btn" to={`/receipts/${done.receipt}`} target="_blank">Print receipt</Link>}
@@ -214,7 +216,7 @@ function NewOrder({ hasShift, goShift, onCreated }: { hasShift: boolean; goShift
             {cashOptions.length > 0 && <div className="quick-cash">{cashOptions.map((v, i) => <button type="button" key={v} className="btn sm secondary" onClick={() => setF({ ...f, amount_received: v.toFixed(2) })}>{i === 0 && v === total ? 'Exact' : money(v.toFixed(2))}</button>)}</div>}
             <Field label="Cash received" error={errors.amount_received}>{(p) => <input {...p} className="input" inputMode="decimal" placeholder="e.g. 50.00" value={f.amount_received} onChange={set('amount_received')} />}</Field>
             {change !== null && change >= 0 && <p style={{ fontSize: '1.15rem' }}>Change due: <b>{money(change.toFixed(2))}</b></p>}</>}
-          {f.payment === 'mobile_money' && <Field label="Mobile money number" error={errors.payer_phone}>{(p) => <input {...p} className="input" type="tel" placeholder="Customer mobile number" value={f.payer_phone} onChange={set('payer_phone')} />}</Field>}
+          {f.payment === 'mobile_money' && <Field label="Mobile money number" error={errors.payer_phone}>{(p) => <input {...p} className="input" type="tel" placeholder="Enter your mobile money number" value={f.payer_phone} onChange={set('payer_phone')} />}</Field>}
           <button className="btn lg" style={{ width: '100%' }} disabled={busy || !items.length || !!quote.error}>{busy ? <Spinner /> : `Charge ${quote.data ? money(quote.data.total) : ''}`.trim()}</button>
           {lines.length > 0 && <button type="button" className="btn ghost sm" style={{ width: '100%', marginTop: 6 }} onClick={() => setLines([])}>Clear order</button>}
         </div>

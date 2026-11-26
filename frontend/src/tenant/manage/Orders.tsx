@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../lib/auth'
+import { can } from '../../lib/permissions'
+import { MomoPayment } from '../MomoPayment'
 import { ApiError, api, type Page } from '../../lib/api'
 import { Drawer, Empty, ErrorState, PageHeader, Pager, SearchInput, Skeleton, useAsync, useDocumentTitle, useToast } from '../../ui/kit'
 import { StatusBadge, type OrderRow } from '../account/pages'
@@ -75,7 +77,11 @@ function OrderModal({ id, onClose, onChanged }: { id: number; onClose: () => voi
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const { me } = useAuth()
-  const canRefund = ['restaurant_admin', 'manager', 'platform_admin'].includes(me?.role ?? '')
+  const canRefund = can(me?.role, 'payments.refund')
+  const canTakePayment = can(me?.role, 'payments.cash')
+  const canSeeReceipt = can(me?.role, 'payments.receipt')
+  const { site } = useSite()
+  const [momo, setMomo] = useState<number | null>(null)
   const load = useCallback(() => api<StaffDetail>(`/orders/manage/${id}/`).then(setO, (e) => setError(e instanceof ApiError ? e.message : 'Could not load the order.')), [id])
   useEffect(() => { void load() }, [load])
 
@@ -87,6 +93,14 @@ function OrderModal({ id, onClose, onChanged }: { id: number; onClose: () => voi
     setBusy(true)
     try { const r = await api<{ change_given: string }>('/payments/cash/', { body: { order_id: id, amount_received: got.trim() }, headers: { 'Idempotency-Key': crypto.randomUUID() } }); toast(`Payment recorded. Change to give: ${r.change_given}`); await load(); onChanged() }
     catch (e) { toast(e instanceof ApiError ? (e.fieldErrors().amount_received ?? e.fieldErrors().order_id ?? e.message) : 'Failed.') } finally { setBusy(false) }
+  }
+  async function takeMobileMoney() {
+    if (!o) return
+    const phone = await prompt({ title: 'Take mobile money', message: `Amount due ${(Number(o.total) - Number(o.amount_paid)).toFixed(2)}.`, label: 'Mobile money number', defaultValue: o.contact_phone, required: true, confirmLabel: 'Start payment' })
+    if (phone === null) return
+    setBusy(true)
+    try { const p = await api<{ id: number }>('/payments/mobile-money/', { body: { order_id: id, phone }, headers: { 'Idempotency-Key': crypto.randomUUID() } }); setMomo(p.id); await load(); onChanged() }
+    catch (e) { toast(e instanceof ApiError ? (e.fieldErrors().phone ?? e.fieldErrors().order_id ?? e.fieldErrors().detail ?? e.message) : 'Failed.') } finally { setBusy(false) }
   }
   async function refund(paymentId: number, max: string) {
     const amount = await prompt({ title: 'Refund payment', message: `Up to ${max}.`, label: 'Refund amount', defaultValue: max, required: true, inputMode: 'decimal', confirmLabel: 'Continue' })
@@ -131,8 +145,13 @@ function OrderModal({ id, onClose, onChanged }: { id: number; onClose: () => voi
           </tbody></table>
           <h3 style={{ marginTop: 16 }}>Payment</h3>
           <p>{money(o.amount_paid)} paid of {money(o.total)} · <b>{o.payment_status}</b></p>
-          {o.payments.map((p) => <p key={p.id} className="muted">{p.method} · {p.status} · {money(p.amount)} {p.receipt_id && <Link to={`/receipts/${p.receipt_id}`}>receipt</Link>} {canRefund && p.status === 'succeeded' && <button className="btn sm secondary" disabled={busy} onClick={() => refund(p.id, p.amount)}>Refund</button>}</p>)}
-          {o.payment_status !== 'paid' && !['cancelled', 'refunded', 'refund_pending'].includes(o.status) && o.payment_method === 'cash' && <button className="btn sm" disabled={busy} onClick={recordCash}>Record cash payment</button>}
+          {o.payments.map((p) => <p key={p.id} className="muted">{p.method} · {p.status} · {money(p.amount)} {p.receipt_id && canSeeReceipt && <Link to={`/receipts/${p.receipt_id}`}>receipt</Link>} {canRefund && p.status === 'succeeded' && <button className="btn sm secondary" disabled={busy} onClick={() => refund(p.id, p.amount)}>Refund</button>}</p>)}
+          {canTakePayment && o.payment_status !== 'paid' && !['cancelled', 'refunded', 'refund_pending'].includes(o.status) && (() => {
+            const waiting = o.payments.find((p) => p.status === 'pending' && p.method === 'mobile_money')
+            if (momo !== null) return <MomoPayment paymentId={momo} onPaid={() => { void load(); onChanged() }} />
+            if (waiting) return <button className="btn sm" onClick={() => setMomo(waiting.id)}>Show payment QR code</button>
+            return <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><button className="btn sm" disabled={busy} onClick={recordCash}>Record cash payment</button>{site.online_payments && <button className="btn sm secondary" disabled={busy} onClick={takeMobileMoney}>Take mobile money</button>}</div>
+          })()}
           <h3 style={{ marginTop: 16 }}>History</h3>
           <ul style={{ paddingLeft: 18 }}>{o.history.map((h, i) => <li key={i}><b>{h.status_label}</b> <span className="muted">{new Date(h.created_at).toLocaleString()} · {h.actor_role}{h.note ? ` · ${h.note}` : ''}</span></li>)}</ul>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>

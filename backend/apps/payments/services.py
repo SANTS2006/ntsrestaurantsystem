@@ -106,7 +106,7 @@ def settle_payment(payment_id, *, source="reconcile"):
         return payment  # stays pending; reconciliation retries
     if remote.status == "pending":
         return payment
-    order = Order.unscoped.select_for_update().select_related("restaurant", "branch", "customer").get(pk=payment.order_id)
+    order = Order.unscoped.select_for_update(of=("self",)).select_related("restaurant", "branch", "customer").get(pk=payment.order_id)
     if remote.status == "failed":
         payment.status = Payment.Status.FAILED
         payment.failure_reason = "Declined or expired at the provider"
@@ -130,7 +130,7 @@ def settle_payment(payment_id, *, source="reconcile"):
 def initiate_online_payment(request, order_id, phone):
     """Create (or return the in-flight) payment for the customer's own order and start it with the provider."""
     with transaction.atomic():
-        order = (Order.unscoped.select_for_update().select_related("restaurant", "branch")
+        order = (Order.unscoped.select_for_update(of=("self",)).select_related("restaurant", "branch")
                  .filter(pk=order_id, restaurant=request.tenant, customer=request.user).first())
         if order is None:
             raise serializers.ValidationError({"order_id": "Order not found."})
@@ -153,24 +153,42 @@ def start_provider_payment(request, order, phone):
     try:
         created = get_provider(payment.provider).create_payment(
             reference=payment.reference, amount=payment.amount, currency=payment.currency, phone=phone,
-            return_url=f"{order.restaurant.public_url}/account/orders/{order.pk}")
+            # a signed-in customer returns to their order; a guest paying at the till has no account, so gets a plain thank-you page
+            return_url=f"{order.restaurant.public_url}/account/orders/{order.pk}" if order.customer_id else f"{order.restaurant.public_url}/payment-complete")
     except ProviderError as exc:
         log.error("payment initiation failed: %s", exc)
         raise serializers.ValidationError({"detail": "The payment service is unavailable. Please try again or pay with cash."})
     payment.provider_ref = created.provider_ref
+    payment.checkout_url = created.redirect_url
     payment.save()
-    payment.redirect_url = created.redirect_url  # transient, not stored
+    payment.redirect_url = created.redirect_url
     system_transition(order, Status.PAYMENT_PROCESSING, note="Payment started")
     audit("payment.initiated", actor=request.user, restaurant=order.restaurant, obj=payment,
           metadata={"amount": str(payment.amount), "provider": payment.provider}, request=request)
     return payment
 
 
+def start_staff_mobile_money(request, order_id, phone, branch_ids):
+    """The till starts a mobile-money payment for an unpaid order of one of the cashier's branches (for example "pay later")."""
+    with transaction.atomic():
+        order = (Order.unscoped.select_for_update(of=("self",)).select_related("restaurant", "branch")
+                 .filter(pk=order_id, restaurant=request.tenant, branch_id__in=branch_ids).first())
+        if order is None:
+            raise serializers.ValidationError({"order_id": "Order not found."})
+        if order.status in (Status.CANCELLED, Status.REFUNDED, Status.REFUND_PENDING) or order.payment_status == PaymentStatus.PAID:
+            raise serializers.ValidationError({"order_id": "This order cannot take payment."})
+        from apps.payments.providers import online_payments_available
+
+        if not (order.restaurant.get_settings().online_payments_enabled and online_payments_available()):
+            raise serializers.ValidationError({"detail": "Mobile money is not available for this restaurant."})
+        return start_provider_payment(request, order, phone)
+
+
 # ---- cash --------------------------------------------------------------------------------------
 @transaction.atomic
 def record_cash_payment(request, order_id, amount_received, branch_ids):
     """A cashier/manager records cash taken for an order: change is calculated and a receipt issued."""
-    order = (Order.unscoped.select_for_update().select_related("restaurant", "branch")
+    order = (Order.unscoped.select_for_update(of=("self",)).select_related("restaurant", "branch")
              .filter(pk=order_id, restaurant=request.tenant, branch_id__in=branch_ids).first())
     if order is None:
         raise serializers.ValidationError({"order_id": "Order not found."})
@@ -203,7 +221,7 @@ def record_cash_payment(request, order_id, amount_received, branch_ids):
 # ---- refunds -----------------------------------------------------------------------------------
 @transaction.atomic
 def refund_payment(request, payment_id, amount, reason, branch_ids, role, manual_reference=""):
-    payment = (Payment.unscoped.select_for_update().select_related("order", "restaurant", "branch")
+    payment = (Payment.unscoped.select_for_update(of=("self",)).select_related("order", "restaurant", "branch")
                .filter(pk=payment_id, restaurant=request.tenant, branch_id__in=branch_ids).first())
     if payment is None:
         raise serializers.ValidationError({"payment_id": "Payment not found."})

@@ -259,7 +259,7 @@ def create_structure(request, membership_id, data):
 
 
 def _structure(request, sid):
-    s = SalaryStructure.unscoped.select_for_update().select_related("employee__user").filter(pk=sid, restaurant=request.tenant).first()
+    s = SalaryStructure.unscoped.select_for_update(of=("self",)).select_related("employee__user").filter(pk=sid, restaurant=request.tenant).first()
     if s is None:
         raise NotFound()
     problem = check_manage(request, s.employee)
@@ -381,7 +381,7 @@ def generate_period(request, period_id):
 
 
 def _record(request, rid):
-    rec = (PayrollRecord.unscoped.select_for_update().select_related("employee__user", "period", "structure")
+    rec = (PayrollRecord.unscoped.select_for_update(of=("self",)).select_related("employee__user", "period", "structure")
            .filter(pk=rid, restaurant=request.tenant).first())
     if rec is None:
         raise NotFound()

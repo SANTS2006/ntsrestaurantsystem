@@ -32,6 +32,8 @@ class Notification(models.Model):
     title = models.CharField(max_length=160)
     body = models.CharField(max_length=300, blank=True)
     link = models.CharField(max_length=200, blank=True)  # in-app path, e.g. /manage/orders
+    object_type = models.CharField(max_length=20, blank=True)  # order | reservation | qr_request | catering: what it is about
+    object_id = models.PositiveBigIntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     read_at = models.DateTimeField(null=True, blank=True)
 

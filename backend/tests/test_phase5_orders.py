@@ -205,6 +205,9 @@ def test_order_items_are_immutable_snapshots(world, shop):
 
 
 def test_cannot_use_online_payment_yet_or_bad_phone(world, shop):
+    from apps.tenants.models import RestaurantSettings
+
+    RestaurantSettings.objects.filter(restaurant=world["a"]).update(online_payments_enabled=False)  # the restaurant switched it off
     assert checkout(world, [line(shop["rice"])], payment_method="mobile_money").status_code == 400
     assert checkout(world, [line(shop["rice"])], key="p", contact_phone="abc").status_code == 400
     assert Order.unscoped.count() == 0

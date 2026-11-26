@@ -1,4 +1,4 @@
-import { Activity, BarChart3, CreditCard, LayoutDashboard, ScrollText, Settings, ShieldCheck, Store } from 'lucide-react'
+import { Activity, BarChart3, Bell, CreditCard, LayoutDashboard, ScrollText, Settings, ShieldCheck, Store } from 'lucide-react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../../lib/auth'
 import { PageLoader } from '../../ui/kit'
@@ -12,7 +12,7 @@ const groups: NavGroup[] = [
     { to: '/admin/plans', label: 'Plans', icon: CreditCard },
   ] },
   { label: 'Insight', items: [{ to: '/admin/reports', label: 'Reports', icon: BarChart3 }, { to: '/admin/audit', label: 'Audit log', icon: ScrollText }, { to: '/admin/system', label: 'System', icon: Activity }] },
-  { label: 'Configuration', items: [{ to: '/admin/settings', label: 'Settings', icon: Settings }, { to: '/admin/security', label: 'Security', icon: ShieldCheck }] },
+  { label: 'Configuration', items: [{ to: '/admin/notifications', label: 'Notifications', icon: Bell }, { to: '/admin/settings', label: 'Settings', icon: Settings }, { to: '/admin/security', label: 'Security', icon: ShieldCheck }] },
 ]
 
 export default function AdminLayout() {

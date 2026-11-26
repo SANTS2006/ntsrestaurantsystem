@@ -1,6 +1,9 @@
+import base64
 import io
 import json
 from decimal import Decimal
+
+import qrcode
 
 from django.conf import settings
 from django.db import IntegrityError, transaction
@@ -28,8 +31,9 @@ def _key(request):
 
 
 def payment_json(p, redirect_url=""):
-    return {"id": p.pk, "reference": p.reference, "order_id": p.order_id, "method": p.method, "status": p.status,
-            "amount": str(p.amount), "currency": p.currency, "redirect_url": redirect_url or getattr(p, "redirect_url", ""),
+    checkout = p.checkout_url if p.status == Payment.Status.PENDING else ""  # only a payment still waiting can be (re)opened
+    return {"checkout_url": checkout, "id": p.pk, "reference": p.reference, "order_id": p.order_id, "method": p.method, "status": p.status,
+            "amount": str(p.amount), "currency": p.currency, "redirect_url": redirect_url or getattr(p, "redirect_url", "") or checkout,
             "provider": p.provider, "paid_at": p.paid_at.isoformat() if p.paid_at else None, "failure_reason": p.failure_reason,
             "receipt_id": p.receipt.pk if hasattr(p, "receipt") else None}
 
@@ -68,6 +72,48 @@ class MyPaymentStatusView(APIView):
         if p.status == Payment.Status.PENDING:
             p = services.settle_payment(p.pk, source="poll")
         return Response(payment_json(p))
+
+
+def qr_data_url(text):
+    """PNG of `text` as a data: URL, so the till can show the payment page for the customer to scan."""
+    img = qrcode.make(text, box_size=8, border=2)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+
+
+class StaffPaymentStatusView(APIView):
+    """The till follows a mobile-money payment: asks the provider (server-side), returns the verified state and, while it is
+    still pending, a QR code of the payment page for the customer to scan. Limited to the staff member's own branches."""
+
+    permission_classes = [IsCashierOrAbove]
+
+    def get(self, request, pk):
+        p = Payment.unscoped.filter(pk=pk, restaurant=request.tenant, branch_id__in=accessible_branch_ids(request)).first()
+        if p is None:
+            raise NotFound()
+        if p.status == Payment.Status.PENDING and p.provider != "cash":
+            p = services.settle_payment(p.pk, source="poll")
+        data = payment_json(p)
+        data["order_number"] = p.order.number
+        data["qr"] = qr_data_url(data["checkout_url"]) if data["checkout_url"] else ""
+        return Response(data)
+
+
+class StaffMobileMoneyView(APIView):
+    permission_classes = [IsCashierOrAbove]
+
+    def post(self, request):
+        s = InitiateSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        branches = accessible_branch_ids(request)
+
+        def handler():
+            p = services.start_staff_mobile_money(request, s.validated_data["order_id"], s.validated_data["phone"], branches)
+            return 201, payment_json(p)
+
+        status, body = run_idempotent(request, "payment.staff_momo", _key(request), request.data, handler)
+        return Response(body, status=status)
 
 
 class CashSerializer(serializers.Serializer):

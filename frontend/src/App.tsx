@@ -1,6 +1,7 @@
 import { Suspense, lazy } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { IS_PLATFORM_SITE } from './lib/config'
+import ForgotPasswordPage from './platform/ForgotPassword'
 import Login from './platform/Login'
 import { About, Contact, Faq, Features, Home, Legal, Pricing } from './platform/site/Pages'
 import SiteLayout from './platform/site/SiteLayout'
@@ -16,6 +17,8 @@ const Plans = lazy(() => import('./platform/admin/Misc').then((m) => ({ default:
 const Restaurants = lazy(() => import('./platform/admin/Restaurants'))
 const Security = lazy(() => import('./ui/Mfa').then((m) => ({ default: m.MfaSettings })))
 const Profile = lazy(() => import('./ui/Profile').then((m) => ({ default: m.ProfileSettings })))
+const Notifications = lazy(() => import('./ui/Notifications').then((m) => ({ default: m.NotificationsPage })))
+const NotificationDetail = lazy(() => import('./ui/Notifications').then((m) => ({ default: m.NotificationDetailPage })))
 const System = lazy(() => import('./platform/admin/System'))
 
 function NotFound() {
@@ -39,6 +42,7 @@ export default function App() {
         <Route path="legal/:slug" element={<Legal />} />
       </Route>
       <Route path="login" element={<Login />} />
+      <Route path="forgot-password" element={<ForgotPasswordPage />} />
       <Route path="admin" element={<AdminLayout />}>
         <Route index element={<Dashboard />} />
         <Route path="restaurants" element={<Restaurants />} />
@@ -48,6 +52,8 @@ export default function App() {
         <Route path="system" element={<System />} />
         <Route path="security" element={<Security />} />
         <Route path="profile" element={<Profile />} />
+        <Route path="notifications" element={<Notifications />} />
+        <Route path="notifications/:nid" element={<NotificationDetail />} />
         <Route path="settings" element={<PlatformSettings />} />
       </Route>
       <Route path="*" element={<NotFound />} />

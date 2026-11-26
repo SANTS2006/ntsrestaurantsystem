@@ -80,7 +80,7 @@ class MfaPolicyView(APIView):
         if authenticate(request, username=u.email, password=str(request.data.get("password", ""))) is None:
             audit("platform.mfa_policy_refused", actor=u, metadata={"reason": "password"}, request=request)
             raise ValidationError({"password": "Your password is not correct."})
-        if u.mfa_enabled:
+        if mfa.challenge_required(u):
             ok, how = mfa.verify(u, str(request.data.get("code", "")))
             if not ok:
                 audit("platform.mfa_policy_refused", actor=u, metadata={"reason": f"mfa:{how}"}, request=request)
