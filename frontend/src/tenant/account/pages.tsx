@@ -3,7 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, NavLink, Navigate, Outlet, useNavigate, useParams } from 'react-router-dom'
 import { ApiError, api, tokenStore, type Page } from '../../lib/api'
 import { useAuth } from '../../lib/auth'
-import { Empty, ErrorState, Field, Modal, Skeleton, Spinner, useAsync, useDocumentTitle, useToast } from '../../ui/kit'
+import { PasswordInput, Empty, ErrorState, Field, Modal, Skeleton, Spinner, useAsync, useDocumentTitle, useToast } from '../../ui/kit'
 import { useSite } from '../SiteContext'
 import { useConfirm, usePrompt } from '../../ui/dialogs'
 
@@ -275,7 +275,7 @@ function EmailChange({ onClose, onDone }: { onClose: () => void; onDone: () => v
         {error && <div className="alert error" role="alert">{error}</div>}
         {step === 'request' ? <>
           <Field label="New email address">{(f) => <input {...f} className="input" type="email" placeholder="Enter your new email address" value={v.new_email} onChange={(e) => setV({ ...v, new_email: e.target.value })} />}</Field>
-          <Field label="Current password">{(f) => <input {...f} className="input" type="password" placeholder="Enter your password" value={v.password} onChange={(e) => setV({ ...v, password: e.target.value })} />}</Field>
+          <Field label="Current password">{(f) => <PasswordInput {...f} placeholder="Enter your password" value={v.password} onChange={(e) => setV({ ...v, password: e.target.value })} />}</Field>
         </> : <>
           <div className="alert">If the address can be used, a code was sent to it. It expires in 10 minutes.</div>
           <Field label="Verification code">{(f) => <input {...f} className="input" maxLength={6} placeholder="Enter the 6-character code" value={v.code} onChange={(e) => setV({ ...v, code: e.target.value.toUpperCase() })} />}</Field>
@@ -362,9 +362,9 @@ export function Security() {
       <form className="card" style={{ maxWidth: 480 }} onSubmit={submit} noValidate>
         <h2 style={{ fontSize: '1.1rem' }}>Change password</h2>
         {error && <div className="alert error" role="alert">{error}</div>}
-        <Field label="Current password">{(p) => <input {...p} className="input" type="password" autoComplete="current-password" placeholder="Enter your current password" value={v.current_password} onChange={(e) => setV({ ...v, current_password: e.target.value })} />}</Field>
-        <Field label="New password">{(p) => <input {...p} className="input" type="password" autoComplete="new-password" placeholder="Enter your new password" value={v.new_password} onChange={(e) => setV({ ...v, new_password: e.target.value })} />}</Field>
-        <Field label="Confirm new password">{(p) => <input {...p} className="input" type="password" autoComplete="new-password" placeholder="Re-enter your new password" value={v.confirm} onChange={(e) => setV({ ...v, confirm: e.target.value })} />}</Field>
+        <Field label="Current password">{(p) => <PasswordInput {...p} autoComplete="current-password" placeholder="Enter your current password" value={v.current_password} onChange={(e) => setV({ ...v, current_password: e.target.value })} />}</Field>
+        <Field label="New password">{(p) => <PasswordInput {...p} autoComplete="new-password" placeholder="Enter your new password" value={v.new_password} onChange={(e) => setV({ ...v, new_password: e.target.value })} />}</Field>
+        <Field label="Confirm new password">{(p) => <PasswordInput {...p} autoComplete="new-password" placeholder="Re-enter your new password" value={v.confirm} onChange={(e) => setV({ ...v, confirm: e.target.value })} />}</Field>
         <button className="btn" disabled={busy}>{busy ? <Spinner /> : 'Change password'}</button>
       </form>
     </>

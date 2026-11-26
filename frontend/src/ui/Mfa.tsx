@@ -3,7 +3,7 @@ import { ApiError, api } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { KeyRound, ShieldCheck } from 'lucide-react'
 import { AuthField } from './Auth'
-import { Field, Modal, Spinner, useToast } from './kit'
+import { PasswordInput, Field, Modal, Spinner, useToast } from './kit'
 
 /** Second step of sign-in: a six-digit code from the authenticator app, or one recovery code. */
 export function MfaChallengeForm({ token, onDone, onCancel, remember = false }: { token: string; onDone: () => void; onCancel: () => void; remember?: boolean }) {
@@ -75,7 +75,7 @@ function MfaPolicyCard() {
           <h2 style={{ marginTop: 0 }}>{target ? 'Turn the requirement on?' : 'Turn the requirement off?'}</h2>
           <p className="muted">{target ? 'Administrators without it will be asked to set it up at their next sign-in.' : 'Your administrators will be able to sign in, and to turn their own factor off, without a code. This weakens protection of the platform.'}</p>
           {error && <div className="alert error" role="alert">{error}</div>}
-          <Field label="Your password">{(p) => <input {...p} className="input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />}</Field>
+          <Field label="Your password">{(p) => <PasswordInput {...p} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />}</Field>
           {me?.mfa?.enabled && <Field label="Current 6-digit code">{(p) => <input {...p} className="input" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} />}</Field>}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button className="btn secondary" onClick={() => setTarget(null)}>Cancel</button>
@@ -137,7 +137,7 @@ export function MfaSettings({ forced = false }: { forced?: boolean }) {
       {!enabled && !setup && (
         <div className="card">
           <p>Use an authenticator app (Google Authenticator, Microsoft Authenticator, Authy, 1Password...) to generate a code each time you sign in.</p>
-          <Field label="Confirm with your password">{(p) => <input {...p} className="input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />}</Field>
+          <Field label="Confirm with your password">{(p) => <PasswordInput {...p} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />}</Field>
           <button className="btn" disabled={busy || !password} onClick={start}>Set up</button>
         </div>
       )}
@@ -154,7 +154,7 @@ export function MfaSettings({ forced = false }: { forced?: boolean }) {
       {enabled && !setup && (
         <div className="card">
           <p><span className="badge active">On</span> You will be asked for a code each time you sign in. <span className="muted">{status?.recovery_codes_left ?? 0} recovery code(s) left.</span></p>
-          <Field label="Password">{(p) => <input {...p} className="input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />}</Field>
+          <Field label="Password">{(p) => <PasswordInput {...p} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />}</Field>
           <Field label="Current 6-digit code">{(p) => <input {...p} className="input" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} />}</Field>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button className="btn secondary" disabled={busy || !password || code.length < 6} onClick={regenerate}>New recovery codes</button>

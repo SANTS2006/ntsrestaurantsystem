@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import { AuthProvider } from './lib/auth'
 import { NotificationProvider } from './lib/live'
+import { installPlaceholders } from './lib/placeholders'
 import { installTableRefresh } from './lib/tableRefresh'
 import { ThemeProvider } from './lib/theme'
 import { DialogProvider } from './ui/dialogs'
@@ -14,6 +15,7 @@ import './app.css'
 import './auth.css'
 
 installTableRefresh()
+installPlaceholders()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

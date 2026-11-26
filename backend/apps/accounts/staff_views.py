@@ -180,6 +180,9 @@ class StaffViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.Ge
             services.revoke_tokens(m.user)  # sessions end now
             audit("staff.deactivated", actor=request.user, restaurant=request.tenant, obj=m,
                   metadata={"reason": str(request.data.get("reason", ""))[:300]}, request=request)
+            from apps.notifications.services import queue_email
+
+            queue_email("account_deactivated", m.user.email, {"name": m.user.full_name}, restaurant=request.tenant)
         return Response(member_json(m))
 
     @action(detail=True, methods=["post"])
@@ -190,6 +193,9 @@ class StaffViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.Ge
             m.is_active = True
             m.save(update_fields=["is_active", "updated_at"])
             audit("staff.activated", actor=request.user, restaurant=request.tenant, obj=m, request=request)
+            from apps.notifications.services import queue_email
+
+            queue_email("account_activated", m.user.email, {"name": m.user.full_name, "login_url": services.login_url(request.tenant)}, restaurant=request.tenant)
         return Response(member_json(m))
 
     @action(detail=True, methods=["post"], url_path="resend-invite")

@@ -115,3 +115,13 @@ body { transition: background-color .2s, color .2s; }
 .shell .side .me small.em { font-size: .72rem; opacity: .9; }
 .nav .nav-end .secret { flex: 1; align-self: stretch; min-width: 24px; }
 .container.section { padding-inline: clamp(12px, 2vw, 28px); }
+
+/* ---- Password show / hide ---- */
+.pw { position: relative; }
+.pw .input { padding-right: 68px; }
+.pw-toggle { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); border: 0; background: none; color: var(--link); font: inherit; font-weight: 800; font-size: .7rem; letter-spacing: .08em; padding: 8px; border-radius: 8px; cursor: pointer; }
+.pw-toggle:hover { background: var(--bg-soft); }
+
+/* ---- Placeholders: long ones end in an ellipsis; very narrow boxes get room for them ---- */
+input.input { text-overflow: ellipsis; }
+input.input[placeholder^='Enter'] { min-width: 132px; }

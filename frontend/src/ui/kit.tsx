@@ -1,4 +1,4 @@
-import { Component, createContext, useCallback, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { Component, createContext, useCallback, useContext, useEffect, useId, useRef, useState, type InputHTMLAttributes, type ReactNode } from 'react'
 import { tokenStore } from '../lib/api'
 import { registerRefresh } from '../lib/refresh'
 
@@ -41,6 +41,17 @@ export function Field({ label, error, hint, children }: FieldProps) {
       {children({ id, 'aria-invalid': !!error, 'aria-describedby': error ? `${id}-e` : undefined })}
       {hint && !error && <span className="hint">{hint}</span>}
       {error && <span className="err" id={`${id}-e`}>{error}</span>}
+    </div>
+  )
+}
+
+/** A password box with a SHOW / HIDE button. Use it for every password field. */
+export function PasswordInput(props: Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'className'>) {
+  const [show, setShow] = useState(false)
+  return (
+    <div className="pw">
+      <input {...props} className="input" type={show ? 'text' : 'password'} />
+      <button type="button" className="pw-toggle" onClick={() => setShow(!show)} aria-label={show ? 'Hide password' : 'Show password'} aria-pressed={show}>{show ? 'HIDE' : 'SHOW'}</button>
     </div>
   )
 }

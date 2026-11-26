@@ -150,6 +150,14 @@ def _render(template, ctx, restaurant=None):
     if template == "reservation_cancelled":
         return f"Your reservation at {brand} was cancelled", _layout(brand, color, "Reservation cancelled", (
             f"<p>Hello {name}, your reservation <b>{escape(ctx['reference'])}</b> for {escape(ctx['when'])} has been cancelled.</p>"))
+    if template == "account_deactivated":
+        return f"Your {brand} account has been deactivated", _layout(brand, color, "Account deactivated", (
+            f"<p>Hello {name}, your account at <b>{escape(brand)}</b> has been deactivated. You have been signed out and can no longer sign in.</p>"
+            f"<p>If you think this is a mistake, please contact the restaurant.</p>"))
+    if template == "account_activated":
+        return f"Your {brand} account has been activated", _layout(brand, color, "Account activated", (
+            f"<p>Hello {name}, your account at <b>{escape(brand)}</b> has been activated again. You can sign in now.</p>"
+            + _button(ctx["login_url"], "Sign in", color)))
     if template == "email_changed":
         return f"Your {brand} email address was changed", _layout(brand, color, "Email address changed", (
             f"<p>Hello {name}, the sign-in email on your account was changed to <b>{escape(ctx['new_email'])}</b>. "

@@ -145,3 +145,17 @@ def test_anonymous_cannot_read_notifications(world):
     from rest_framework.test import APIClient
 
     assert APIClient(HTTP_HOST="platform.test").get("/alpha" + N).status_code == 401
+
+
+# ------------------------------------------------------------------ deactivation / activation emails
+def test_people_are_emailed_when_their_account_is_deactivated_and_activated(world, clean):  # noqa: F811
+    a = client_for(world["admin_a"], "alpha")
+    m = member(world, "kitchen_a1")
+    assert a.post(f"{S}{m.pk}/deactivate/", {"reason": "left"}, format="json").status_code == 200
+    sent = [o for o in ConsoleProvider.outbox if o["to"] == "kitchen1@a.com"]
+    assert len(sent) == 1 and "deactivated" in sent[0]["subject"] and "left" not in sent[0]["html"]  # the internal reason is not shared
+    assert a.post(f"{S}{m.pk}/deactivate/", {}, format="json").status_code == 200  # already inactive: no second email
+    assert len([o for o in ConsoleProvider.outbox if o["to"] == "kitchen1@a.com"]) == 1
+    assert a.post(f"{S}{m.pk}/activate/", {}, format="json").status_code == 200
+    sent = [o for o in ConsoleProvider.outbox if o["to"] == "kitchen1@a.com"]
+    assert len(sent) == 2 and "activated" in sent[1]["subject"] and "/alpha/login" in sent[1]["html"]

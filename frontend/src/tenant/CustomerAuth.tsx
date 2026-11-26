@@ -54,8 +54,8 @@ export function Login() {
       {challenge ? <MfaChallengeForm token={challenge} remember={remember} onDone={() => navigate('/manage')} onCancel={() => setChallenge(null)} /> : <>
         <form onSubmit={submit} noValidate>
           {errors.form && <div className="alert error" role="alert">{errors.form}</div>}
-          <AuthField label="Email address" icon={User} error={errors.email} type="email" autoComplete="username" placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <AuthField label="Password" icon={Lock} secret error={errors.password} autoComplete="current-password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <AuthField label="Email address" icon={User} error={errors.email} type="email" autoComplete="username" placeholder="Enter your email address" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <AuthField label="Password" icon={Lock} secret error={errors.password} autoComplete="current-password" placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} />
           <RememberRow remember={remember} onChange={setRemember} forgotTo="/forgot-password" />
           <button className="btn" style={{ width: '100%' }} disabled={busy}>{busy ? <Spinner size={20} /> : 'Sign in'}</button>
         </form>
@@ -111,10 +111,10 @@ export function Register() {
       {challenge ? <MfaChallengeForm token={challenge} onDone={() => navigate('/account')} onCancel={() => setChallenge(null)} /> : <>
         <form onSubmit={submit} noValidate>
           {errors.form && <div className="alert error" role="alert">{errors.form}</div>}
-          <AuthField label="Full name" icon={User} error={errors.full_name} autoComplete="name" placeholder="Full name" value={v.full_name} onChange={set('full_name')} />
-          <AuthField label="Email address" icon={Mail} error={errors.email} type="email" autoComplete="email" placeholder="Email address" value={v.email} onChange={set('email')} />
-          <AuthField label="Phone number (optional)" icon={Phone} error={errors.phone} type="tel" autoComplete="tel" placeholder="Phone number" value={v.phone} onChange={set('phone')} />
-          <AuthField label="Password" icon={Lock} secret error={errors.password} hint="At least 10 characters. Avoid common passwords." autoComplete="new-password" placeholder="Password" value={v.password} onChange={set('password')} />
+          <AuthField label="Full name" icon={User} error={errors.full_name} autoComplete="name" placeholder="Enter your full name" value={v.full_name} onChange={set('full_name')} />
+          <AuthField label="Email address" icon={Mail} error={errors.email} type="email" autoComplete="email" placeholder="Enter your email address" value={v.email} onChange={set('email')} />
+          <AuthField label="Phone number (optional)" icon={Phone} error={errors.phone} type="tel" autoComplete="tel" placeholder="Enter your phone number" value={v.phone} onChange={set('phone')} />
+          <AuthField label="Password" icon={Lock} secret error={errors.password} hint="At least 10 characters. Avoid common passwords." autoComplete="new-password" placeholder="Enter your password" value={v.password} onChange={set('password')} />
           <div className="field">
             <label className="auth-check" style={{ fontWeight: 400 }}><input type="checkbox" checked={terms} onChange={(e) => setTerms(e.target.checked)} aria-invalid={!!errors.accept_terms} /> <span>I agree to the <Link to="/policies/terms-of-use" target="_blank">Terms of Service</Link> and <Link to="/policies/privacy-policy" target="_blank">Privacy Policy</Link></span></label>
             {errors.accept_terms && <span className="err">{errors.accept_terms}</span>}

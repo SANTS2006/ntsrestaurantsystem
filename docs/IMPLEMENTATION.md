@@ -302,3 +302,9 @@ Tenant hosts in dev: `http://<slug>.localhost:8000` (browsers resolve `*.localho
 - **Navbar:** logo left, links (Home to Contact) centred, actions right; below 1000 px it becomes logo + actions with a drop-down menu. On small screens the account / log-in button shows as an icon, and the profile picture stays visible in the application top bar (a CSS rule was hiding it on phones).
 - **Footer:** brand block, then "Explore" (or "Product") with the links laid out in columns of four, then Policies and Contact (with a Contact us link when no details are set), and a bottom bar.
 - **Sidebar profile** now shows name, role and email.
+
+### Session 23: 2026-11-26 (account emails, placeholders, password show/hide)
+- **Emails on deactivate / activate:** deactivating a staff account sends "Your account has been deactivated" (signed out, contact the restaurant; the internal reason is not shared); reactivating sends "Your account has been activated" with a sign-in button. Sent only when the state really changes; branded per restaurant.
+- **Placeholders:** every text, email, phone, number and text-area box reads "Enter your <what it is>" (confirm fields: "Re-enter your ..."), keeping examples ("Enter your amount, e.g. 120.50"). Applied automatically from the label (`lib/placeholders.ts`), so new fields get it too. Search boxes keep "Search ...". Dates, checkboxes, radios, file pickers, colour pickers, drop-downs and hidden spam traps have no placeholder.
+- **Passwords:** every password box has SHOW / HIDE (`PasswordInput` in `ui/kit.tsx`; the sign-in pages already had it).
+- Tests: backend 671 passed, frontend 48 passed. Browser check (local database): sign-in, profile, add-staff form and a sweep of 16 workspace pages. Not checked: forms inside pop-ups other than add staff, customer and public forms, and real email delivery.

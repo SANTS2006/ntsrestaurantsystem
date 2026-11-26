@@ -53,8 +53,8 @@ export default function Login() {
       {challenge ? <MfaChallengeForm token={challenge} remember={remember} onDone={() => navigate('/admin')} onCancel={() => setChallenge(null)} /> : (
         <form onSubmit={submit} noValidate>
           {errors.form && <div className="alert error" role="alert">{errors.form}</div>}
-          <AuthField label="Email address" icon={User} error={errors.email} type="email" autoComplete="username" placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <AuthField label="Password" icon={Lock} secret error={errors.password} autoComplete="current-password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <AuthField label="Email address" icon={User} error={errors.email} type="email" autoComplete="username" placeholder="Enter your email address" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <AuthField label="Password" icon={Lock} secret error={errors.password} autoComplete="current-password" placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} />
           <RememberRow remember={remember} onChange={setRemember} />
           <button className="btn" style={{ width: '100%' }} disabled={busy}>{busy ? <Spinner /> : 'Sign in'}</button>
         </form>

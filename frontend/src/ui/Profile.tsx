@@ -6,7 +6,7 @@ import { useNotifications } from '../lib/live'
 import { useTheme } from '../lib/theme'
 import { useConfirm } from './dialogs'
 import { Avatar } from './Shell'
-import { Field, Modal, Spinner, useDocumentTitle, useToast } from './kit'
+import { PasswordInput, Field, Modal, Spinner, useDocumentTitle, useToast } from './kit'
 
 type Profile = { id: number; email: string; full_name: string; phone: string; avatar: string | null; role: string | null }
 const msg = (e: unknown) => (e instanceof ApiError ? (Object.values(e.fieldErrors())[0] ?? e.message) : 'Something went wrong.')
@@ -135,8 +135,8 @@ function PasswordCard() {
     <form className="card" onSubmit={submit} noValidate>
       <h3 style={{ display: 'flex', gap: 8, alignItems: 'center' }}><KeyRound size={18} aria-hidden /> Password</h3>
       {error && <div className="alert error" role="alert">{error}</div>}
-      <Field label="Current password">{(p) => <input {...p} className="input" type="password" autoComplete="current-password" value={cur} onChange={(e) => setCur(e.target.value)} />}</Field>
-      <Field label="New password" hint="At least 10 characters.">{(p) => <input {...p} className="input" type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} />}</Field>
+      <Field label="Current password">{(p) => <PasswordInput {...p} autoComplete="current-password" value={cur} onChange={(e) => setCur(e.target.value)} />}</Field>
+      <Field label="New password" hint="At least 10 characters.">{(p) => <PasswordInput {...p} autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} />}</Field>
       <button className="btn secondary" disabled={busy}>{busy ? <Spinner size={18} /> : 'Change password'}</button>
     </form>
   )
@@ -167,7 +167,7 @@ function EmailModal({ onClose, onDone }: { onClose: () => void; onDone: (t: { ac
       {step === 'new' ? (
         <form onSubmit={send} noValidate>
           <Field label="New email address">{(p) => <input {...p} className="input" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />}</Field>
-          <Field label="Your password">{(p) => <input {...p} className="input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />}</Field>
+          <Field label="Your password">{(p) => <PasswordInput {...p} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />}</Field>
           <button className="btn" disabled={busy || !password}>{busy ? <Spinner size={18} /> : 'Send code'}</button>
         </form>
       ) : (
