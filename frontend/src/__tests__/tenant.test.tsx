@@ -10,7 +10,8 @@ function Probe({ path, ld }: { path: string; ld?: object }) {
 
 describe('formatMoney', () => {
   it('formats valid ISO currencies', () => {
-    expect(formatMoney('39.5', 'USD')).toContain('39.50')
+    expect(formatMoney('39.5', 'SLE')).toBe('SLE 39.50')
+    expect(formatMoney(1250)).toBe('SLE 1,250.00')
   })
   it('falls back safely for unknown currency codes instead of throwing', () => {
     expect(formatMoney('39', 'ZZZ1')).toBe('ZZZ1 39.00')

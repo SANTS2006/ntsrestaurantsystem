@@ -6,6 +6,7 @@ import { useAuth } from '../../lib/auth'
 import { PasswordInput, Empty, ErrorState, Field, Modal, Skeleton, Spinner, useAsync, useDocumentTitle, useToast } from '../../ui/kit'
 import { useSite } from '../SiteContext'
 import { useConfirm, usePrompt } from '../../ui/dialogs'
+import { BackButton } from '../../ui/BackButton'
 
 const msg = (e: unknown) => (e instanceof ApiError ? e.message : 'Something went wrong.')
 
@@ -23,7 +24,7 @@ export function AccountLayout() {
       <aside className="side" aria-label="My account">
         <strong style={{ padding: '6px 12px' }}>{me.full_name || me.email}</strong>
         {items.map(([to, l, Icon, end]) => <NavLink key={to} to={to} end={end}><Icon size={18} aria-hidden /> {l}</NavLink>)}
-        <Link to="/menu" style={{ marginTop: 8 }}>Back to {site.restaurant.name}</Link>
+        <BackButton to="/menu">{site.restaurant.name}</BackButton>
         <button className="btn secondary sm" style={{ marginTop: 'auto' }} onClick={() => { void signOut().then(() => navigate('/')) }}><LogOut size={16} aria-hidden /> Sign out</button>
       </aside>
       <div className="main"><Outlet /></div>
@@ -171,7 +172,7 @@ export function OrderDetail() {
   const a = order.delivery_address
   return (
     <>
-      <p><Link to="/account/orders">← All orders</Link></p>
+      <p><BackButton to="/account/orders">All orders</BackButton></p>
       <div className="toolbar"><h1 style={{ fontSize: '1.7rem', margin: 0 }}>Order {order.number}</h1><StatusBadge s={order.status} label={order.status_label} />{live && <span className="muted" aria-live="polite">Updating automatically</span>}</div>
       {error && <div className="alert error">{error}</div>}
       {order.cancellation_requested && <div className="alert warn">Cancellation requested. Waiting for the restaurant.</div>}

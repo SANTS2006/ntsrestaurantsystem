@@ -28,6 +28,10 @@ def logo_path(instance, filename):
     return f"restaurants/logos/{uuid.uuid4().hex}.{ext}"  # randomised: no user-controlled names on disk
 
 
+CURRENCY = "SLE"  # the whole platform trades in Sierra Leone leones
+CURRENCY_CHOICES = [(CURRENCY, "Sierra Leone leone (SLE)")]
+
+
 class SubscriptionPlan(TimeStampedModel):
     """Platform-configurable pricing plan (shown on the marketing site, assignable to restaurants)."""
 
@@ -35,7 +39,7 @@ class SubscriptionPlan(TimeStampedModel):
     slug = models.SlugField(max_length=50, unique=True)
     description = models.CharField(max_length=255, blank=True)
     price = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
-    currency = models.CharField(max_length=3, default="USD")
+    currency = models.CharField(max_length=3, default=CURRENCY, choices=CURRENCY_CHOICES)
     interval = models.CharField(max_length=10, choices=[("month", "Monthly"), ("year", "Yearly")], default="month")
     features = models.JSONField(default=list, blank=True)
     max_branches = models.PositiveIntegerField(null=True, blank=True)
@@ -102,8 +106,9 @@ class RestaurantDomain(TimeStampedModel):
 
 
 class RestaurantSettings(TimeStampedModel):
+    receipt_footer = models.CharField(max_length=200, blank=True)  # the closing line printed on this restaurant's receipts
     restaurant = models.OneToOneField(Restaurant, on_delete=models.CASCADE, related_name="settings")
-    currency = models.CharField(max_length=3, default="SLE")
+    currency = models.CharField(max_length=3, default=CURRENCY, choices=CURRENCY_CHOICES)
     tax_rate_percent = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0.00"))
     delivery_fee = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
     delivery_enabled = models.BooleanField(default=True)

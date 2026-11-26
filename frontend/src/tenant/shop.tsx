@@ -110,7 +110,7 @@ export function CartPage() {
     <section className="section"><div className="container">
       <h1>Your cart</h1>
       {!cart.lines.length ? <Empty title="Your cart is empty"><Link className="btn" to="/menu">Browse the menu</Link></Empty> : (
-        <div className="grid g2" style={{ alignItems: 'start', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
+        <div className="grid g2" style={{ alignItems: 'start', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))' }}>
           <div style={{ display: 'grid', gap: 12 }}>
             {cart.lines.map((l: CartLine, i) => {
               const priced = quote.data?.lines[i]
@@ -230,7 +230,7 @@ export function CheckoutPage() {
   return (
     <section className="section"><div className="container">
       <h1>Checkout</h1>
-      <form onSubmit={place} noValidate className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', alignItems: 'start' }}>
+      <form onSubmit={place} noValidate className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', alignItems: 'start' }}>
         <div className="card">
           {errors.form && <div className="alert error" role="alert">{errors.form}</div>}
           <fieldset style={{ border: 0, padding: 0, margin: '0 0 14px' }}>

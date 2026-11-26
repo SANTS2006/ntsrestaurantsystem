@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { useEffect, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Reveal } from './kit'
 
@@ -35,23 +35,15 @@ export function SectionHead({ eyebrow, title, text, center = true }: { eyebrow: 
   )
 }
 
-/** The thin reading-progress bar, the "raised header" effect once scrolled, and scrolling back to the top on page changes. */
+/** Adds the "raised header" shadow once the page is scrolled, and starts each page at the top. Draws nothing itself. */
 export function ScrollFx() {
-  const [p, setP] = useState(0)
   const { pathname } = useLocation()
   useEffect(() => { window.scrollTo?.({ top: 0, behavior: 'instant' as ScrollBehavior }) }, [pathname])
   useEffect(() => {
-    let queued = false
-    const update = () => {
-      queued = false
-      const total = document.documentElement.scrollHeight - window.innerHeight
-      setP(total > 0 ? Math.min(1, window.scrollY / total) : 0)
-      document.documentElement.classList.toggle('scrolled', window.scrollY > 12)
-    }
-    const on = () => { if (!queued) { queued = true; requestAnimationFrame(update) } }
+    const update = () => document.documentElement.classList.toggle('scrolled', window.scrollY > 12)
     update()
-    window.addEventListener('scroll', on, { passive: true })
-    return () => { window.removeEventListener('scroll', on); document.documentElement.classList.remove('scrolled') }
+    window.addEventListener('scroll', update, { passive: true })
+    return () => { window.removeEventListener('scroll', update); document.documentElement.classList.remove('scrolled') }
   }, [pathname])
-  return <div className="scroll-progress" aria-hidden><span style={{ transform: `scaleX(${p})` }} /></div>
+  return null
 }

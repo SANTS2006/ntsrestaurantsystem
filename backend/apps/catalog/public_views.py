@@ -147,6 +147,7 @@ class SiteContentSerializer(serializers.Serializer):
     cashier_max_discount_percent = serializers.DecimalField(max_digits=5, decimal_places=2, min_value=0, max_value=100, required=False)
     timezone = serializers.CharField(max_length=64, required=False)
     email_footer = serializers.CharField(max_length=300, required=False, allow_blank=True)
+    receipt_footer = serializers.CharField(max_length=200, required=False, allow_blank=True)
     reservations_enabled = serializers.BooleanField(required=False)
     reservation_auto_confirm = serializers.BooleanField(required=False)
     reservation_duration_minutes = serializers.IntegerField(min_value=30, max_value=300, required=False)
@@ -192,7 +193,7 @@ class SiteContentView(APIView):
             "qr_guest_orders_allowed": st.qr_guest_orders_allowed, "qr_identification": st.qr_identification,
             "delivery_fee": str(st.delivery_fee), "tax_rate_percent": str(st.tax_rate_percent),
             "cashier_max_discount_percent": str(st.cashier_max_discount_percent), "timezone": st.timezone,
-            "email_footer": st.email_footer, "reservations_enabled": st.reservations_enabled, "reservation_auto_confirm": st.reservation_auto_confirm,
+            "email_footer": st.email_footer, "receipt_footer": st.receipt_footer, "reservations_enabled": st.reservations_enabled, "reservation_auto_confirm": st.reservation_auto_confirm,
             "reservation_duration_minutes": st.reservation_duration_minutes, "reservation_max_party": st.reservation_max_party,
             "description": t.description, "contact_email": t.contact_email, "contact_phone": t.contact_phone,
             "address": t.address, "city": t.city, "country": t.country,

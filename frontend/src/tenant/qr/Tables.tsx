@@ -6,6 +6,7 @@ import { ApiError, api, downloadFile, tokenStore, type Page } from '../../lib/ap
 import { Empty, ErrorState, Field, Modal, Skeleton, Spinner, useAsync, useDocumentTitle, useToast } from '../../ui/kit'
 import { useSite } from '../SiteContext'
 import { useConfirm } from '../../ui/dialogs'
+import { BackButton } from '../../ui/BackButton'
 
 export type Table = { id: number; label: string; seats: number | null; is_active: boolean; branch: number; branch_name: string; qr_url: string; qr_regenerated_at: string | null }
 type BranchRow = { id: number; name: string; status: string }
@@ -100,9 +101,9 @@ export function TablesPrint() {
   const tables = (list.data?.results ?? []).filter((t) => t.is_active)
   return (
     <>
-      <div className="toolbar no-print"><Link to="/manage/tables">← Back</Link><div style={{ flex: 1 }} /><button className="btn" onClick={() => window.print()}><Printer size={16} aria-hidden /> Print</button></div>
+      <div className="toolbar no-print"><BackButton to="/manage/tables">Tables</BackButton><div style={{ flex: 1 }} /><button className="btn" onClick={() => window.print()}><Printer size={16} aria-hidden /> Print</button></div>
       {list.loading ? <Skeleton h={200} /> : !tables.length ? <Empty title="No active tables" /> : (
-        <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))' }}>
+        <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 230px), 1fr))' }}>
           {tables.map((t) => (
             <div key={t.id} className="card" style={{ textAlign: 'center', breakInside: 'avoid' }}>
               <p style={{ margin: 0, fontWeight: 700 }}>{site.restaurant.name}</p>

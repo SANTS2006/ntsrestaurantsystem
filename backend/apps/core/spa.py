@@ -8,7 +8,8 @@ import re
 from html import escape
 
 from django.conf import settings
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 
 from . import seo_meta
 
@@ -50,7 +51,12 @@ def render_page(request, html: str, path: str) -> str:
     return html.replace(PLACEHOLDER, f"{runtime_meta()}\n    {seo_meta.head_tags(meta)}")
 
 
+@csrf_exempt  # this view changes nothing; see below
 def spa(request, path=""):
+    if request.method == "POST":
+        # A payment provider may return the customer with a POST. Redirect to the same page with GET; nothing is read from the body.
+        # The leading slashes are collapsed so the target can only ever be a path on this site.
+        return HttpResponseRedirect("/" + request.get_full_path().lstrip("/"), status=303)
     html = _index_html()
     if html is None:
         return JsonResponse({"success": False, "error": {"code": "frontend_not_built", "message": "The website files are not installed on this server."}}, status=404)

@@ -70,7 +70,7 @@ def staff_post(world, who, pk, path, data=None, **kw):
 def test_public_options_list_only_active_services_and_branches_of_this_restaurant(world, svc):
     d = json.loads(pub().get(C + "public/options/").content)["data"]
     assert [s["name"] for s in d["services"]] == ["Wedding catering"]
-    assert {b["name"] for b in d["branches"]} == {"A One", "A Two"} and d["currency"] == "USD"
+    assert {b["name"] for b in d["branches"]} == {"A One", "A Two"} and d["currency"] == "SLE"
     assert "wedding" in [e["value"] for e in d["event_types"]]
     assert APIClient(HTTP_HOST=host()).get(C + "public/options/").status_code == 404  # platform host
 
@@ -79,7 +79,7 @@ def test_valid_request_is_stored_numbered_emailed_and_logged(world, svc):
     r = submit(svc, branch_id=world["a1"].pk)
     assert r.status_code == 201 and r.data["reference"] == "CAT-000001"
     req = CateringRequest.unscoped.get()
-    assert (req.status, req.branch_id, req.customer_email, req.currency, req.guests) == ("new", world["a1"].pk, "dana@example.com", "USD", 120)
+    assert (req.status, req.branch_id, req.customer_email, req.currency, req.guests) == ("new", world["a1"].pk, "dana@example.com", "SLE", 120)
     assert [s.name for s in req.services.all()] == ["Wedding catering"] and req.consent_at and req.client_hash and "." not in req.client_hash
     assert [h.to_status for h in req.history.all()] == ["new"]
     cust = mails("dana@example.com")[0]
@@ -375,7 +375,7 @@ def test_payments_track_the_balance_and_never_exceed_it(world, svc):
     assert pay(world, r).status_code == 400                                       # no accepted booking yet
     r = accepted_request(world, svc)
     ok = pay(world, r)
-    assert ok.status_code == 201 and ok.data["balance"] == {"agreed_total": "3247.50", "paid": "1000.00", "balance": "2247.50", "currency": "USD"}
+    assert ok.status_code == 201 and ok.data["balance"] == {"agreed_total": "3247.50", "paid": "1000.00", "balance": "2247.50", "currency": "SLE"}
     assert pay(world, r, key="p1").data == ok.data and CateringPayment.unscoped.count() == 1      # idempotent replay
     assert pay(world, r, key="p2", amount="2247.51", kind="payment").status_code == 400            # cannot overpay
     assert pay(world, r, key="p3", amount="2247.50", kind="payment", method="cash").data["balance"]["balance"] == "0.00"

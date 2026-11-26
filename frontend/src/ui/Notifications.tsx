@@ -1,4 +1,4 @@
-import { ArrowLeft, CheckCheck, ChevronRight, ExternalLink, Trash2 } from 'lucide-react'
+import { CheckCheck, ChevronRight, ExternalLink, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../lib/api'
@@ -7,6 +7,7 @@ import { useNotifications, type AppNotification } from '../lib/live'
 import { useConfirm } from './dialogs'
 import { Empty, ErrorState, PageHeader, Pager, Skeleton, useAsync, useDocumentTitle, useToast } from './kit'
 import { ago, kindIcon, kindLabel, notificationsBase } from './notificationMeta'
+import { BackButton } from './BackButton'
 
 type Listing = { unread: number; count: number; page: number; has_next: boolean; items: AppNotification[] }
 type Detail = AppNotification & { read_at: string | null; details: { heading: string; fields: { label: string; value: string }[]; items: string[] } | null }
@@ -73,7 +74,7 @@ export function NotificationDetailPage() {
 
   return (
     <>
-      <p><Link to={base}><ArrowLeft size={14} aria-hidden /> All notifications</Link></p>
+      <p><BackButton to={base}>All notifications</BackButton></p>
       {d.error && <ErrorState message={d.error} onRetry={d.reload} />}
       {d.loading && !n ? <Skeleton h={220} /> : n && (
         <article className="card notif-detail">

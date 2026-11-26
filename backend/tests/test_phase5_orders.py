@@ -28,7 +28,7 @@ def clean(db):
 def shop(world):
     """Alpha menu: a plain dish, a sized dish with extras, a tracked-stock dish; plus a Bravo dish."""
     a, b = world["a"], world["b"]
-    st = RestaurantSettings.objects.create(restaurant=a, currency="USD", tax_rate_percent=Decimal("8.25"), delivery_fee=Decimal("2.00"))
+    st = RestaurantSettings.objects.create(restaurant=a, currency="SLE", tax_rate_percent=Decimal("8.25"), delivery_fee=Decimal("2.00"))
     RestaurantSettings.objects.create(restaurant=b)
     cat = Category.unscoped.create(restaurant=a, name="Mains", slug="mains")
     rice = Product.unscoped.create(restaurant=a, category=cat, name="Rice", slug="rice", base_price=Decimal("10.10"))
@@ -73,7 +73,7 @@ def test_quote_computes_every_amount_in_decimal_on_the_server(world, shop):
     # rice 3 x 10.10 = 30.30 ; pizza unit = 12.00 + 4.50 + 2 x 1.25 = 19.00, x2 = 38.00
     assert [l["line_total"] for l in d["lines"]] == ["30.30", "38.00"]
     assert d["subtotal"] == "68.30" and d["tax_total"] == "5.63"  # 68.30 x 8.25% = 5.63475 -> 5.63
-    assert d["delivery_fee"] == "0.00" and d["total"] == "73.93" and d["currency"] == "USD"
+    assert d["delivery_fee"] == "0.00" and d["total"] == "73.93" and d["currency"] == "SLE"
 
 
 def test_tax_rounds_half_up_and_delivery_fee_applies_only_to_delivery(world, shop):

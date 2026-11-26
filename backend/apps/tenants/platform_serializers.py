@@ -72,6 +72,7 @@ class SubscriptionPlanSerializer(serializers.ModelSerializer):
         model = SubscriptionPlan
         fields = ["id", "name", "slug", "description", "price", "currency", "interval", "features",
                   "max_branches", "is_active", "is_featured", "sort_order"]
+        read_only_fields = ["currency"]  # always SLE
 
     def validate_features(self, value):
         if not isinstance(value, list) or not all(isinstance(f, str) and len(f) <= 120 for f in value):

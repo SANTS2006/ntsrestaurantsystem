@@ -36,7 +36,7 @@ class FakeResp:
 
 @pytest.fixture
 def monime(settings, monkeypatch):
-    settings.MONIME_API_KEY, settings.MONIME_SPACE_ID, settings.MONIME_WEBHOOK_SECRET = "mk_test", "spc-test", "w" * 40
+    settings.MONIME_ACCESS_TOKEN, settings.MONIME_SPACE_ID, settings.MONIME_WEBHOOK_SECRET = "mk_test", "spc-test", "w" * 40
     settings.MONIME_BASE_URL, settings.MONIME_VERSION = "https://api.monime.io/v1", "caph.2025-08-23"
     sent = []
 
@@ -81,10 +81,10 @@ def test_monime_status_comes_from_the_session_and_its_line_items(monime):
 
 @pytest.mark.parametrize("raw,expected", [("completed", "succeeded"), ("pending", "pending"), ("cancelled", "failed"), ("expired", "failed")])
 def test_monime_status_mapping(monkeypatch, settings, raw, expected):
-    settings.MONIME_API_KEY, settings.MONIME_SPACE_ID = "k", "spc-1"
-    monkeypatch.setattr(providers.urllib.request, "urlopen", lambda req, timeout=0: FakeResp({"success": True, "result": {"status": raw, "lineItems": {"data": [{"quantity": 2, "price": {"currency": "USD", "value": 150}}]}}}))
+    settings.MONIME_ACCESS_TOKEN, settings.MONIME_SPACE_ID = "k", "spc-1"
+    monkeypatch.setattr(providers.urllib.request, "urlopen", lambda req, timeout=0: FakeResp({"success": True, "result": {"status": raw, "lineItems": {"data": [{"quantity": 2, "price": {"currency": "SLE", "value": 150}}]}}}))
     st = providers.MonimeProvider().fetch_status("chk")
-    assert st.status == expected and st.amount == Decimal("3.00") and st.currency == "USD"
+    assert st.status == expected and st.amount == Decimal("3.00") and st.currency == "SLE"
 
 
 def sign(secret, body: bytes, ts=None):
@@ -342,7 +342,7 @@ def test_dotenv_loader_never_overrides_the_real_environment_and_is_off_in_tests(
 def test_test_settings_never_talk_to_real_services(settings):
     assert settings.DATABASES["default"]["ENGINE"].endswith("sqlite3")
     assert settings.EMAIL_PROVIDER == "console" and settings.PAYMENT_PROVIDER == "simulated" and settings.USE_CLOUDINARY is False
-    assert not settings.BREVO_API_KEY and not settings.MONIME_API_KEY and not settings.CLOUDINARY_API_SECRET and not settings.R2_SECRET_ACCESS_KEY
+    assert not settings.BREVO_API_KEY and not settings.MONIME_ACCESS_TOKEN and not settings.CLOUDINARY_API_SECRET and not settings.R2_SECRET_ACCESS_KEY
 
 
 def test_generate_backup_key_prints_a_valid_fernet_key(capsys):
@@ -399,7 +399,7 @@ def test_production_starts_without_redis_only_in_single_instance_mode():
     import sys
 
     base = {**os.environ, "DJANGO_SKIP_DOTENV": "1", "DJANGO_SETTINGS_MODULE": "config.settings.prod", "PLATFORM_DOMAIN": "example.com", "REDIS_URL": "", "EMAIL_PROVIDER": "brevo", "BREVO_API_KEY": "k",
-            "BREVO_SENDER_EMAIL": "a@b.c", "PAYMENT_PROVIDER": "monime", "MONIME_API_KEY": "k", "MONIME_SPACE_ID": "spc-1", "MONIME_WEBHOOK_SECRET": "s" * 40, "DJANGO_SECRET_KEY": "x" * 60,
+            "BREVO_SENDER_EMAIL": "a@b.c", "PAYMENT_PROVIDER": "monime", "MONIME_ACCESS_TOKEN": "k", "MONIME_SPACE_ID": "spc-1", "MONIME_WEBHOOK_SECRET": "s" * 40, "DJANGO_SECRET_KEY": "x" * 60,
             "DATABASE_URL": "sqlite://:memory:", "CLOUDINARY_CLOUD_NAME": "c", "CLOUDINARY_API_KEY": "k", "CLOUDINARY_API_SECRET": "s", "UPLOAD_SCANNER": "builtin", "MFA_ENFORCEMENT": "true"}
     base.pop("SINGLE_INSTANCE", None)
     run = lambda env: subprocess.run([sys.executable, "-c", "import django;django.setup();print('started')"], env=env, capture_output=True, text=True)  # noqa: E731

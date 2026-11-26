@@ -44,7 +44,7 @@ export default function SiteLayout() {
       <ScrollFx />
       <header className="nav">
         <div className="container row">
-          <Link to="/" className="logo"><img src="/logo-64.png" alt="" width={36} height={36} /> {name}</Link>
+          <Link to="/" className="logo" aria-label={name}><img src="/logo-64.png" alt="" width={36} height={36} /> <span className="logo-name">{name}</span></Link>
           <nav className={`links ${open ? 'open' : ''}`} aria-label="Main">
             {links.map(([to, label]) => <NavLink key={to} to={to} onClick={() => setOpen(false)}>{label}</NavLink>)}
           </nav>

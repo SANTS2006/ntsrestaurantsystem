@@ -64,7 +64,7 @@ class Command(BaseCommand):
         add("PASS" if (s.CELERY_BEAT_SCHEDULE and not single) or getattr(s, "CRON_SECRET", "") else "WARN", "Scheduled jobs are triggered", "Celery beat, or an external scheduler calling /api/v1/system/cron/<job>/ with CRON_SECRET")
 
         add("PASS" if s.EMAIL_PROVIDER == "brevo" and s.BREVO_API_KEY and s.BREVO_SENDER_EMAIL else "FAIL", "Email provider is Brevo and configured")
-        add("PASS" if s.PAYMENT_PROVIDER == "monime" and s.MONIME_API_KEY and s.MONIME_SPACE_ID else "FAIL", "Payments use Monime with an API key and Space ID")
+        add("PASS" if s.PAYMENT_PROVIDER == "monime" and s.MONIME_ACCESS_TOKEN and s.MONIME_SPACE_ID else "FAIL", "Payments use Monime with an access token and Space ID")
         add("PASS" if 32 <= len(s.MONIME_WEBHOOK_SECRET) <= 100 else "FAIL", "Monime webhook secret is 32-100 characters", "create the webhook in the Monime dashboard and paste its secret; without it payments cannot be confirmed by webhook")
         add("PASS" if s.GOOGLE_OAUTH_CLIENT_ID else "WARN", "Google sign-in client id set")
 

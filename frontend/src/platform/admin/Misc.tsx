@@ -82,7 +82,7 @@ export function Plans() {
         {list.loading ? <Skeleton h={80} /> : !list.data?.results.length ? <Empty title="No plans yet" /> : (
           <table className="tbl"><thead><tr><th>Name</th><th>Price</th><th>Status</th><th /></tr></thead><tbody>
             {list.data.results.map((p) => (
-              <tr key={p.id}><td>{p.name}</td><td>{p.price} {p.currency}/{p.interval}</td><td><span className={`badge ${p.is_active ? 'active' : 'suspended'}`}>{p.is_active ? 'active' : 'hidden'}</span></td>
+              <tr key={p.id}><td>{p.name}</td><td>{p.currency} {p.price} / {p.interval}</td><td><span className={`badge ${p.is_active ? 'active' : 'suspended'}`}>{p.is_active ? 'active' : 'hidden'}</span></td>
                 <td><button className="btn sm secondary" onClick={() => toggle(p)}>{p.is_active ? 'Hide' : 'Show'}</button></td></tr>
             ))}
           </tbody></table>
@@ -92,7 +92,7 @@ export function Plans() {
         <h2 style={{ fontSize: '1.2rem' }}>Add a plan</h2>
         <Field label="Name" error={errors.name}>{(p) => <input {...p} className="input" placeholder="e.g. Starter" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />}</Field>
         <Field label="Slug" error={errors.slug}>{(p) => <input {...p} className="input" placeholder="e.g. starter" value={f.slug} onChange={(e) => setF({ ...f, slug: e.target.value })} />}</Field>
-        <Field label="Monthly price" error={errors.price}>{(p) => <input {...p} className="input" inputMode="decimal" placeholder="e.g. 29.00" value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} />}</Field>
+        <Field label="Monthly price (SLE)" error={errors.price}>{(p) => <input {...p} className="input" inputMode="decimal" placeholder="e.g. 29.00" value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} />}</Field>
         <Field label="Description" error={errors.description}>{(p) => <input {...p} className="input" placeholder="Short description" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} />}</Field>
         <Field label="Features (one per line)" error={errors.features}>{(p) => <textarea {...p} className="input" rows={4} placeholder="One feature per line" value={f.features} onChange={(e) => setF({ ...f, features: e.target.value })} />}</Field>
         <button className="btn" disabled={busy}>{busy ? <Spinner /> : 'Create plan'}</button>

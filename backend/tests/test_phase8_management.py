@@ -241,13 +241,13 @@ def mk_order(world, branch, total, status="completed", source="online", paid=Non
     paid = Decimal(paid) if paid is not None else Decimal("0")
     o = Order.unscoped.create(restaurant=world["a"], branch=branch, number=f"T-{_n['i']:05d}", customer=customer, cashier=cashier, source=source,
                               status=status, fulfilment="pickup", payment_method=method if method != "mobile_money" else "mobile_money",
-                              payment_status="paid" if paid >= Decimal(total) else "unpaid", contact_name=name, contact_phone="000", currency="USD",
+                              payment_status="paid" if paid >= Decimal(total) else "unpaid", contact_name=name, contact_phone="000", currency="SLE",
                               subtotal=Decimal(total), total=Decimal(total), amount_paid=paid)
     Order.unscoped.filter(pk=o.pk).update(created_at=when)
     OrderItem.unscoped.create(restaurant=world["a"], order=o, product_name=item, unit_price=Decimal(total) / qty, quantity=qty, line_total=Decimal(total))
     if paid > 0:
         p = Payment.unscoped.create(restaurant=world["a"], branch=branch, order=o, reference=f"P-{_n['i']}", provider="cash" if method == "cash" else "simulated",
-                                    method=method, status="succeeded", amount=paid, currency="USD", paid_at=when, recorded_by=cashier if method == "cash" else None)
+                                    method=method, status="succeeded", amount=paid, currency="SLE", paid_at=when, recorded_by=cashier if method == "cash" else None)
         return o, p
     return o, None
 

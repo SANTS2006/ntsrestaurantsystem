@@ -21,8 +21,8 @@ SECURE_REFERRER_POLICY = "same-origin"
 X_FRAME_OPTIONS = "DENY"
 if EMAIL_PROVIDER != "brevo" or not BREVO_API_KEY or not BREVO_SENDER_EMAIL:
     raise RuntimeError("Production requires EMAIL_PROVIDER=brevo, BREVO_API_KEY and BREVO_SENDER_EMAIL.")
-if PAYMENT_PROVIDER != "monime" or not (MONIME_API_KEY and MONIME_BASE_URL and MONIME_WEBHOOK_SECRET):
-    raise RuntimeError("Production requires PAYMENT_PROVIDER=monime with MONIME_API_KEY, MONIME_BASE_URL and MONIME_WEBHOOK_SECRET.")
+if PAYMENT_PROVIDER != "monime" or not (MONIME_ACCESS_TOKEN and MONIME_BASE_URL and MONIME_WEBHOOK_SECRET):
+    raise RuntimeError("Production requires PAYMENT_PROVIDER=monime with MONIME_ACCESS_TOKEN, MONIME_BASE_URL and MONIME_WEBHOOK_SECRET.")
 # MFA_ENFORCEMENT (default true) is the master switch; the platform owner turns enforcement on or off from Admin, Security.
 if UPLOAD_SCANNER not in ("clamav", "builtin") or not UPLOAD_SCAN_FAIL_CLOSED:  # noqa: F405
     raise RuntimeError("Production requires UPLOAD_SCANNER=clamav (or builtin when no ClamAV daemon is available) with UPLOAD_SCAN_FAIL_CLOSED=true.")

@@ -125,7 +125,7 @@ def test_production_refuses_to_start_without_the_scanner():
     import sys
 
     env_ok = {"PLATFORM_DOMAIN": "example.com", "REDIS_URL": "redis://x", "EMAIL_PROVIDER": "brevo", "BREVO_API_KEY": "k", "BREVO_SENDER_EMAIL": "a@b.c", "PAYMENT_PROVIDER": "monime",
-              "MONIME_API_KEY": "k", "MONIME_BASE_URL": "https://x", "MONIME_WEBHOOK_SECRET": "s", "DJANGO_SECRET_KEY": "x" * 60, "DATABASE_URL": "sqlite://:memory:"}
+              "MONIME_ACCESS_TOKEN": "k", "MONIME_BASE_URL": "https://x", "MONIME_WEBHOOK_SECRET": "s", "DJANGO_SECRET_KEY": "x" * 60, "DATABASE_URL": "sqlite://:memory:"}
     import os
     base = {**os.environ, **env_ok, "DJANGO_SETTINGS_MODULE": "config.settings.prod", "DJANGO_SKIP_DOTENV": "1"}
     out = subprocess.run([sys.executable, "-c", "import django;django.setup()"], env=base, capture_output=True, text=True)

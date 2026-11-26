@@ -31,7 +31,7 @@ export function CompEditor({ items, onChange, types }: { items: Comp[]; onChange
   return (
     <div>
       {items.map((c, i) => (
-        <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.1fr 1.4fr 1fr 0.8fr auto', gap: 6, marginBottom: 6 }}>
+        <div key={i} className="line-row" style={{ display: 'grid', gridTemplateColumns: '1.1fr 1.4fr 1fr 0.8fr auto', gap: 6, marginBottom: 6 }}>
           <select className="input" aria-label="Item type" value={c.type} onChange={(e) => set(i, { type: e.target.value })}>{types.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
           <input className="input" aria-label="Item name" placeholder="Name" value={c.name} maxLength={80} onChange={(e) => set(i, { name: e.target.value })} />
           <select className="input" aria-label="Amount mode" value={c.mode} onChange={(e) => set(i, { mode: e.target.value as Comp['mode'] })}><option value="fixed">Fixed amount</option><option value="percent_of_basic">% of basic</option></select>

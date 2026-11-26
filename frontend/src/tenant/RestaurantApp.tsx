@@ -14,6 +14,7 @@ import { Empty, PageLoader } from '../ui/kit'
 import { About, Contact, Faq, Gallery, Home, Menu, Policy, ProductPage, Services } from './pages'
 import { SiteProvider, useSite } from './SiteContext'
 import { ForgotPassword, SetupPassword } from './StaffAuth'
+import { BackButton } from '../ui/BackButton'
 
 const AccountLayout = lazy(() => import('./account/pages').then((m) => ({ default: m.AccountLayout })))
 const Addresses = lazy(() => import('./account/pages').then((m) => ({ default: m.Addresses })))
@@ -72,7 +73,7 @@ function PublicLayout() {
       <ScrollFx />
       <header className="nav">
         <div className="container row">
-          <Link to="/" className="logo">{logo && <img src={logo} alt="" height={36} />}{r.name}</Link>
+          <Link to="/" className="logo" aria-label={r.name}>{logo && <img src={logo} alt="" height={36} />}<span className="logo-name">{r.name}</span></Link>
           <nav className={`links ${open ? 'open' : ''}`} aria-label="Main">
             {links.map(([to, l]) => <NavLink key={to} to={to} end={to === '/'} onClick={() => setOpen(false)}>{l}</NavLink>)}
           </nav>
@@ -194,7 +195,7 @@ export default function RestaurantApp() {
           <Route path="gallery" element={<GalleryAdmin />} />
           <Route path="site" element={<SiteContent />} />
         </Route>
-        <Route path="*" element={<div className="container section"><Empty title="Page not found"><Link to="/">Back to home</Link></Empty></div>} />
+        <Route path="*" element={<div className="container section"><Empty title="Page not found"><BackButton to="/">Back to home</BackButton></Empty></div>} />
       </Routes>
 </Suspense>
       </CartProvider>

@@ -224,7 +224,8 @@ PAYMENT_PROVIDER = env("PAYMENT_PROVIDER", "simulated")  # "monime" in productio
 TESTING_PAYMENTS = False  # tests enable the simulated provider without DEBUG
 SIMULATED_WEBHOOK_SECRET = env("SIMULATED_WEBHOOK_SECRET", "dev-simulated-webhook-secret")
 WEBHOOK_TOLERANCE_SECONDS = 300
-MONIME_API_KEY = env("MONIME_API_KEY", "")
+# The Monime access token (dashboard: Developer > Access Tokens). MONIME_API_KEY is still read as an older name.
+MONIME_ACCESS_TOKEN = env("MONIME_ACCESS_TOKEN", "") or env("MONIME_API_KEY", "")
 MONIME_SPACE_ID = env("MONIME_SPACE_ID", "")
 MONIME_WEBHOOK_SECRET = env("MONIME_WEBHOOK_SECRET", "")
 # Contract taken from docs.monime.io (API version caph.2025-08-23). The webhook secret is the 32-100 character secret of the webhook you create in the Monime dashboard.

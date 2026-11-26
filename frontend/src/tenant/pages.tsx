@@ -7,6 +7,7 @@ import { Rise, SectionHead, Tilt } from '../ui/fx'
 import { useSeo } from './seo'
 import { ProductBuy } from './shop'
 import { useSite, type MenuCategory, type PublicProduct } from './SiteContext'
+import { BackButton } from '../ui/BackButton'
 
 const A = { auth: false } as const
 const Scene3D = lazy(() => import('../ui/Scene3D'))
@@ -183,7 +184,7 @@ export function ProductPage() {
       offers: { '@type': 'Offer', price: p.price, priceCurrency: site.currency, availability: p.sold_out ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock' } } : undefined,
   })
   if (loading) return <div className="container section"><Skeleton h={300} /></div>
-  if (error || !p) return <div className="container section"><Empty title="Dish not found"><Link to="/menu">Back to the menu</Link></Empty></div>
+  if (error || !p) return <div className="container section"><Empty title="Dish not found"><BackButton to="/menu">Back to the menu</BackButton></Empty></div>
   return (
     <section className="section"><div className="container grid g2" style={{ alignItems: 'start' }}>
       {p.image ? <img src={p.image} alt={p.name} style={{ width: '100%', borderRadius: 12 }} /> : <div className="card empty" aria-hidden>🍽️</div>}

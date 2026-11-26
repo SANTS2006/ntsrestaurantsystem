@@ -58,7 +58,7 @@ services:
         sync: false
       - key: BREVO_SENDER_EMAIL
         sync: false
-      - key: MONIME_API_KEY
+      - key: MONIME_ACCESS_TOKEN
         sync: false
       - key: MONIME_SPACE_ID
         sync: false

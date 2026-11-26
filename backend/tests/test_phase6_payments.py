@@ -72,7 +72,7 @@ def test_simulated_provider_is_refused_outside_development(settings):
     with pytest.raises(ProviderError):
         get_provider("simulated")
     settings.PAYMENT_PROVIDER = "monime"
-    settings.MONIME_API_KEY = settings.MONIME_BASE_URL = settings.MONIME_WEBHOOK_SECRET = ""
+    settings.MONIME_ACCESS_TOKEN = settings.MONIME_BASE_URL = settings.MONIME_WEBHOOK_SECRET = ""
     from apps.payments.providers import online_payments_available
     assert online_payments_available() is False  # unconfigured provider is never offered
 

@@ -4,6 +4,7 @@ import { useAuth } from '../lib/auth'
 import { KeyRound, ShieldCheck } from 'lucide-react'
 import { AuthField } from './Auth'
 import { PasswordInput, Field, Modal, Spinner, useToast } from './kit'
+import { BackButton } from './BackButton'
 
 /** Second step of sign-in: a six-digit code from the authenticator app, or one recovery code. */
 export function MfaChallengeForm({ token, onDone, onCancel, remember = false }: { token: string; onDone: () => void; onCancel: () => void; remember?: boolean }) {
@@ -24,7 +25,7 @@ export function MfaChallengeForm({ token, onDone, onCancel, remember = false }: 
       {error && <div className="alert error" role="alert">{error}</div>}
       <AuthField label={recovery ? 'Recovery code' : 'Authentication code'} icon={KeyRound} inputMode={recovery ? 'text' : 'numeric'} autoComplete="one-time-code" autoFocus placeholder={recovery ? 'xxxx-xxxx-xxxx' : '123456'} value={code} onChange={(e) => setCode(e.target.value)} />
       <button className="btn" style={{ width: '100%' }} disabled={busy}>{busy ? <Spinner /> : 'Verify and sign in'}</button>
-      <p style={{ marginTop: 12 }}><button type="button" className="btn sm ghost" onClick={() => { setRecovery(!recovery); setCode(''); setError('') }}>{recovery ? 'Use my authenticator app' : 'Use a recovery code instead'}</button> <button type="button" className="btn sm ghost" onClick={onCancel}>Back</button></p>
+      <p style={{ marginTop: 12 }}><button type="button" className="btn sm ghost" onClick={() => { setRecovery(!recovery); setCode(''); setError('') }}>{recovery ? 'Use my authenticator app' : 'Use a recovery code instead'}</button> <BackButton onClick={onCancel} /></p>
     </form>
   )
 }

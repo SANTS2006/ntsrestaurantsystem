@@ -22,6 +22,7 @@ from apps.core.models import audit
 from apps.orders.models import Order
 
 from . import services
+from .receipt_pdf import render_pdf
 from .models import Payment, PaymentEvent, Receipt
 from .providers import IgnoredEvent, ProviderError, get_provider
 
@@ -205,52 +206,19 @@ class ReceiptView(APIView):
 
     def get(self, request, pk):
         r = _receipt_for(request, pk)
-        return Response({"id": r.pk, "number": r.number, **r.data})
+        data = receipt_view_data(r)
+        return Response({"id": r.pk, "number": r.number, **data, "qr": qr_data_url(data["website"])})
 
 
-def render_pdf(data) -> bytes:
-    from reportlab.lib.pagesizes import A6
-    from reportlab.pdfgen import canvas
-
-    buf = io.BytesIO()
-    c = canvas.Canvas(buf, pagesize=A6)
-    w, h = A6
-    y = h - 24
-
-    def line(text, size=8, bold=False, gap=11):
-        nonlocal y
-        c.setFont("Helvetica-Bold" if bold else "Helvetica", size)
-        c.drawString(16, y, str(text)[:60])
-        y -= gap
-
-    cur = data["currency"]
-    line(data["restaurant"]["name"], 12, True, 16)
-    line(f'{data["branch"]["name"]}  {data["branch"]["phone"]}')
-    line(f'Receipt {data["number"]}  |  Order {data["order_number"]}', 8, True)
-    line(f'{data["payment"]["paid_at"][:19].replace("T", " ")}  |  {data["payment"]["method"]}')
-    if data["customer"]["name"]:
-        line(f'Customer: {data["customer"]["name"]}')
-    if data["cashier"]:
-        line(f'Cashier: {data["cashier"]}')
-    y -= 4
-    for i in data["items"]:
-        name = f'{i["quantity"]} x {i["name"]}' + (f' ({i["variation"]})' if i["variation"] else "")
-        line(f'{name}  {i["line_total"]}')
-        for a in i["addons"]:
-            line(f'   + {a["quantity"]} x {a["name"]}', 7, False, 9)
-    y -= 4
-    t = data["totals"]
-    for label, k in (("Subtotal", "subtotal"), ("Discount", "discount"), ("Tax", "tax"), ("Delivery", "delivery_fee")):
-        if Decimal(t[k]) != 0:
-            line(f"{label}: {cur} {t[k]}")
-    line(f'TOTAL: {cur} {t["total"]}', 10, True, 14)
-    p = data["payment"]
-    line(f'Paid: {cur} {p["amount"]}  Ref: {p["reference"]}')
-    if p["received"]:
-        line(f'Received: {cur} {p["received"]}  Change: {cur} {p["change"]}')
-    c.showPage()
-    c.save()
-    return buf.getvalue()
+def receipt_view_data(receipt):
+    """The stored snapshot plus what only presentation needs. Receipts issued before a field existed fall back to the restaurant's
+    current website and footer; the recorded figures are never changed."""
+    restaurant = receipt.restaurant
+    data = dict(receipt.data)
+    data.setdefault("website", restaurant.public_url)
+    data.setdefault("footer", restaurant.get_settings().receipt_footer)
+    data.setdefault("table", receipt.order.table_label)
+    return data
 
 
 class ReceiptPdfView(APIView):
@@ -259,7 +227,7 @@ class ReceiptPdfView(APIView):
     def get(self, request, pk):
         r = _receipt_for(request, pk)
         audit("receipt.downloaded", actor=request.user, restaurant=request.tenant, obj=r, request=request)
-        resp = HttpResponse(render_pdf(r.data), content_type="application/pdf")
+        resp = HttpResponse(render_pdf(receipt_view_data(r), r.restaurant), content_type="application/pdf")
         resp["Content-Disposition"] = f'attachment; filename="{r.number}.pdf"'
         return resp
 

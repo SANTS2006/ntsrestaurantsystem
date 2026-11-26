@@ -149,7 +149,7 @@ function InvoiceEditor({ id, initial, onClose, onSaved }: { id?: number; initial
         <Field label="Address (optional)">{(p) => <input {...p} className="input" value={f.customer_address} onChange={set('customer_address')} />}</Field>
         <h3>Lines</h3>
         {lines.map((l, i) => (
-          <div key={i} style={{ display: 'grid', gridTemplateColumns: '3fr 1fr 1fr auto', gap: 6, marginBottom: 6 }}>
+          <div key={i} className="line-row" style={{ display: 'grid', gridTemplateColumns: '3fr 1fr 1fr auto', gap: 6, marginBottom: 6 }}>
             <input className="input" aria-label="Description" placeholder="Description" value={l.description} onChange={(e) => setLines(lines.map((x, j) => (j === i ? { ...x, description: e.target.value } : x)))} />
             <input className="input" aria-label="Quantity" inputMode="decimal" value={l.quantity} onChange={(e) => setLines(lines.map((x, j) => (j === i ? { ...x, quantity: e.target.value } : x)))} />
             <input className="input" aria-label="Unit price" inputMode="decimal" placeholder="Price" value={l.unit_price} onChange={(e) => setLines(lines.map((x, j) => (j === i ? { ...x, unit_price: e.target.value } : x)))} />

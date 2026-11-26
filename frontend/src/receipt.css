@@ -1,0 +1,35 @@
+/* ================================ 80 mm thermal receipt ================================ */
+.receipt-page { padding: 20px 10px 40px; display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 16px; }
+.receipt-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; align-items: center; max-width: 100%; }
+.receipt-help { max-width: 80mm; text-align: center; }
+.receipt-paper { width: min(80mm, 100%); max-width: 100%; box-sizing: border-box; padding: 5mm 4mm 7mm; background: #fff; color: #000; font: 500 12px/1.35 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif; box-shadow: 0 20px 45px -22px rgb(0 20 60 / 55%); position: relative; }
+.receipt-paper::after { content: ''; position: absolute; left: 0; right: 0; bottom: -7px; height: 8px; background: linear-gradient(-45deg, transparent 5px, #fff 0) 0 0 / 10px 10px, linear-gradient(45deg, transparent 5px, #fff 0) 0 0 / 10px 10px; }
+.receipt-paper p, .receipt-paper h1, .receipt-paper h2 { margin: 0; color: #000; }
+.receipt-paper header, .receipt-paper footer { text-align: center; }
+.receipt-paper header p { font-size: 11px; overflow-wrap: anywhere; }
+.rc-logo { display: block; margin: 0 auto 6px; max-width: 26mm; max-height: 20mm; object-fit: contain; filter: grayscale(1) contrast(1.15); }
+.receipt-paper h1 { font-size: 17px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; line-height: 1.2; margin-bottom: 3px; overflow-wrap: anywhere; }
+.receipt-paper h2 { text-align: center; font-size: 12px; font-weight: 800; letter-spacing: .22em; text-transform: uppercase; margin: 8px 0 0; padding-top: 7px; border-top: 1px dashed #000; }
+.receipt-paper section { border-bottom: 1px dashed #000; padding: 7px 0; }
+.receipt-paper section:last-of-type { border-bottom: 1px dashed #000; }
+.rc-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.rc-row span:first-child { min-width: 0; overflow-wrap: anywhere; } .rc-row span:last-child { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rc-row.strong { font-weight: 800; }
+.rc-row.head { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 3px; }
+.rc-item { margin-bottom: 4px; } .rc-item small { display: block; font-size: 10.5px; padding-left: 3mm; }
+.rc-total { display: flex; justify-content: space-between; gap: 8px; font-size: 17px; font-weight: 800; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 5px 0; margin: 6px 0; font-variant-numeric: tabular-nums; }
+.rc-total span:first-child { text-transform: uppercase; }
+.rc-ref { font-size: 10px; margin-top: 3px !important; overflow-wrap: anywhere; } .rc-note { font-weight: 800; margin-top: 3px !important; }
+.receipt-paper footer { padding-top: 9px; font-size: 10.5px; }
+.rc-thanks { font-size: 12.5px; font-weight: 800; margin-bottom: 6px !important; }
+.rc-qr { display: block; width: 24mm; height: 24mm; margin: 4px auto 2px; image-rendering: pixelated; }
+.rc-site { overflow-wrap: anywhere; font-weight: 700; }
+
+@media print {
+  html.printing-receipt, html.printing-receipt body { width: 80mm; margin: 0 !important; padding: 0 !important; background: #fff !important; }
+  html.printing-receipt .no-print, html.printing-receipt .toasts, html.printing-receipt .logout-overlay { display: none !important; }
+  html.printing-receipt .receipt-page { display: block; padding: 0; }
+  html.printing-receipt .receipt-paper { width: 72mm; margin: 0 auto; padding: 2mm 0 4mm; box-shadow: none; font-size: 11.5px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html.printing-receipt .receipt-paper::after { display: none; }
+  html.printing-receipt .rc-row, html.printing-receipt .rc-item { break-inside: avoid; }
+}

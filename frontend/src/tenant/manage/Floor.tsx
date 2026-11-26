@@ -52,7 +52,7 @@ function BoardTab({ branch }: { branch: string }) {
       {!d.data.zones.length ? <Empty title="No tables yet">Add tables under Tables and QR, then arrange them into zones here.</Empty> : d.data.zones.map((z) => (
         <section key={z.zone} className="card" style={{ marginBottom: 16 }}>
           <h3 style={{ marginTop: 0 }}>{z.zone}</h3>
-          <div className="tiles" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
+          <div className="tiles" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 180px), 1fr))' }}>
             {z.tables.map((t) => (
               <div key={t.id} className="card flat" style={{ padding: 14, borderLeft: `4px solid var(--${t.state === 'free' ? 'ok' : t.state === 'reserved' ? 'warn' : 'danger'})` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}><b style={{ fontFamily: 'var(--font-display)', fontSize: '1.15rem' }}>{t.label}</b><span className={`badge ${STATE[t.state]}`}>{t.state}</span></div>

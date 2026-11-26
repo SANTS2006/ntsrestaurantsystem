@@ -36,7 +36,8 @@ def build_receipt_data(payment, number):
     o, r, b = payment.order, payment.restaurant, payment.branch
     return {
         "number": number, "issued_at": timezone.now().isoformat(),
-        "restaurant": {"name": r.name, "logo": r.logo.url if r.logo else "", "phone": r.contact_phone, "email": r.contact_email, "address": r.address},
+        "restaurant": {"name": r.name, "logo": r.logo.url if r.logo else "", "phone": r.contact_phone, "email": r.contact_email, "address": r.address, "city": r.city},
+        "website": r.public_url, "footer": r.get_settings().receipt_footer, "table": o.table_label,
         "branch": {"name": b.name, "address": b.address, "phone": b.phone},
         "order_number": o.number, "fulfilment": o.fulfilment, "currency": o.currency,
         "customer": {"name": o.contact_name, "phone": o.contact_phone, "email": o.contact_email},

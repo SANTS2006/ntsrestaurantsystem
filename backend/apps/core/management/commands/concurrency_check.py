@@ -53,7 +53,7 @@ class Command(BaseCommand):
 
         tag = secrets.token_hex(3)
         r = Restaurant.objects.create(name=f"ZZ concurrency-check {tag}", slug=f"cc-{tag}", status="suspended")
-        RestaurantSettings.objects.create(restaurant=r, currency="USD", tax_rate_percent=Decimal("0"), delivery_fee=Decimal("0"))
+        RestaurantSettings.objects.create(restaurant=r, currency="SLE", tax_rate_percent=Decimal("0"), delivery_fee=Decimal("0"))
         r.status = "active"  # must be active to take orders; it is suspended again at the end
         r.save()
         branch = Branch.unscoped.create(restaurant=r, name="CC", code="CC")

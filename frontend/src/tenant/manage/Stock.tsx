@@ -207,7 +207,7 @@ function NewPO({ onClose, onSaved }: { onClose: () => void; onSaved: (id: number
         </div>
         <h3>Lines</h3>
         {lines.map((l, i) => (
-          <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 6, marginBottom: 6 }}>
+          <div key={i} className="line-row" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 6, marginBottom: 6 }}>
             <select className="input" aria-label="Ingredient" value={l.ingredient_id} onChange={(e) => setLines(lines.map((x, j) => (j === i ? { ...x, ingredient_id: e.target.value } : x)))}><option value="">Ingredient…</option>{(ings.data ?? []).map((g) => <option key={g.id} value={g.id}>{g.name} ({g.unit})</option>)}</select>
             <input className="input" aria-label="Quantity" inputMode="decimal" placeholder="Qty" value={l.quantity} onChange={(e) => setLines(lines.map((x, j) => (j === i ? { ...x, quantity: e.target.value } : x)))} />
             <input className="input" aria-label="Unit cost" inputMode="decimal" placeholder="Unit cost" value={l.unit_cost} onChange={(e) => setLines(lines.map((x, j) => (j === i ? { ...x, unit_cost: e.target.value } : x)))} />
@@ -277,7 +277,7 @@ function Recipes() {
       {pid && (
         <>
           {lines.map((l, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: 6, marginBottom: 6 }}>
+            <div key={i} className="line-row" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: 6, marginBottom: 6 }}>
               <select className="input" aria-label="Ingredient" value={l.ingredient_id} onChange={(e) => setLines(lines.map((x, j) => (j === i ? { ...x, ingredient_id: e.target.value } : x)))}><option value="">Ingredient…</option>{(ings.data ?? []).map((g) => <option key={g.id} value={g.id}>{g.name} ({g.unit})</option>)}</select>
               <input className="input" aria-label="Quantity per portion" inputMode="decimal" placeholder="Per portion" value={l.quantity} onChange={(e) => setLines(lines.map((x, j) => (j === i ? { ...x, quantity: e.target.value } : x)))} />
               <button type="button" className="btn sm secondary" aria-label="Remove ingredient" onClick={() => setLines(lines.filter((_, j) => j !== i))}>✕</button>

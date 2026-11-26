@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom'
 import { api } from '../../lib/api'
 import { Empty, ErrorState, Skeleton, useAsync, useDocumentTitle } from '../../ui/kit'
 import { Rise, SectionHead, Tilt } from '../../ui/fx'
+import { formatMoney } from '../../tenant/SiteContext'
 import { legal, usePublicSettings } from './SiteLayout'
 import { legalDocs } from './legalContent'
 
@@ -116,7 +117,7 @@ function PlanList({ data, compact }: { data: unknown; compact?: boolean }) {
       {list.map((p) => (
         <div key={p.id} className="card" style={p.is_featured ? { borderColor: 'var(--brand)' } : undefined}>
           <h3>{p.name}</h3>
-          <div className="price">{Number(p.price).toLocaleString(undefined, { style: 'currency', currency: p.currency })}<small className="muted"> / {p.interval}</small></div>
+          <div className="price">{formatMoney(p.price, p.currency)}<small className="muted"> / {p.interval}</small></div>
           <p className="muted">{p.description}</p>
           {!compact && <ul className="feat-list">{p.features.map((f) => <li key={f}><Check size={18} color="var(--ok)" aria-hidden /> {f}</li>)}</ul>}
           {!compact && <Link className="btn" to="/contact">Choose {p.name}</Link>}

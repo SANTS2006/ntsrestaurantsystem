@@ -8,9 +8,7 @@ html { scrollbar-width: thin; scrollbar-color: var(--brand) var(--bg-soft); }
 ::-webkit-scrollbar-thumb:hover { background: var(--brand-2); }
 .shell .side nav::-webkit-scrollbar { width: 8px; } .shell .side nav::-webkit-scrollbar-track { background: transparent; } .shell .side nav::-webkit-scrollbar-thumb { border-color: transparent; background-clip: padding-box; background-color: color-mix(in srgb, var(--brand) 45%, transparent); }
 
-/* ---- Scroll progress and raised header ---- */
-.scroll-progress { position: fixed; inset: 0 0 auto 0; height: 3px; z-index: 120; pointer-events: none; }
-.scroll-progress span { display: block; height: 100%; transform-origin: 0 50%; background: linear-gradient(90deg, var(--brand), var(--gold)); }
+/* ---- Raised header once scrolled ---- */
 .nav { transition: box-shadow .25s, background .25s; }
 html.scrolled .nav { box-shadow: 0 10px 30px -18px rgb(5 30 80 / 45%); }
 
@@ -75,8 +73,21 @@ html.scrolled .nav { box-shadow: 0 10px 30px -18px rgb(5 30 80 / 45%); }
 @media (max-width: 900px) { .hero-x .cols { grid-template-columns: 1fr; } .stage { height: 330px; min-height: 300px; } .stage .float.three { display: none; } }
 @media (max-width: 520px) { .stage .float { font-size: .76rem; padding: 8px 10px; } }
 @media (prefers-reduced-motion: reduce) { .hero-x .blob, .stage .float { animation: none; } .tilt { transform: none; } .reveal { opacity: 1; transform: none; } }
-@media print { .scroll-progress, .stage { display: none; } }
+@media print { .stage { display: none; } }
 
 /* slide-in animations start off screen: never let that create a sideways scrollbar */
 main { overflow-x: clip; }
 .dish-ph { height: 170px; display: grid; place-items: center; font-family: var(--font-display); font-size: 3.2rem; font-weight: 800; color: #fff; background: radial-gradient(220px 140px at 80% 0%, color-mix(in srgb, var(--gold) 65%, transparent), transparent 70%), linear-gradient(135deg, var(--brand), var(--brand-2)); }
+
+/* ================================ Back button ================================ */
+.back-btn { --puck: 34px; position: relative; isolation: isolate; display: inline-flex; align-items: center; gap: 10px; min-height: 42px; max-width: 100%; padding: 4px 18px 4px 4px; border-radius: 999px;
+  border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); font: inherit; font-weight: 700; font-size: .9rem; line-height: 1.2; cursor: pointer; box-shadow: var(--shadow-sm); overflow: hidden; transition: color .25s, border-color .25s, box-shadow .25s, transform .15s; }
+.back-btn .back-puck { position: absolute; z-index: -1; left: 4px; top: 50%; width: var(--puck); height: var(--puck); margin-top: calc(var(--puck) / -2); border-radius: 999px; display: grid; place-items: center; justify-content: start; padding-left: 8.5px;
+  color: #fff; background: linear-gradient(135deg, var(--brand), var(--brand-2)); box-shadow: 0 8px 18px -10px var(--brand); transition: width .35s cubic-bezier(.2,.8,.2,1); }
+.back-btn .back-puck svg { transition: transform .25s; }
+.back-btn .back-label { margin-left: calc(var(--puck) + 2px); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.back-btn:hover, .back-btn:focus-visible { color: #fff; border-color: var(--brand); box-shadow: var(--shadow); }
+.back-btn:hover .back-puck, .back-btn:focus-visible .back-puck { width: calc(100% - 8px); }
+.back-btn:hover .back-puck svg, .back-btn:focus-visible .back-puck svg { transform: translateX(-3px); }
+.back-btn:active { transform: scale(.97); }
+@media (prefers-reduced-motion: reduce) { .back-btn .back-puck, .back-btn .back-puck svg { transition: none; } }

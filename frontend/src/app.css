@@ -124,7 +124,7 @@ body { transition: background-color .2s, color .2s; }
 
 /* ---- Placeholders: long ones end in an ellipsis; very narrow boxes get room for them ---- */
 input.input { text-overflow: ellipsis; }
-input.input[placeholder^='Enter'] { min-width: 132px; }
+@media (min-width: 700px) { input.input[placeholder^='Enter'] { min-width: 132px; } }
 
 /* ---- Till (point of sale): the whole order panel scrolls, so every field and button stays reachable ---- */
 .pos-cart { display: block; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }

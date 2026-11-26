@@ -203,12 +203,12 @@ def test_public_menu_query_budget(world, shop, clean):  # noqa: F811
 def test_reports_stay_fast_with_a_few_thousand_orders(world, shop, clean):  # noqa: F811
     now = timezone.now()
     orders = [Order(restaurant=world["a"], branch=world["a1"] if i % 2 else world["a2"], number=f"BULK-{i:06d}", source="online", status="completed",
-                    fulfilment="pickup", payment_method="cash", payment_status="paid", contact_name="x", contact_phone="0", currency="USD",
+                    fulfilment="pickup", payment_method="cash", payment_status="paid", contact_name="x", contact_phone="0", currency="SLE",
                     subtotal=Decimal("25.00"), total=Decimal("25.00"), amount_paid=Decimal("25.00")) for i in range(3000)]
     Order.unscoped.bulk_create(orders, batch_size=500)
     Order.unscoped.filter(number__startswith="BULK-").update(created_at=now - timedelta(days=3))
     pays = [Payment(restaurant=world["a"], branch=o.branch, order=o, reference=f"BP-{o.pk}", provider="cash", method="cash", status="succeeded", amount=Decimal("25.00"),
-                    currency="USD", paid_at=now - timedelta(days=3)) for o in Order.unscoped.filter(number__startswith="BULK-")]
+                    currency="SLE", paid_at=now - timedelta(days=3)) for o in Order.unscoped.filter(number__startswith="BULK-")]
     Payment.unscoped.bulk_create(pays, batch_size=500)
     c = client_for(world["admin_a"], "alpha")
     for url in ("/api/v1/reports/branch/", "/api/v1/reports/finance/", "/api/v1/reports/analytics/", "/api/v1/orders/manage/", "/api/v1/reports/export/?type=orders"):

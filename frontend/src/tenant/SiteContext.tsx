@@ -29,13 +29,10 @@ export const useSite = () => {
   return c
 }
 
-export function formatMoney(value: string | number, currency: string): string {
+/** "SLE 1,250.00" everywhere: the code in front, so it reads the same on every device and on printed receipts. */
+export function formatMoney(value: string | number, currency = 'SLE'): string {
   const n = Number(value)
-  try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(n)
-  } catch {
-    return `${currency} ${n.toFixed(2)}`
-  }
+  return `${currency || 'SLE'} ${(Number.isFinite(n) ? n : 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
 /** Loads the restaurant's public data once and applies its brand colours to the whole page. */

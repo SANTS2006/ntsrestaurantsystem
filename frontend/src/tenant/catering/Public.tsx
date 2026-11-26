@@ -5,6 +5,7 @@ import { Empty, ErrorState, Field, Skeleton, Spinner, useAsync } from '../../ui/
 import { useSeo } from '../seo'
 import { useSite } from '../SiteContext'
 import { useConfirm } from '../../ui/dialogs'
+import { BackButton } from '../../ui/BackButton'
 
 type Options = { event_types: { value: string; label: string }[]; services: { id: number; name: string }[]; branches: { id: number; name: string }[]; currency: string }
 const A = { auth: false } as const
@@ -51,7 +52,7 @@ export function CateringRequestPage() {
       <div className="card"><h1 style={{ fontSize: '1.6rem' }}>Request received</h1>
         <p>Your reference is <b>{done}</b>. We have emailed you a confirmation. Our team will review your request and contact you with a quotation or any questions.</p>
         <p className="muted">This is a request, not a booking. A booking is confirmed only after you accept a quotation.</p>
-        <Link className="btn" to="/">Back to home</Link></div>
+        <BackButton to="/">Back to home</BackButton></div>
     </div></section>
   )
   return (

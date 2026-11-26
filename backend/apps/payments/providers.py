@@ -15,6 +15,7 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 import time
 import urllib.error
 import urllib.request
@@ -24,6 +25,9 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.core.cache import cache
+
+
+log = logging.getLogger(__name__)
 
 
 class ProviderError(Exception):
@@ -135,29 +139,38 @@ def _monime_reason(exc) -> str:
 class MonimeProvider(BaseProvider):
     name = "monime"
     supports_refunds = False  # no refund endpoint in the API: refunds are made in the Monime dashboard
-    MINOR = {"SLE": 100, "USD": 100}  # both currencies use two decimal places (value is in the minor unit)
+    MINOR = {"SLE": 100}  # the platform trades in Sierra Leone leones only; amounts are sent in the minor unit (cents)
+    ATTEMPTS = 3
+    RETRY_WAIT = 1.0  # seconds, multiplied by the attempt number
 
     def _cfg(self):
         c = settings
-        if not (c.MONIME_API_KEY and c.MONIME_SPACE_ID):
-            raise ProviderError("Monime is not configured (MONIME_API_KEY / MONIME_SPACE_ID).")
+        if not (c.MONIME_ACCESS_TOKEN and c.MONIME_SPACE_ID):
+            raise ProviderError("Monime is not configured (MONIME_ACCESS_TOKEN / MONIME_SPACE_ID).")
         return c
 
     def _request(self, method, path, payload=None, idempotency_key=""):
         c = self._cfg()
-        headers = {"Authorization": f"Bearer {c.MONIME_API_KEY}", "Monime-Space-Id": c.MONIME_SPACE_ID, "Monime-Version": c.MONIME_VERSION,
+        headers = {"Authorization": f"Bearer {c.MONIME_ACCESS_TOKEN}", "Monime-Space-Id": c.MONIME_SPACE_ID, "Monime-Version": c.MONIME_VERSION,
                    "Content-Type": "application/json", "Accept": "application/json", "User-Agent": "RestaurantPlatform/1.0"}
         if idempotency_key:
             headers["Idempotency-Key"] = idempotency_key[:100]
         req = urllib.request.Request(c.MONIME_BASE_URL.rstrip("/") + path, method=method, headers=headers,
                                      data=json.dumps(payload).encode() if payload is not None else None)
-        try:
-            with urllib.request.urlopen(req, timeout=20) as resp:
-                body = json.loads(resp.read() or b"{}")
-        except urllib.error.HTTPError as exc:
-            raise ProviderError(f"Monime HTTP {exc.code}{_monime_reason(exc)}") from exc
-        except (urllib.error.URLError, TimeoutError, ValueError) as exc:
-            raise ProviderError("Monime unreachable or returned invalid data") from exc
+        # A gateway error (Monime briefly unavailable) is retried: reads are harmless and creating carries an Idempotency-Key,
+        # so a retry can never make a second payment.
+        for attempt in range(1, self.ATTEMPTS + 1):
+            try:
+                with urllib.request.urlopen(req, timeout=20) as resp:
+                    body = json.loads(resp.read() or b"{}")
+                break
+            except urllib.error.HTTPError as exc:
+                if exc.code in (502, 503, 504) and attempt < self.ATTEMPTS and (method == "GET" or idempotency_key):
+                    time.sleep(self.RETRY_WAIT * attempt)
+                    continue
+                raise ProviderError(f"Monime HTTP {exc.code}{_monime_reason(exc)}") from exc
+            except (urllib.error.URLError, TimeoutError, ValueError) as exc:
+                raise ProviderError("Monime unreachable or returned invalid data") from exc
         if not isinstance(body, dict) or body.get("success") is not True or not isinstance(body.get("result"), dict):
             raise ProviderError("Monime returned an unexpected response.")
         return body["result"]
@@ -165,7 +178,7 @@ class MonimeProvider(BaseProvider):
     def create_payment(self, *, reference, amount, currency, phone, return_url):
         cur = currency.upper()
         if cur not in self.MINOR:
-            raise ProviderError("Monime accepts SLE and USD only.")
+            raise ProviderError("Payments are made in SLE only.")
         value = int((Decimal(amount) * self.MINOR[cur]).to_integral_value())
         if value <= 0:
             raise ProviderError("Invalid amount.")
@@ -183,12 +196,14 @@ class MonimeProvider(BaseProvider):
         r = self._request("GET", f"/checkout-sessions/{provider_ref}")
         raw = str(r.get("status", "")).lower()
         status = "succeeded" if raw == "completed" else "failed" if raw in ("cancelled", "expired") else "pending"
-        items = (r.get("lineItems") or {}).get("data") or []
+        found = r.get("lineItems") or []
+        items = (found.get("data") or []) if isinstance(found, dict) else found  # the item list may be wrapped in {"data": [...]}
         try:
             cur = str(items[0]["price"]["currency"]).upper()
             minor = self.MINOR[cur]
             total = sum((Decimal(int(i["price"]["value"])) * int(i.get("quantity", 1)) for i in items), Decimal(0)) / minor
         except (KeyError, IndexError, TypeError, ValueError, ArithmeticError) as exc:
+            log.error("Monime session %s has an unexpected shape; fields: %s; lineItems: %s", provider_ref, sorted(r), str(found)[:300])
             raise ProviderError("Monime session response has no usable line items.") from exc
         return RemoteStatus(status, total.quantize(Decimal("0.01")), cur)
 
@@ -237,6 +252,6 @@ def get_provider(name=None) -> BaseProvider:
 def online_payments_available() -> bool:
     try:
         p = get_provider()
-        return p.name != "monime" or bool(settings.MONIME_API_KEY and settings.MONIME_SPACE_ID and settings.MONIME_WEBHOOK_SECRET)
+        return p.name != "monime" or bool(settings.MONIME_ACCESS_TOKEN and settings.MONIME_SPACE_ID and settings.MONIME_WEBHOOK_SECRET)
     except ProviderError:
         return False

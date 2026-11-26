@@ -413,7 +413,7 @@ export function SiteContent() {
     setFlags({ delivery_enabled: Boolean(data.delivery_enabled), pickup_enabled: Boolean(data.pickup_enabled), online_payments_enabled: Boolean(data.online_payments_enabled), qr_guest_orders_allowed: Boolean(data.qr_guest_orders_allowed), reservations_enabled: Boolean(data.reservations_enabled), reservation_auto_confirm: Boolean(data.reservation_auto_confirm) })
   }, [data])
   const [flags, setFlags] = useState({ delivery_enabled: true, pickup_enabled: true, online_payments_enabled: false, qr_guest_orders_allowed: true, reservations_enabled: true, reservation_auto_confirm: true })
-  const keys = ['email_footer', 'timezone', 'cashier_max_discount_percent', 'reservation_duration_minutes', 'reservation_max_party', 'qr_identification', 'delivery_fee', 'tax_rate_percent', 'hero_title', 'hero_subtitle', 'about_text', 'delivery_info', 'description', 'contact_email', 'contact_phone', 'address', 'city', 'country', 'primary_color', 'secondary_color', 'seo_title', 'seo_description']
+  const keys = ['email_footer', 'receipt_footer', 'timezone', 'cashier_max_discount_percent', 'reservation_duration_minutes', 'reservation_max_party', 'qr_identification', 'delivery_fee', 'tax_rate_percent', 'hero_title', 'hero_subtitle', 'about_text', 'delivery_info', 'description', 'contact_email', 'contact_phone', 'address', 'city', 'country', 'primary_color', 'secondary_color', 'seo_title', 'seo_description']
 
   async function save(e: FormEvent) {
     e.preventDefault()
@@ -442,6 +442,7 @@ export function SiteContent() {
               {f('cashier_max_discount_percent', 'Largest discount a cashier may give (%)', 'e.g. 10')}
             </div>
             <p className="hint">Reports, “today” and reservation times follow the time zone. Discounts above the limit need a manager.</p>
+            {f('receipt_footer', 'Closing line printed on receipts', 'e.g. Thank you for dining with us. See you again!')}
             {f('email_footer', 'Line added to the bottom of every email we send for you', 'e.g. Open daily 9am to 10pm. Thank you for choosing us!')}
             <h3 style={{ marginTop: 14 }}>Reservations</h3>
             <label style={{ display: 'block' }}><input type="checkbox" checked={flags.reservations_enabled} onChange={(e) => setFlags({ ...flags, reservations_enabled: e.target.checked })} /> Accept online reservations</label>

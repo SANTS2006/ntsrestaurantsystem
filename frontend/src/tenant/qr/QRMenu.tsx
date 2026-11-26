@@ -16,7 +16,7 @@ export default function QRMenu() {
   const { token = '' } = useParams()
   const data = useAsync(() => api<TableData>(`/qr-menu/public/${token}/`, { auth: false }), [token])
   const d = data.data
-  const money = (v: string | number) => formatMoney(v, d?.currency ?? 'USD')
+  const money = (v: string | number) => formatMoney(v, d?.currency ?? 'SLE')
   useDocumentTitle(d ? `${d.table} · ${d.restaurant.name}` : 'Table menu')
   useEffect(() => {
     if (!d) return

@@ -1,14 +1,14 @@
 import type { ReactNode } from 'react'
-import { Link } from 'react-router-dom'
 import { ForgotPassword } from '../tenant/StaffAuth'
 import { AuthLayout } from '../ui/Auth'
 import { useDocumentTitle } from '../ui/kit'
+import { BackButton } from '../ui/BackButton'
 
 function PlatformFrame({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
   useDocumentTitle(title)
   return (
     <AuthLayout brand="NTS Restaurant Platform" logo="/logo-192.png" tagline="Reset the password of your platform administrator account with a code sent to your email."
-      title={title} subtitle={subtitle} back={<Link to="/login">&larr; Back to sign in</Link>}>
+      title={title} subtitle={subtitle} back={<BackButton to="/login">Back to sign in</BackButton>}>
       {children}
     </AuthLayout>
   )

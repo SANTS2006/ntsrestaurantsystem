@@ -14,6 +14,7 @@ import './index.css'
 import './app.css'
 import './auth.css'
 import './site.css'
+import './responsive.css'
 
 installTableRefresh()
 installPlaceholders()
