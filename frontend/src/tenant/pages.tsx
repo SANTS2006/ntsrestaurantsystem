@@ -9,6 +9,8 @@ import { ProductBuy } from './shop'
 import { useSite, type MenuCategory, type PublicProduct } from './SiteContext'
 import { ContactForm } from '../ui/ContactForm'
 import { PageHero } from '../ui/PageHero'
+import { PageBlocks, usePageDesign } from '../ui/builder/PageDesign'
+import { modelFor } from '../ui/builder/types'
 import { NotFound } from '../ui/NotFound'
 import { Paragraphs, RichText } from '../ui/RichText'
 import { plain } from '../ui/boldText'
@@ -65,18 +67,21 @@ export function Home() {
       address: r.address || r.city ? { '@type': 'PostalAddress', streetAddress: r.address, addressLocality: r.city, addressCountry: r.country } : undefined,
     },
   })
+  const hero = usePageDesign('home')?.hero
+  const photo = hero?.image_url || site.hero_image
+  const model = modelFor('home', hero?.model)
   const photos = (gallery.data ?? []).slice(0, 8)
   const where = [r.city, r.country].filter(Boolean).join(', ')
   return (
     <>
-      <section className={`hero-x ${site.hero_image ? 'has-photo' : ''}`}>
-        {site.hero_image && <img className="hero-photo" src={site.hero_image} alt="" />}
+      <section className={`hero-x ${photo ? 'has-photo' : ''}`}>
+        {photo && <img className="hero-photo" src={photo} alt="" />}
         <span className="blob a" aria-hidden /><span className="blob b" aria-hidden />
         <div className="container cols">
           <div>
-            <p className="pill"><UtensilsCrossed size={14} aria-hidden /> {where || 'Welcome'}</p>
-            <h1><span className="grad"><RichText text={site.hero_title} /></span></h1>
-            {site.hero_subtitle && <p className="lead"><RichText text={site.hero_subtitle} /></p>}
+            <p className="pill"><UtensilsCrossed size={14} aria-hidden /> {hero?.eyebrow ? <RichText text={hero.eyebrow} /> : where || 'Welcome'}</p>
+            <h1><span className="grad"><RichText text={hero?.title || site.hero_title} /></span></h1>
+            {(hero?.lead || site.hero_subtitle) && <p className="lead"><RichText text={hero?.lead || site.hero_subtitle} /></p>}
             <div className="cta">
               <Link className="btn lg" to="/menu">View the menu <ArrowRight size={18} aria-hidden /></Link>
               <Link className="btn lg secondary" to="/reserve"><CalendarCheck size={18} aria-hidden /> Reserve a table</Link>
@@ -88,12 +93,13 @@ export function Home() {
             </div>
           </div>
           <div className="stage">
-            <Suspense fallback={null}><Scene3D /></Suspense>
+            {model && <Suspense fallback={null}><Scene3D kind={model} /></Suspense>}
             <span className="float one" aria-hidden><UtensilsCrossed size={18} /> Freshly prepared</span>
             <span className="float two" aria-hidden><ShoppingBag size={18} /> Order online</span>
           </div>
         </div>
       </section>
+      <PageBlocks page="home" placement="top" />
 
       <section className="section-x">
         <div className="container">

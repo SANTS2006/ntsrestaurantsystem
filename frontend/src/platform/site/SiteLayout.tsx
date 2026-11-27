@@ -8,6 +8,8 @@ import { ThemeToggle } from '../../ui/TopTools'
 import { ScrollFx } from '../../ui/fx'
 import { MobileMenu } from '../../ui/MobileMenu'
 import { RichText } from '../../ui/RichText'
+import { PageBlocks, PageDesigns } from '../../ui/builder/PageDesign'
+import { pageIdOf } from '../../ui/builder/types'
 import { SiteTextsContext, type PlatformSite } from './content'
 
 export type PublicSettings = { platform_name: string; whatsapp_number: string; support_email: string }
@@ -74,7 +76,7 @@ export default function SiteLayout() {
         <Link to="/contact" className="btn">Contact us</Link>
       </MobileMenu>
       <main>
-        {texts ? <SiteTextsContext.Provider value={texts}><Outlet /></SiteTextsContext.Provider>
+        {texts ? <SiteTextsContext.Provider value={texts}><PageDesigns><Outlet /><PageBlocks page={pageIdOf(pathname)} placement="bottom" /></PageDesigns></SiteTextsContext.Provider>
           : site.loading ? <PageLoader />
           : <div className="container section"><ErrorState message={site.error ?? 'The page could not be loaded.'} onRetry={site.reload} /></div>}
       </main>

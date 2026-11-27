@@ -1,4 +1,4 @@
-import { Banknote, BarChart3, Bell, Boxes, Building2, CalendarDays, ChefHat, Contact, Grid3x3, HandCoins, Inbox, Truck, Clock, FileBarChart, Image, Package, QrCode, Receipt, Settings, Store, Tags, Users, Wallet, ShieldCheck } from 'lucide-react'
+import { Banknote, BarChart3, Bell, Boxes, Building2, CalendarDays, ChefHat, Contact, Grid3x3, HandCoins, Inbox, LayoutTemplate, Truck, Clock, FileBarChart, Image, Package, QrCode, Receipt, Settings, Store, Tags, Users, Wallet, ShieldCheck } from 'lucide-react'
 import { Link, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { API_URL } from '../../lib/config'
 import { useAuth } from '../../lib/auth'
@@ -46,7 +46,7 @@ export default function ManageLayout() {
     { label: 'Website', items: manage ? [
       { to: '/manage/website-contact', label: 'Website contact', icon: Inbox },
       { to: '/manage/services', label: 'Services', icon: Store }, { to: '/manage/gallery', label: 'Gallery', icon: Image },
-      ...(admin ? [{ to: '/manage/site', label: 'Website content', icon: Settings }] : []),
+      ...(admin ? [{ to: '/manage/site', label: 'Website content', icon: Settings }, { to: '/manage/builder', label: 'Page builder', icon: LayoutTemplate }] : []),
     ] : [] },
   ]
   const logo = site.restaurant.logo ? (site.restaurant.logo.startsWith('http') ? site.restaurant.logo : `${API_URL}${site.restaurant.logo}`) : null

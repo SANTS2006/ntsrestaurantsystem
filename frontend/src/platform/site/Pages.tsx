@@ -7,6 +7,8 @@ import { Rise, SectionHead, Tilt } from '../../ui/fx'
 import { ContactForm } from '../../ui/ContactForm'
 import { LocationCard } from '../../ui/Maps'
 import { PageHero } from '../../ui/PageHero'
+import { PageBlocks, usePageDesign } from '../../ui/builder/PageDesign'
+import { modelFor } from '../../ui/builder/types'
 import { NotFound } from '../../ui/NotFound'
 import { Paragraphs, RichText } from '../../ui/RichText'
 import { plain } from '../../ui/boldText'
@@ -51,17 +53,20 @@ export function Home() {
   useSeoTexts('home')
   const { content, images } = useSiteTexts()
   const h = content.home
+  const hero = usePageDesign('home')?.hero
+  const photo = hero?.image_url || images.home
+  const model = modelFor('home', hero?.model)
   const plans = useAsync(() => api<{ results?: unknown[] } | Plan[]>('/platform/public/plans/', { auth: false }), [])
   return (
     <>
-      <section className={`hero-x ${images.home ? 'has-photo' : ''}`}>
-        {images.home && <img className="hero-photo" src={images.home} alt="" />}
+      <section className={`hero-x ${photo ? 'has-photo' : ''}`}>
+        {photo && <img className="hero-photo" src={photo} alt="" />}
         <span className="blob a" aria-hidden /><span className="blob b" aria-hidden />
         <div className="container cols">
           <div>
-            {h.pill && <p className="pill"><ChefHat size={14} aria-hidden /> <RichText text={h.pill} /></p>}
-            <h1><RichText text={h.title} /> <span className="grad"><RichText text={h.title_highlight} /></span></h1>
-            {h.lead && <p className="lead"><RichText text={h.lead} /></p>}
+            {(hero?.eyebrow || h.pill) && <p className="pill"><ChefHat size={14} aria-hidden /> <RichText text={hero?.eyebrow || h.pill} /></p>}
+            <h1>{hero?.title ? <RichText text={hero.title} /> : <><RichText text={h.title} /> <span className="grad"><RichText text={h.title_highlight} /></span></>}</h1>
+            {(hero?.lead || h.lead) && <p className="lead"><RichText text={hero?.lead || h.lead} /></p>}
             <div className="cta">
               {h.primary_button && <Link className="btn lg" to="/contact">{plain(h.primary_button)} <ArrowRight size={18} aria-hidden /></Link>}
               {h.secondary_button && <Link className="btn lg secondary" to="/features">{plain(h.secondary_button)}</Link>}
@@ -69,13 +74,14 @@ export function Home() {
             <div className="perks">{h.perks.map((p, i) => { const Icon = PERK_ICONS[i % PERK_ICONS.length]; return <span key={i}><Icon size={17} aria-hidden /> <RichText text={p.text} /></span> })}</div>
           </div>
           <div className="stage">
-            <Suspense fallback={null}><Scene3D /></Suspense>
+            {model && <Suspense fallback={null}><Scene3D kind={model} /></Suspense>}
             <span className="float one" aria-hidden><ShoppingCart size={18} /> Online orders</span>
             <span className="float two" aria-hidden><QrCode size={18} /> QR table ordering</span>
             <span className="float three" aria-hidden><ChefHat size={18} /> Kitchen display</span>
           </div>
         </div>
       </section>
+      <PageBlocks page="home" placement="top" />
 
       <section className="section-x" id="features">
         <div className="container">

@@ -69,14 +69,81 @@ function model(brand: Face['color'], accent: Face['color']): Face[] {
   return faces
 }
 
-export default function Scene3D({ className = '' }: { className?: string }) {
+export type ModelKind = 'cloche' | 'burger' | 'drink' | 'cake' | 'globe'
+
+/** A burger whose top layers float apart and settle again. */
+function burger(brand: Face['color']): Face[] {
+  const bun: Face['color'] = [222, 150, 66]
+  return [
+    ...lathe([[0, -0.9], [1.5, -0.9], [1.75, -0.82], [1.8, -0.72], [0, -0.7]], 32, [238, 243, 250], 0.5),
+    ...lathe([[0, -0.7], [1.18, -0.68], [1.3, -0.5], [1.22, -0.36], [0, -0.36]], 32, bun, 0.3),
+    ...lathe([[0, -0.36], [1.3, -0.35], [1.38, -0.2], [1.28, -0.06], [0, -0.06]], 32, [112, 62, 38], 0.25),
+    ...lathe([[0, -0.05], [1.42, -0.05], [1.4, 0.02], [0, 0.03]], 6, [247, 190, 52], 0.5),
+    ...lathe([[0, 0.04], [1.46, 0.05], [1.36, 0.13], [0, 0.14]], 14, [86, 168, 76], 0.2, true),
+    ...lathe([[0, 0.16], [1.2, 0.16], [1.18, 0.28], [0, 0.28]], 28, [201, 62, 50], 0.45, true),
+    ...lathe([[0, 0.3], [1.3, 0.3], [1.28, 0.5], [1.05, 0.76], [0.65, 0.93], [0, 1]], 32, bun, 0.45, true),
+    ...[[0.3, 0.2], [-0.4, 0.35], [0.1, -0.5], [-0.55, -0.25], [0.6, -0.2], [-0.05, 0.62]].flatMap(([x, z]) => ball(x, 0.97 - (x * x + z * z) * 0.28, z, 0.075, [252, 236, 190], 0.5, true)),
+    ...lathe([[1.78, -0.76], [1.8, -0.72]], 32, brand, 0.6),
+  ]
+}
+
+/** A cold drink with ice cubes bobbing above it and a straw. */
+function drink(brand: Face['color'], accent: Face['color']): Face[] {
+  return [
+    ...lathe([[0, -1], [0.78, -1], [0.84, -0.86], [1.06, 0.68]], 32, brand, 0.9),
+    ...lathe([[1.06, 0.68], [1.13, 0.74], [1.04, 0.76], [0, 0.72]], 32, [238, 243, 250], 0.8),
+    ...lathe([[0.9, -0.4], [0.99, 0.18]], 32, [238, 243, 250], 0.6),
+    ...[0, 1, 2, 3, 4, 5, 6, 7, 8].flatMap((i) => ball(0.32 + i * 0.075, 0.7 + i * 0.14, 0, 0.075, accent)),
+    ...ball(-0.42, 0.9, 0.25, 0.2, [214, 240, 255], 0.9, true),
+    ...ball(-0.1, 0.86, -0.4, 0.17, [214, 240, 255], 0.9, true),
+    ...ball(-0.55, 0.82, -0.2, 0.28, [244, 170, 44], 0.35, true),
+  ]
+}
+
+/** A two-tier cake; the topping rises like a celebration. */
+function cake(brand: Face['color'], accent: Face['color']): Face[] {
+  const cream: Face['color'] = [250, 240, 224]
+  const around = (n: number, r: number, y: number, size: number, color: Face['color'], lift = false) =>
+    Array.from({ length: n }, (_, i) => ball(r * Math.cos((i / n) * TAU), y, r * Math.sin((i / n) * TAU), size, color, 1, lift)).flat()
+  return [
+    ...lathe([[0, -0.95], [1.6, -0.95], [1.85, -0.85], [0, -0.8]], 36, [238, 243, 250], 0.5),
+    ...lathe([[0, -0.8], [1.35, -0.8], [1.35, -0.14], [0, -0.12]], 36, cream, 0.3),
+    ...lathe([[1.37, -0.55], [1.37, -0.4]], 36, brand, 0.5),
+    ...around(14, 1.2, -0.08, 0.11, accent),
+    ...lathe([[0, -0.12], [0.86, -0.12], [0.86, 0.4], [0, 0.42]], 32, cream, 0.3),
+    ...lathe([[0.88, 0.12], [0.88, 0.25]], 32, brand, 0.5),
+    ...around(9, 0.72, 0.47, 0.1, [208, 50, 70]),
+    ...ball(0, 0.72, 0, 0.2, [208, 50, 70], 1, true),
+    ...ball(0.1, 0.97, 0, 0.07, [86, 168, 76], 1, true),
+  ]
+}
+
+/** A globe with dishes circling it: many places, one system. */
+function globe(brand: Face['color'], accent: Face['color']): Face[] {
+  const ring = Array.from({ length: 40 }, (_, i) => ball(1.65 * Math.cos((i / 40) * TAU), 0.1 + 0.42 * Math.sin((i / 40) * TAU), 1.65 * Math.sin((i / 40) * TAU), 0.035, [196, 210, 230])).flat()
+  return [
+    ...ball(0, 0.1, 0, 1.08, brand),
+    ...ring,
+    ...ball(1.65, 0.1, 0, 0.24, [230, 126, 34], 1, true),
+    ...ball(-0.82, 0.46, 1.43, 0.2, accent, 1, true),
+    ...ball(-0.82, -0.26, -1.43, 0.22, [86, 168, 76], 1, true),
+    ...lathe([[0, -1.2], [0.7, -1.2], [0.5, -1.08], [0, -1.05]], 24, [196, 210, 230], 0.7),
+  ]
+}
+
+const BUILD: Record<ModelKind, (brand: Face['color'], accent: Face['color']) => Face[]> = { cloche: model, burger: (b) => burger(b), drink, cake, globe }
+const LABEL: Record<ModelKind, string> = {
+  cloche: 'a serving dome lifting from a plate of food', burger: 'a burger', drink: 'a cold drink', cake: 'a celebration cake', globe: 'a globe with dishes circling it',
+}
+
+export default function Scene3D({ className = '', kind = 'cloche' }: { className?: string; kind?: ModelKind }) {
   const ref = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
     const canvas = ref.current
     const ctx = canvas?.getContext?.('2d')
     if (!canvas || !ctx) return
     const style = getComputedStyle(document.documentElement)
-    const faces = model(hexToRgb(style.getPropertyValue('--brand'), [10, 114, 224]), hexToRgb(style.getPropertyValue('--gold'), [20, 180, 245]))
+    const faces = BUILD[kind](hexToRgb(style.getPropertyValue('--brand'), [10, 114, 224]), hexToRgb(style.getPropertyValue('--gold'), [20, 180, 245]))
     const still = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
     const pointer = { x: 0, y: 0 }
     const look = { x: 0, y: 0 }
@@ -125,7 +192,9 @@ export default function Scene3D({ className = '' }: { className?: string }) {
           let px = x
           let py = y + bob
           const pz = z
-          if (f.lid) { // lift the lid and tip it back a little
+          if (f.lid && kind !== 'cloche') { // the other models: the marked parts float up and settle
+            py = y + bob + lift * 0.3
+          } else if (f.lid) { // lift the lid and tip it back a little
             const a = lift * 0.38
             const ly = y + 0.3
             px = x * Math.cos(a) - ly * Math.sin(a) - lift * 0.35
@@ -157,7 +226,7 @@ export default function Scene3D({ className = '' }: { className?: string }) {
         pts.forEach(([x, y, z], i) => {
           const persp = 6.5 / (6.5 - z)
           const sx = w / 2 + x * scale * persp
-          const sy = h * 0.6 - y * scale * persp
+          const sy = h * (kind === 'cloche' ? 0.6 : 0.52) - y * scale * persp
           if (i) ctx.lineTo(sx, sy)
           else ctx.moveTo(sx, sy)
         })
@@ -191,6 +260,6 @@ export default function Scene3D({ className = '' }: { className?: string }) {
     if (still) draw(0)
     else raf = requestAnimationFrame(loop)
     return () => { visible = false; cancelAnimationFrame(raf); io?.disconnect(); window.removeEventListener('resize', onResize); window.removeEventListener('pointermove', move) }
-  }, [])
-  return <canvas ref={ref} className={`scene3d ${className}`} role="img" aria-label="Animated 3D model of a serving dome lifting from a plate of food" />
+  }, [kind])
+  return <canvas ref={ref} className={`scene3d ${className}`} role="img" aria-label={`Animated 3D model of ${LABEL[kind]}`} />
 }

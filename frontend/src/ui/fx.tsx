@@ -21,7 +21,7 @@ export function Tilt({ children, className = '', max = 7 }: { children: ReactNod
 }
 
 /** Slides content in when it scrolls into view, a little later for each following item. */
-export function Rise({ children, index = 0, from = 'up' }: { children: ReactNode; index?: number; from?: 'up' | 'left' | 'right' | 'zoom' }) {
+export function Rise({ children, index = 0, from = 'up' }: { children: ReactNode; index?: number; from?: 'up' | 'left' | 'right' | 'zoom' | 'flip' }) {
   return <div className="rise" style={{ '--d': `${Math.min(index, 8) * 80}ms` } as CSSProperties}><Reveal className={`from-${from}`}>{children}</Reveal></div>
 }
 

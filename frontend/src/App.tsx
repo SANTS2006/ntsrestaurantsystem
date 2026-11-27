@@ -22,6 +22,7 @@ const Notifications = lazy(() => import('./ui/Notifications').then((m) => ({ def
 const NotificationDetail = lazy(() => import('./ui/Notifications').then((m) => ({ default: m.NotificationDetailPage })))
 const System = lazy(() => import('./platform/admin/System'))
 const WebsiteMessages = lazy(() => import('./ui/WebsiteMessages'))
+const PageBuilder = lazy(() => import('./ui/builder/Builder'))
 const PlatformContent = lazy(() => import('./platform/admin/WebsiteContent'))
 
 const SITE_LINKS = [{ to: '/', label: 'Back to home' }, { to: '/features', label: 'See features' }, { to: '/contact', label: 'Contact us' }]
@@ -59,6 +60,7 @@ export default function App() {
         <Route path="settings" element={<PlatformSettings />} />
         <Route path="messages" element={<WebsiteMessages subtitle="Messages sent through the main website’s contact form." />} />
         <Route path="website" element={<PlatformContent />} />
+        <Route path="builder" element={<PageBuilder />} />
         <Route path="*" element={<NotFound title="That page is not part of the admin area" links={[{ to: '/admin', label: 'Go to the dashboard' }]} />} />
       </Route>
     </Routes>

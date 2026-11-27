@@ -1,4 +1,4 @@
-import { Activity, BarChart3, Bell, CreditCard, Globe, Inbox, LayoutDashboard, ScrollText, Settings, ShieldCheck, Store } from 'lucide-react'
+import { Activity, BarChart3, Bell, CreditCard, Globe, Inbox, LayoutDashboard, LayoutTemplate, ScrollText, Settings, ShieldCheck, Store } from 'lucide-react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../../lib/auth'
 import { PageLoader } from '../../ui/kit'
@@ -11,7 +11,7 @@ const groups: NavGroup[] = [
     { to: '/admin/restaurants', label: 'Restaurants', icon: Store },
     { to: '/admin/plans', label: 'Plans', icon: CreditCard },
   ] },
-  { label: 'Website', items: [{ to: '/admin/website', label: 'Website content', icon: Globe }, { to: '/admin/messages', label: 'Website contact', icon: Inbox }] },
+  { label: 'Website', items: [{ to: '/admin/website', label: 'Website content', icon: Globe }, { to: '/admin/builder', label: 'Page builder', icon: LayoutTemplate }, { to: '/admin/messages', label: 'Website contact', icon: Inbox }] },
   { label: 'Insight', items: [{ to: '/admin/reports', label: 'Reports', icon: BarChart3 }, { to: '/admin/audit', label: 'Audit log', icon: ScrollText }, { to: '/admin/system', label: 'System', icon: Activity }] },
   { label: 'Configuration', items: [{ to: '/admin/notifications', label: 'Notifications', icon: Bell }, { to: '/admin/settings', label: 'Settings', icon: Settings }, { to: '/admin/security', label: 'Security', icon: ShieldCheck }] },
 ]

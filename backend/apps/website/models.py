@@ -98,3 +98,28 @@ class PlatformImage(models.Model):
     slot = models.CharField(max_length=20, unique=True, choices=[(s, s) for s in HERO_SLOTS])
     image = models.ImageField(upload_to=random_upload_path("platform/heroes"))
     updated_at = models.DateTimeField(auto_now=True)
+
+
+class SiteAsset(models.Model):
+    """A picture uploaded for the page builder of one website (the platform's when `restaurant` is empty)."""
+
+    restaurant = models.ForeignKey("tenants.Restaurant", null=True, blank=True, on_delete=models.CASCADE, related_name="+")
+    image = models.ImageField(upload_to=random_upload_path("website/sections"))
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class PageDesign(models.Model):
+    """The heading and content sections of one public page, as built in the page builder (see builder.py)."""
+
+    restaurant = models.ForeignKey("tenants.Restaurant", null=True, blank=True, on_delete=models.CASCADE, related_name="+")
+    page = models.CharField(max_length=20)
+    data = models.JSONField(default=dict)
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["restaurant", "page"], name="uniq_page_design"),
+            models.UniqueConstraint(fields=["page"], condition=models.Q(restaurant__isnull=True), name="uniq_platform_page_design"),
+        ]

@@ -194,3 +194,18 @@ pre, code { white-space: pre-wrap; overflow-wrap: anywhere; }
   .tbl.stack td[data-label]::before { content: attr(data-label); color: var(--muted); font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; text-align: left; }
   .tbl.stack td:not([data-label]) .btn { width: 100%; margin-top: 6px; }
 }
+
+/* ================================ Navbar: links can never run under the logo or the buttons ================================ */
+@media (min-width: 1001px) {
+  .nav .row { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .nav .links { justify-self: stretch; flex-wrap: wrap; min-width: 0; }
+  .nav .links a { white-space: nowrap; }
+}
+/* many links (restaurant websites) on a medium screen: logo and buttons on the first row, all links on their own row below */
+@media (min-width: 1001px) and (max-width: 1399px) {
+  .nav.many .row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 0; }
+  .nav.many .logo { grid-column: 1; grid-row: 1; }
+  .nav.many .nav-end { grid-column: 2; grid-row: 1; min-height: 62px; }
+  .nav.many .links { grid-column: 1 / -1; grid-row: 2; justify-content: center; padding: 6px 0 8px; border-top: 1px solid var(--border); }
+  .nav.many ~ main .side-card, .nav.many ~ main .legal-nav { top: 128px; }
+}

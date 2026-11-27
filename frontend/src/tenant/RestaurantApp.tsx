@@ -18,6 +18,8 @@ import { About, Contact, Faq, Gallery, Home, Menu, Policy, ProductPage, Services
 import { SiteProvider, useSite } from './SiteContext'
 import { ForgotPassword, SetupPassword } from './StaffAuth'
 import { RichText } from '../ui/RichText'
+import { PageBlocks, PageDesigns } from '../ui/builder/PageDesign'
+import { pageIdOf } from '../ui/builder/types'
 import { directionsUrl, mapQuery } from '../ui/geo'
 import { spotsOf } from './Locations'
 
@@ -61,6 +63,7 @@ const GalleryAdmin = lazy(() => import('./manage/pages').then((m) => ({ default:
 const Inventory = lazy(() => import('./manage/pages').then((m) => ({ default: m.Inventory })))
 const Products = lazy(() => import('./manage/pages').then((m) => ({ default: m.Products })))
 const ServicesAdmin = lazy(() => import('./manage/pages').then((m) => ({ default: m.ServicesAdmin })))
+const PageBuilder = lazy(() => import('../ui/builder/Builder'))
 const SiteContent = lazy(() => import('./manage/pages').then((m) => ({ default: m.SiteContent })))
 const Receipt = lazy(() => import('./Receipt'))
 const WebsiteMessages = lazy(() => import('../ui/WebsiteMessages'))
@@ -78,7 +81,7 @@ function PublicLayout() {
   return (
     <>
       <ScrollFx />
-      <header className="nav">
+      <header className="nav many">
         <div className="container row">
           <Link to="/" className="logo" aria-label={r.name}>{logo && <img src={logo} alt="" height={36} />}<span className="logo-name">{r.name}</span></Link>
           <nav className="links" aria-label="Main">
@@ -102,7 +105,7 @@ function PublicLayout() {
           : <><Link to="/login" className="btn secondary">Log in</Link><Link to="/register" className="btn">Sign up</Link></>}
         <Link to="/cart" className="btn secondary"><ShoppingCart size={18} aria-hidden /> Cart ({cart.count})</Link>
       </MobileMenu>
-      <main><Outlet /></main>
+      <main><PageDesigns><Outlet /><PageBlocks page={pageIdOf(pathname)} placement="bottom" /></PageDesigns></main>
       <footer className="site-footer">
         <div className="container">
           {pathname !== '/' && pathname !== '/checkout' && pathname !== '/cart' && !pathname.startsWith('/pay') && (
@@ -223,6 +226,7 @@ export default function RestaurantApp() {
           <Route path="services" element={<ServicesAdmin />} />
           <Route path="gallery" element={<GalleryAdmin />} />
           <Route path="site" element={<SiteContent />} />
+          <Route path="builder" element={<PageBuilder />} />
           <Route path="*" element={<NotFound title="That page is not part of the workspace" links={[{ to: '/manage', label: 'Go to the workspace' }, { to: '/', label: 'View website' }]} />} />
           <Route path="website-contact" element={<WebsiteMessages subtitle="Messages sent through your restaurant website’s contact form." />} />
         </Route>
