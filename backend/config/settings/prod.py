@@ -29,3 +29,6 @@ if UPLOAD_SCANNER not in ("clamav", "builtin") or not UPLOAD_SCAN_FAIL_CLOSED:  
 if not USE_CLOUDINARY:  # noqa: F405
     raise RuntimeError("Production requires Cloudinary (CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET): the server disk is not permanent.")
 STORAGES = {**STORAGES, "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"}}  # noqa: F405
+
+# No Redis means no Celery worker: send mail on a background thread instead of inside the request.
+EMAIL_IN_BACKGROUND = not REDIS_URL  # noqa: F405

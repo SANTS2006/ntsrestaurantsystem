@@ -1,6 +1,6 @@
-import { Menu as MenuIcon, ShoppingCart, User } from 'lucide-react'
+import { ArrowRight, ArrowUp, Mail, MapPin, Menu as MenuIcon, Phone, ShoppingCart, User } from 'lucide-react'
 import { useState, Suspense, lazy } from 'react'
-import { Link, NavLink, Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { Link, NavLink, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { API_URL } from '../lib/config'
 import { useAuth } from '../lib/auth'
 import { can } from '../lib/permissions'
@@ -12,11 +12,14 @@ import { CartProvider, useCart } from './cart'
 import { Login, Register, VerifyEmail } from './CustomerAuth'
 import { CartPage, CheckoutPage } from './shop'
 import { PayPage, PaymentComplete } from './PaymentPages'
-import { Empty, PageLoader } from '../ui/kit'
+import { PageLoader } from '../ui/kit'
+import { NotFound } from '../ui/NotFound'
 import { About, Contact, Faq, Gallery, Home, Menu, Policy, ProductPage, Services } from './pages'
 import { SiteProvider, useSite } from './SiteContext'
 import { ForgotPassword, SetupPassword } from './StaffAuth'
-import { BackButton } from '../ui/BackButton'
+import { RichText } from '../ui/RichText'
+import { directionsUrl, mapQuery } from '../ui/geo'
+import { spotsOf } from './Locations'
 
 const AccountLayout = lazy(() => import('./account/pages').then((m) => ({ default: m.AccountLayout })))
 const Addresses = lazy(() => import('./account/pages').then((m) => ({ default: m.Addresses })))
@@ -60,6 +63,7 @@ const Products = lazy(() => import('./manage/pages').then((m) => ({ default: m.P
 const ServicesAdmin = lazy(() => import('./manage/pages').then((m) => ({ default: m.ServicesAdmin })))
 const SiteContent = lazy(() => import('./manage/pages').then((m) => ({ default: m.SiteContent })))
 const Receipt = lazy(() => import('./Receipt'))
+const WebsiteMessages = lazy(() => import('../ui/WebsiteMessages'))
 
 const links = [['/', 'Home'], ['/menu', 'Menu'], ['/services', 'Services'], ['/catering', 'Catering'], ['/reserve', 'Reserve'], ['/gallery', 'Gallery'], ['/about', 'About'], ['/contact', 'Contact']] as const
 
@@ -69,6 +73,7 @@ function PublicLayout() {
   const r = site.restaurant
   const cart = useCart()
   const { me } = useAuth()
+  const { pathname } = useLocation()
   const logo = r.logo ? (r.logo.startsWith('http') ? r.logo : `${API_URL}${r.logo}`) : null
   return (
     <>
@@ -98,31 +103,45 @@ function PublicLayout() {
         <Link to="/cart" className="btn secondary"><ShoppingCart size={18} aria-hidden /> Cart ({cart.count})</Link>
       </MobileMenu>
       <main><Outlet /></main>
-      <footer className="footer">
+      <footer className="site-footer">
         <div className="container">
-          <div className="foot-grid">
-            <div className="foot-brand">
-              <Link to="/" className="logo">{logo && <img src={logo} alt="" width={36} height={36} />}{r.name}</Link>
-              <p>{r.description}</p>
+          {pathname !== '/' && pathname !== '/checkout' && pathname !== '/cart' && !pathname.startsWith('/pay') && (
+            <div className="foot-cta">
+              <div><h2>Hungry? Order from {r.name}</h2><p>Order your favourites online, or book a table.</p></div>
+              <div className="foot-cta-actions"><Link className="btn lg" to="/menu">Order now <ArrowRight size={18} aria-hidden /></Link><Link className="btn lg outline" to="/reserve">Reserve a table</Link></div>
             </div>
-            <div className="foot-explore"><h4>Explore</h4><ul className="foot-links">{links.map(([to, l]) => <li key={to}><Link to={to}>{l}</Link></li>)}<li><Link to="/faq">FAQ</Link></li></ul></div>
-            <div><h4>Policies</h4><ul>{site.policies.map((p) => <li key={p.slug}><Link to={`/policies/${p.slug}`}>{p.title}</Link></li>)}</ul></div>
-            <div><h4>Contact</h4><div className="foot-contact">
-              {r.contact_phone && <a href={`tel:${r.contact_phone}`}>{r.contact_phone}</a>}
-              {r.contact_email && <a href={`mailto:${r.contact_email}`}>{r.contact_email}</a>}
-              {(r.address || r.city) && <span>{[r.address, r.city].filter(Boolean).join(', ')}</span>}
-              {!r.contact_phone && !r.contact_email && !r.address && !r.city && <Link to="/contact">Contact us</Link>}
-            </div></div>
+          )}
+          <div className="foot-cols">
+            <div className="foot-about">
+              <Link to="/" className="logo">{logo && <img src={logo} alt="" width={40} height={40} />}{r.name}</Link>
+              {r.description && <p><RichText text={r.description} /></p>}
+              <div className="foot-social">
+                {r.contact_phone && <a href={`tel:${r.contact_phone}`} aria-label="Phone"><Phone size={18} aria-hidden /></a>}
+                {r.contact_email && <a href={`mailto:${r.contact_email}`} aria-label="Email"><Mail size={18} aria-hidden /></a>}
+              </div>
+            </div>
+            <nav className="foot-col" aria-label="Explore"><h4>Explore</h4><ul>{links.slice(0, 5).map(([to, l]) => <li key={to}><Link to={to}>{l}</Link></li>)}</ul></nav>
+            <nav className="foot-col" aria-label="More"><h4>More</h4><ul>{links.slice(5).map(([to, l]) => <li key={to}><Link to={to}>{l}</Link></li>)}<li><Link to="/faq">FAQ</Link></li></ul></nav>
+            <nav className="foot-col" aria-label="Policies"><h4>Policies</h4><ul>{site.policies.map((p) => <li key={p.slug}><Link to={`/policies/${p.slug}`}>{p.title}</Link></li>)}</ul></nav>
+            <div className="foot-col foot-reach"><h4>Get in touch</h4><ul>
+              {r.contact_phone && <li><Phone size={15} aria-hidden /> <a href={`tel:${r.contact_phone}`}>{r.contact_phone}</a></li>}
+              {r.contact_email && <li><Mail size={15} aria-hidden /> <a href={`mailto:${r.contact_email}`}>{r.contact_email}</a></li>}
+              {spotsOf(site).slice(0, 2).map((s) => <li key={s.key}><MapPin size={15} aria-hidden /> {mapQuery(s) ? <a href={directionsUrl(mapQuery(s))} target="_blank" rel="noopener noreferrer">{s.address || s.name}</a> : <span>{s.name}</span>}</li>)}
+              <li><Mail size={15} aria-hidden /> <Link to="/contact">Send us a message</Link></li>
+            </ul></div>
           </div>
-          <div className="foot-bottom">
+          <div className="foot-base">
             <span>&copy; {new Date().getFullYear()} {r.name}. All rights reserved.</span>
             <nav aria-label="Staff"><Link to="/login">Staff sign in</Link></nav>
+            <button type="button" className="to-top" onClick={() => window.scrollTo?.({ top: 0, behavior: 'smooth' })}><ArrowUp size={15} aria-hidden /> Back to top</button>
           </div>
         </div>
       </footer>
     </>
   )
 }
+
+const SITE_LINKS = [{ to: '/', label: 'Back to home' }, { to: '/menu', label: 'View the menu' }, { to: '/contact', label: 'Contact us' }]
 
 function ManageHome() {
   const { me } = useAuth()
@@ -154,6 +173,7 @@ export default function RestaurantApp() {
           <Route path="payment-complete" element={<PaymentComplete />} />
           <Route path="pay/:paymentId" element={<PayPage />} />
           <Route path="checkout" element={<CheckoutPage />} />
+          <Route path="*" element={<NotFound links={SITE_LINKS} />} />
         </Route>
         <Route path="account" element={<AccountLayout />}>
           <Route index element={<Overview />} />
@@ -165,6 +185,7 @@ export default function RestaurantApp() {
           <Route path="notifications" element={<Notifications />} />
           <Route path="notifications/:nid" element={<NotificationDetail />} />
           <Route path="support" element={<Support />} />
+          <Route path="*" element={<NotFound title="That page is not part of your account" links={[{ to: '/account', label: 'Go to my account' }, { to: '/menu', label: 'Order food' }]} />} />
         </Route>
         <Route path="receipts/:id" element={<Receipt />} />
         <Route path="t/:token" element={<QRMenu />} />
@@ -202,8 +223,9 @@ export default function RestaurantApp() {
           <Route path="services" element={<ServicesAdmin />} />
           <Route path="gallery" element={<GalleryAdmin />} />
           <Route path="site" element={<SiteContent />} />
+          <Route path="*" element={<NotFound title="That page is not part of the workspace" links={[{ to: '/manage', label: 'Go to the workspace' }, { to: '/', label: 'View website' }]} />} />
+          <Route path="website-contact" element={<WebsiteMessages subtitle="Messages sent through your restaurant website’s contact form." />} />
         </Route>
-        <Route path="*" element={<div className="container section"><Empty title="Page not found"><BackButton to="/">Back to home</BackButton></Empty></div>} />
       </Routes>
 </Suspense>
       </CartProvider>

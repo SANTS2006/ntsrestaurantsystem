@@ -3,13 +3,17 @@ from django.core.cache import cache
 from django.db.models import Prefetch
 from rest_framework import serializers
 from rest_framework.exceptions import NotFound
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.permissions import IsRestaurantAdminOrAbove
 from apps.core.models import audit
+from apps.core.uploads import image_field
+from apps.tenants.geo import check_pin
 from apps.tenants.models import Branch
+from apps.website.content import plain
 from apps.tenants.views import PublicRestaurantSerializer
 
 from apps.payments.providers import online_payments_available
@@ -104,8 +108,11 @@ class PublicSiteView(PublicView):
             "about_text": st.about_text or t.description, "delivery_info": st.delivery_info, "faqs": st.faqs,
             "currency": st.currency, "delivery_enabled": st.delivery_enabled, "pickup_enabled": st.pickup_enabled,
             "online_payments": st.online_payments_enabled and online_payments_available(),
-            "seo_title": st.seo_title or t.name, "seo_description": st.seo_description or t.description[:160],
-            "branches": [{"id": b.pk, "name": b.name, "address": b.address, "phone": b.phone, "email": b.email,
+            "hero_image": _abs(request, st.hero_image),
+            "seo_title": plain(st.seo_title or t.name), "seo_description": plain(st.seo_description or t.description)[:160],
+            "branches": [{"id": b.pk, "name": b.name, "address": b.address, "location": b.location, "phone": b.phone, "email": b.email,
+                          "latitude": str(b.latitude) if b.latitude is not None else None,
+                          "longitude": str(b.longitude) if b.longitude is not None else None,
                           "operating_hours": b.operating_hours} for b in branches],
             "policies": [{"slug": k, "title": POLICY_TITLES[k]} for k in POLICY_TITLES],
         })
@@ -137,6 +144,8 @@ class SiteContentSerializer(serializers.Serializer):
     address = serializers.CharField(max_length=255, required=False, allow_blank=True)
     city = serializers.CharField(max_length=100, required=False, allow_blank=True)
     country = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    latitude = serializers.DecimalField(max_digits=9, decimal_places=6, min_value=-90, max_value=90, required=False, allow_null=True)
+    longitude = serializers.DecimalField(max_digits=9, decimal_places=6, min_value=-180, max_value=180, required=False, allow_null=True)
     delivery_enabled = serializers.BooleanField(required=False)
     pickup_enabled = serializers.BooleanField(required=False)
     online_payments_enabled = serializers.BooleanField(required=False)
@@ -176,7 +185,7 @@ class SiteContentSerializer(serializers.Serializer):
         return value
 
 
-RESTAURANT_FIELDS = {"description", "contact_email", "contact_phone", "address", "city", "country", "primary_color", "secondary_color"}
+RESTAURANT_FIELDS = {"description", "contact_email", "contact_phone", "address", "city", "country", "latitude", "longitude", "primary_color", "secondary_color"}
 
 
 class SiteContentView(APIView):
@@ -197,6 +206,9 @@ class SiteContentView(APIView):
             "reservation_duration_minutes": st.reservation_duration_minutes, "reservation_max_party": st.reservation_max_party,
             "description": t.description, "contact_email": t.contact_email, "contact_phone": t.contact_phone,
             "address": t.address, "city": t.city, "country": t.country,
+            "latitude": str(t.latitude) if t.latitude is not None else None,
+            "longitude": str(t.longitude) if t.longitude is not None else None,
+            "hero_image": _abs(request, st.hero_image),
             "primary_color": t.primary_color, "secondary_color": t.secondary_color,
         })
 
@@ -204,9 +216,42 @@ class SiteContentView(APIView):
         s = SiteContentSerializer(data=request.data, partial=True)
         s.is_valid(raise_exception=True)
         t, st = request.tenant, request.tenant.get_settings()
+        check_pin(s.validated_data, t)
         for k, v in s.validated_data.items():
             setattr(t if k in RESTAURANT_FIELDS else st, k, v)
         t.save()
         st.save()
         audit("site.content_updated", actor=request.user, restaurant=t, metadata={"fields": sorted(s.validated_data)}, request=request)
         return self.get(request)
+
+
+class HeroImageInput(serializers.Serializer):
+    image = image_field(4 * 1024 * 1024)
+
+
+class SiteHeroView(APIView):
+    """The picture behind the headings of this restaurant's web pages."""
+
+    permission_classes = [IsRestaurantAdminOrAbove]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def post(self, request):
+        s = HeroImageInput(data=request.data)
+        s.is_valid(raise_exception=True)
+        return self._set(request, s.validated_data["image"])
+
+    def delete(self, request):
+        return self._set(request, "")
+
+    def _set(self, request, image):
+        st = request.tenant.get_settings()
+        old, storage = st.hero_image.name, st.hero_image.storage
+        st.hero_image = image
+        st.save(update_fields=["hero_image", "updated_at"])
+        if old:
+            try:
+                storage.delete(old)
+            except Exception:  # noqa: BLE001 - an orphaned file is harmless
+                pass
+        audit("site.hero_image_updated" if image else "site.hero_image_removed", actor=request.user, restaurant=request.tenant, request=request)
+        return Response({"hero_image": _abs(request, st.hero_image)})

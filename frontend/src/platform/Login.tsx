@@ -3,13 +3,13 @@ import { useState, type FormEvent } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { ApiError } from '../lib/api'
 import { useAuth } from '../lib/auth'
-import { AuthField, AuthLayout, RememberRow } from '../ui/Auth'
+import { AuthField, AuthLayout, GoogleSignIn, OrDivider, RememberRow, type GoogleResult } from '../ui/Auth'
 import { Spinner, useDocumentTitle } from '../ui/kit'
 import { MfaChallengeForm } from '../ui/Mfa'
 
 export default function Login() {
   useDocumentTitle('Sign in')
-  const { login, me, logout } = useAuth()
+  const { login, me, logout, adoptTokens } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -42,6 +42,21 @@ export default function Login() {
     }
   }
 
+  async function google(result: GoogleResult) {
+    setErrors({})
+    if (result.mfa_token) { setChallenge(result.mfa_token); return }
+    if (!result.access || !result.refresh) return
+    try {
+      const profile = await adoptTokens({ access: result.access, refresh: result.refresh }, remember)
+      if (profile.role !== 'platform_admin') {
+        logout()
+        setErrors({ form: 'This account cannot sign in here.' })
+      } else navigate('/admin')
+    } catch (err) {
+      setErrors({ form: err instanceof ApiError ? err.message : 'Google sign-in failed.' })
+    }
+  }
+
   return (
     <AuthLayout
       brand="NTS Restaurant Platform"
@@ -57,6 +72,9 @@ export default function Login() {
           <AuthField label="Password" icon={Lock} secret error={errors.password} autoComplete="current-password" placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} />
           <RememberRow remember={remember} onChange={setRemember} forgotTo="/forgot-password" />
           <button className="btn" style={{ width: '100%' }} disabled={busy}>{busy ? <Spinner /> : 'Sign in'}</button>
+          <OrDivider />
+          <GoogleSignIn onResult={(r) => void google(r)} onError={(m) => setErrors({ form: m })} />
+          <p className="hint center">Google sign-in works only for an existing platform administrator’s email address.</p>
         </form>
       )}
     </AuthLayout>

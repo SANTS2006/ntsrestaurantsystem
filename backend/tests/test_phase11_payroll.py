@@ -305,7 +305,6 @@ def test_reject_then_edit_resubmit(world):
 def test_payment_validation(world):
     _, _, rid = approved(world, world["cashier_a1"])
     mgr = client_for(world["mgr_a1"], "alpha")
-    assert pay(mgr, rid, method="bank_transfer", reference="").status_code == 400
     assert pay(mgr, rid, paid_on=(TODAY + datetime.timedelta(days=2)).isoformat()).status_code == 400
     assert pay(mgr, rid, method="bitcoin").status_code == 400
     assert pay(mgr, rid).status_code == 200

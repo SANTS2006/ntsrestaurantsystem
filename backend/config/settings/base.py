@@ -199,6 +199,7 @@ BREVO_API_KEY = env("BREVO_API_KEY", "")
 BREVO_SENDER_EMAIL = env("BREVO_SENDER_EMAIL", "")
 BREVO_SENDER_NAME = env("BREVO_SENDER_NAME", "NTS Restaurant Platform")
 EMAIL_ENQUEUE_ON_COMMIT = True
+EMAIL_IN_BACKGROUND = False  # prod.py turns this on when there is no queue server
 CELERY_TASK_ALWAYS_EAGER = not REDIS_URL  # no broker locally -> run tasks inline
 
 VERIFICATION_CODE_TTL_SECONDS = int(env("VERIFICATION_CODE_TTL_SECONDS", "600"))
@@ -243,7 +244,7 @@ QR_MAX_PENDING_PER_TABLE = 5
 WS_AUTH_TIMEOUT_SECONDS = 5
 
 # ---- Phase 13: backups and monitoring -------------------------------------------------------------------------
-INSTALLED_APPS += ["apps.backups", "apps.finance", "apps.procurement", "apps.floor"]
+INSTALLED_APPS += ["apps.backups", "apps.finance", "apps.procurement", "apps.floor", "apps.website"]
 R2_ACCOUNT_ID = env("R2_ACCOUNT_ID", "")
 R2_ACCESS_KEY_ID = env("R2_ACCESS_KEY_ID", "")
 R2_SECRET_ACCESS_KEY = env("R2_SECRET_ACCESS_KEY", "")
@@ -266,6 +267,7 @@ CELERY_BEAT_SCHEDULE = {  # run with: celery -A config beat
 }
 
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["reservations"] = "20/hour"
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["contact"] = "8/hour"  # website contact forms, per visitor
 
 # ---- two-factor authentication (TOTP) ------------------------------------------------------------------------------
 MFA_ENFORCEMENT = env_bool("MFA_ENFORCEMENT", True)  # privileged accounts must enrol before they can use the API

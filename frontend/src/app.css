@@ -79,7 +79,7 @@ body { transition: background-color .2s, color .2s; }
 
 
 /* ---- Light mode applies to every section: sidebar, footer, toasts and overlays are light too ---- */
-:root[data-theme='light'] .toast { background: var(--surface); color: var(--text); border: 1px solid var(--border-strong); border-left: 4px solid var(--brand); }
+:root[data-theme='light'] .toast { background: var(--surface); color: var(--text); border: 1px solid var(--border-strong); }
 :root[data-theme='light'] .shell .side { background: var(--surface); color: var(--text); border-right: 1px solid var(--border); }
 :root[data-theme='light'] .shell .side .brand { border-bottom-color: var(--border); }
 :root[data-theme='light'] .shell .side .mark { background: var(--bg-soft); border: 1px solid var(--border); }
@@ -151,7 +151,7 @@ input.input { text-overflow: ellipsis; }
 .notif-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .notif-card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); box-shadow: var(--shadow-sm); transition: transform .15s, box-shadow .15s, border-color .15s; }
 .notif-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); border-color: var(--brand); color: var(--text); }
-.notif-card.unread { border-left: 4px solid var(--brand); background: color-mix(in srgb, var(--brand) 6%, var(--surface)); }
+.notif-card.unread { border-color: color-mix(in srgb, var(--brand) 35%, var(--border)); background: color-mix(in srgb, var(--brand) 6%, var(--surface)); }
 .notif-card .ico, .notif-detail header .ico { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: var(--bg-soft); color: var(--brand); flex: none; }
 .notif-card.ready .ico, .notif-detail header .ico.ready { background: color-mix(in srgb, var(--ok) 14%, var(--surface)); color: var(--ok); }
 .notif-card .text { flex: 1; min-width: 0; display: grid; } .notif-card .text > span { color: var(--muted); } .notif-card .text small { color: var(--muted); font-size: .78rem; }
@@ -159,3 +159,22 @@ input.input { text-overflow: ellipsis; }
 .notif-detail .lead { font-size: 1.05rem; }
 .notif-detail dl { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin: 0 0 16px; }
 .notif-detail dl > div { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; background: var(--surface-2); } .notif-detail dt { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 700; } .notif-detail dd { margin: 2px 0 0; font-weight: 600; overflow-wrap: anywhere; }
+
+/* ---------- people with pictures (customers, messages, payroll) ---------- */
+.person { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
+.person > span:not(.avatar) { display: grid; min-width: 0; }
+.avatar.xl { width: 96px; height: 96px; font-size: 1.9rem; }
+.person-card { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-bottom: 18px; }
+.person-card > div { min-width: 0; flex: 1 1 200px; overflow-wrap: anywhere; }
+.person-card p { margin: 2px 0; } .person-card b { font-size: 1.15rem; }
+
+/* ---------- choosing many employees at once (payroll) ---------- */
+.tick { width: 18px; height: 18px; accent-color: var(--brand); cursor: pointer; flex: none; } .tick:disabled { cursor: not-allowed; }
+.tick-col { width: 36px; }
+.bulk-bar { position: sticky; top: 64px; z-index: 6; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 10px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--brand); background: color-mix(in srgb, var(--brand) 10%, var(--surface)); box-shadow: var(--shadow); }
+.bulk-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
+.pick-list { max-height: min(46vh, 380px); overflow-y: auto; border: 1px solid var(--border); border-radius: 12px; padding: 4px 12px; }
+.pick-row { display: flex; align-items: flex-start; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); cursor: pointer; } .pick-list .pick-row:last-child { border-bottom: 0; }
+.pick-row .tick { margin-top: 3px; } .pick-row > span { display: grid; min-width: 0; overflow-wrap: anywhere; } .pick-row.off { cursor: default; opacity: .65; } .pick-row .why { color: var(--warn); }
+.pick-row.all { margin-top: 10px; border-bottom: 0; }
+@media (max-width: 600px) { .bulk-bar { position: static; } .bulk-actions { margin-left: 0; width: 100%; } .bulk-actions .btn { flex: 1 1 140px; } }

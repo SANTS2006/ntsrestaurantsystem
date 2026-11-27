@@ -32,6 +32,7 @@ urlpatterns = [
     path("sitemap.xml", seo_views.sitemap_xml),
     path("api/v1/staff/", include("apps.accounts.staff_urls")),
     path("api/v1/notifications/", include("apps.notifications.urls")),
+    path("api/v1/website/", include("apps.website.urls")),
 ]
 
 if settings.DEBUG:

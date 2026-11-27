@@ -17,7 +17,7 @@ EMAIL_ENQUEUE_ON_COMMIT = False
 CELERY_TASK_ALWAYS_EAGER = True
 GOOGLE_OAUTH_CLIENT_ID = "test-client-id.apps.googleusercontent.com"
 PUBLIC_URL_SCHEME = "http"
-REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {"anon": "10000/min", "user": "10000/min", "login": "10000/min", "auth": "10000/min", "qr": "10000/min", "catering": "10000/min", "reservations": "10000/min"}  # noqa: F405
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {"anon": "10000/min", "user": "10000/min", "login": "10000/min", "auth": "10000/min", "qr": "10000/min", "catering": "10000/min", "reservations": "10000/min", "contact": "10000/min"}  # noqa: F405
 TESTING_PAYMENTS = True
 PAYMENT_PROVIDER = "simulated"
 

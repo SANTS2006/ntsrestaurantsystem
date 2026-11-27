@@ -11,6 +11,14 @@ type TableData = {
 type Line = { key: string; p: PublicProduct; variation_id: number | null; quantity: number; addons: Record<number, number>; instructions: string }
 type Sent = { public_id: string; total: string }
 
+/** The dish's picture, or its first letter when there is none (or it cannot be loaded). */
+function DishThumb({ p, className = 'qr-thumb' }: { p: PublicProduct; className?: string }) {
+  const [broken, setBroken] = useState(false)
+  return p.image && !broken
+    ? <img className={className} src={p.image} alt={p.name} loading="lazy" decoding="async" onError={() => setBroken(true)} />
+    : <span className={`${className} ph`} aria-hidden>{p.name.charAt(0)}</span>
+}
+
 /** Diner-facing page opened by scanning a table's QR code. Sends a REQUEST; it is not an order until a cashier confirms it. */
 export default function QRMenu() {
   const { token = '' } = useParams()
@@ -109,11 +117,15 @@ export default function QRMenu() {
         const list = c.products.filter((p) => products.includes(p))
         return list.length ? (
           <div key={c.slug} style={{ marginBottom: 24 }}><h2 style={{ fontSize: '1.2rem' }}>{c.name}</h2>
-            <div className="grid g3">{list.map((p) => (
-              <button key={p.id} className="card lift" style={{ textAlign: 'left', opacity: p.sold_out ? 0.55 : 1 }} disabled={p.sold_out || !d.can_request}
+            <div className="qr-grid">{list.map((p) => (
+              <button key={p.id} className={`card lift qr-dish ${p.sold_out ? 'out' : ''}`} disabled={p.sold_out || !d.can_request}
                 onClick={() => (p.variations.length > 1 || p.addons.length || (p.variations.length === 1 && !p.variations[0].is_default) || p.allow_instructions ? setPicking(p) : add(p))}>
-                <b>{p.name}</b>{p.sold_out && <span className="badge suspended" style={{ marginLeft: 6 }}>Sold out</span>}<br />
-                <span className="muted" style={{ fontSize: '.9rem' }}>{p.description.slice(0, 70)}</span><br /><b>{money(p.price)}</b>{p.on_offer && <s className="muted" style={{ marginLeft: 6 }}>{money(p.regular_price)}</s>}
+                <span className="qr-text">
+                  <b>{p.name}</b>{p.sold_out && <span className="badge suspended">Sold out</span>}
+                  {p.description && <span className="muted qr-desc">{p.description}</span>}
+                  <span><b>{money(p.price)}</b>{p.on_offer && <s className="muted" style={{ marginLeft: 6 }}>{money(p.regular_price)}</s>}</span>
+                </span>
+                <DishThumb p={p} />
               </button>))}</div></div>
         ) : null
       })}
@@ -124,6 +136,7 @@ export default function QRMenu() {
           {errors.form && <div className="alert error" role="alert">{errors.form}</div>}
           {lines.map((l, i) => (
             <div key={l.key} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
+              <DishThumb p={l.p} className="qr-mini" />
               <span style={{ flex: 1 }}>{l.p.name}{l.variation_id ? ` (${l.p.variations.find((v) => v.id === l.variation_id)?.name})` : ''}{l.instructions && <span className="muted"> · {l.instructions}</span>}</span>
               <button type="button" className="btn sm secondary" aria-label={`Fewer ${l.p.name}`} onClick={() => setLines((c) => (l.quantity <= 1 ? c.filter((x) => x.key !== l.key) : c.map((x) => (x.key === l.key ? { ...x, quantity: x.quantity - 1 } : x))))}>−</button>
               <b>{l.quantity}</b>
@@ -154,6 +167,8 @@ function Picker({ p, money, onClose, onAdd }: { p: PublicProduct; money: (v: str
   const [qty, setQty] = useState(1)
   return (
     <Modal title={p.name} onClose={onClose}>
+      <DishThumb p={p} className="qr-photo" />
+      {p.description && <p className="muted">{p.description}</p>}
       {p.variations.length > 0 && <Field label="Choose an option">{(f) => <select {...f} className="input" value={vid ?? ''} onChange={(e) => setVid(e.target.value ? Number(e.target.value) : null)}>{!p.variations.some((v) => v.is_default) && <option value="">Select…</option>}{p.variations.map((v) => <option key={v.id} value={v.id}>{v.name}{Number(v.price_delta) > 0 ? ` (+${money(v.price_delta)})` : ''}</option>)}</select>}</Field>}
       {p.addons.map((a) => <label key={a.id} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}><input className="input" style={{ width: 64 }} type="number" min={0} max={a.max_quantity} aria-label={`${a.name} quantity`} value={adds[a.id] ?? 0} onChange={(e) => setAdds({ ...adds, [a.id]: Math.max(0, Math.min(a.max_quantity, Number(e.target.value) || 0)) })} />{a.name} <span className="muted">+{money(a.price)}</span></label>)}
       {p.allow_instructions && <Field label="Special instructions (optional)">{(f) => <input {...f} className="input" maxLength={200} placeholder="e.g. no pepper" value={note} onChange={(e) => setNote(e.target.value)} />}</Field>}

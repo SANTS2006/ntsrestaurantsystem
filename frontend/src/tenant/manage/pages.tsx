@@ -1,9 +1,12 @@
 import { Plus, Trash2 } from 'lucide-react'
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { ApiError, api, type Page } from '../../lib/api'
 import { Empty, ErrorState, Field, Modal, Skeleton, Spinner, useAsync, useDocumentTitle, useToast } from '../../ui/kit'
 import { useSite } from '../SiteContext'
 import { useConfirm } from '../../ui/dialogs'
+import { RichField } from '../../ui/RichText'
+import { LocationPicker } from '../../ui/Maps'
+import { fullAddress } from '../../ui/geo'
 
 const price = (v: string) => /^\d+(\.\d{1,2})?$/.test(v.trim())
 const msg = (e: unknown) => (e instanceof ApiError ? e.message : 'Something went wrong.')
@@ -396,7 +399,7 @@ export function Gallery() {
 }
 
 /* ------------------------------------------------------------------ website content */
-type Content = Record<string, unknown> & { faqs: { q: string; a: string }[]; policies: Record<string, string>; policy_titles: Record<string, string> }
+type Content = Record<string, unknown> & { hero_image: string | null; faqs: { q: string; a: string }[]; policies: Record<string, string>; policy_titles: Record<string, string> }
 export function SiteContent() {
   useDocumentTitle('Website content')
   const toast = useToast()
@@ -406,10 +409,17 @@ export function SiteContent() {
   const [policies, setPolicies] = useState<Record<string, string>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
+  const [pin, setPin] = useState({ latitude: '', longitude: '' })
+  const loadedText = useRef('')
   useEffect(() => {
     if (!data) return
+    // a new heading picture alone must not wipe what is being typed
+    const signature = JSON.stringify({ ...data, hero_image: null })
+    if (signature === loadedText.current) return
+    loadedText.current = signature
     const text = Object.fromEntries(Object.entries(data).filter(([, x]) => typeof x === 'string' || typeof x === 'number').map(([k, x]) => [k, String(x)])) as Record<string, string>
     setV(text); setFaqs(data.faqs); setPolicies(data.policies)
+    setPin({ latitude: text.latitude ?? '', longitude: text.longitude ?? '' })
     setFlags({ delivery_enabled: Boolean(data.delivery_enabled), pickup_enabled: Boolean(data.pickup_enabled), online_payments_enabled: Boolean(data.online_payments_enabled), qr_guest_orders_allowed: Boolean(data.qr_guest_orders_allowed), reservations_enabled: Boolean(data.reservations_enabled), reservation_auto_confirm: Boolean(data.reservation_auto_confirm) })
   }, [data])
   const [flags, setFlags] = useState({ delivery_enabled: true, pickup_enabled: true, online_payments_enabled: false, qr_guest_orders_allowed: true, reservations_enabled: true, reservation_auto_confirm: true })
@@ -420,10 +430,12 @@ export function SiteContent() {
     if (faqs.some((f) => !f.q.trim() || !f.a.trim())) return setErrors({ faqs: 'Each FAQ needs a question and an answer.' })
     setBusy(true); setErrors({})
     try {
-      await api('/catalog/site/', { method: 'PATCH', body: { ...Object.fromEntries(keys.map((k) => [k, v[k] ?? ''])), faqs, policies, ...flags } })
+      await api('/catalog/site/', { method: 'PATCH', body: { ...Object.fromEntries(keys.map((k) => [k, v[k] ?? ''])), latitude: pin.latitude || null, longitude: pin.longitude || null, faqs, policies, ...flags } })
       toast('Website updated.'); reload()
     } catch (err) { setErrors(err instanceof ApiError ? { ...err.fieldErrors(), form: err.message } : { form: 'Error' }) } finally { setBusy(false) }
   }
+  // texts that appear on the website: they get a Bold button
+  const rich = (k: string, label: string, ph: string, rows?: number) => <RichField label={label} error={errors[k]} placeholder={ph} rows={rows} value={v[k] ?? ''} onChange={(x) => setV((now) => ({ ...now, [k]: x }))} />
   const f = (k: string, label: string, ph: string, area = false) => (
     <Field label={label} error={errors[k]}>{(p) => area
       ? <textarea {...p} className="input" rows={4} placeholder={ph} value={v[k] ?? ''} onChange={(e) => setV({ ...v, [k]: e.target.value })} />
@@ -460,24 +472,53 @@ export function SiteContent() {
             <Field label="Ask QR diners for">{(p) => <select {...p} className="input" style={{ maxWidth: 260 }} value={v.qr_identification ?? 'none'} onChange={(e) => setV({ ...v, qr_identification: e.target.value })}><option value="none">Nothing (anonymous)</option><option value="name">Their name</option><option value="phone">Name and phone number</option></select>}</Field>
             <div className="grid g2">{f('delivery_fee', 'Delivery fee', 'e.g. 2.00')}{f('tax_rate_percent', 'Tax rate (%)', 'e.g. 8.25')}</div>
             <p className="hint">Prices on the menu are tax-exclusive; tax is added at checkout using this rate.</p></div>
-          <div className="card" style={{ marginBottom: 16 }}><h2 style={{ fontSize: '1.2rem' }}>Home page</h2>{f('hero_title', 'Headline', 'e.g. Fresh seafood by the bay')}{f('hero_subtitle', 'Sub-headline', 'One sentence about your restaurant')}{f('about_text', 'About us', 'Tell your story', true)}{f('delivery_info', 'Delivery information', 'Areas, fees, times', true)}</div>
-          <div className="card" style={{ marginBottom: 16 }}><h2 style={{ fontSize: '1.2rem' }}>Contact and brand</h2>{f('description', 'Short description', 'Shown in the footer and search results')}{f('contact_email', 'Contact email', 'name@example.com')}{f('contact_phone', 'Contact phone', 'Phone number')}{f('address', 'Address', 'Street address')}
+          <div className="card" style={{ marginBottom: 16 }}><h2 style={{ fontSize: '1.2rem' }}>Home page</h2><p className="hint">To show words in bold on the website, select them and press Bold (or Ctrl+B). This works for every box that has a Bold button.</p>{rich('hero_title', 'Headline', 'e.g. Fresh seafood by the bay')}{rich('hero_subtitle', 'Sub-headline', 'One sentence about your restaurant')}{rich('about_text', 'About us', 'Tell your story. Leave a blank line between paragraphs.', 6)}{rich('delivery_info', 'Delivery information', 'Areas, fees, times', 4)}
+            <HeroPicture current={data.hero_image} /></div>
+          <div className="card" style={{ marginBottom: 16 }}><h2 style={{ fontSize: '1.2rem' }}>Contact and brand</h2>{rich('description', 'Short description', 'Shown in the footer and search results')}{f('contact_email', 'Contact email', 'name@example.com')}{f('contact_phone', 'Contact phone', 'Phone number')}{f('address', 'Address', 'Street address')}
             <div className="grid g2">{f('city', 'City', 'City')}{f('country', 'Country', 'Country')}</div>
+            <LocationPicker address={v.address ? fullAddress(v.address, v.city, v.country) : ''} value={pin} onChange={setPin} error={errors.latitude} />
             <div className="grid g2">{(['primary_color', 'secondary_color'] as const).map((k) => <Field key={k} label={k === 'primary_color' ? 'Primary color' : 'Secondary color'} error={errors[k]}>{(p) => <span style={{ display: 'flex', gap: 8 }}><input {...p} type="color" value={v[k] ?? '#000000'} onChange={(e) => setV({ ...v, [k]: e.target.value })} style={{ width: 52, height: 44 }} /><input className="input" aria-label={`${k} hex`} value={v[k] ?? ''} onChange={(e) => setV({ ...v, [k]: e.target.value })} /></span>}</Field>)}</div></div>
           <div className="card" style={{ marginBottom: 16 }}><h2 style={{ fontSize: '1.2rem' }}>Search engines</h2>{f('seo_title', 'Page title', 'Up to 70 characters')}{f('seo_description', 'Description', 'Up to 160 characters')}</div>
           <div className="card" style={{ marginBottom: 16 }}><h2 style={{ fontSize: '1.2rem' }}>Frequently asked questions</h2>
             {faqs.map((x, i) => <div key={i} style={{ display: 'grid', gap: 6, marginBottom: 10 }}>
-              <input className="input" placeholder="Question" aria-label="Question" value={x.q} onChange={(e) => setFaqs(faqs.map((y, j) => (j === i ? { ...y, q: e.target.value } : y)))} />
-              <textarea className="input" rows={2} placeholder="Answer" aria-label="Answer" value={x.a} onChange={(e) => setFaqs(faqs.map((y, j) => (j === i ? { ...y, a: e.target.value } : y)))} />
+              <RichField label={`Question ${i + 1}`} placeholder="Enter the question" value={x.q} onChange={(q) => setFaqs((all) => all.map((y, j) => (j === i ? { ...y, q } : y)))} />
+              <RichField label={`Answer ${i + 1}`} placeholder="Enter the answer" rows={3} value={x.a} onChange={(a) => setFaqs((all) => all.map((y, j) => (j === i ? { ...y, a } : y)))} />
               <button type="button" className="btn sm secondary" onClick={() => setFaqs(faqs.filter((_, j) => j !== i))}>Remove</button></div>)}
             {errors.faqs && <p className="err">{errors.faqs}</p>}
             <button type="button" className="btn sm secondary" onClick={() => setFaqs([...faqs, { q: '', a: '' }])}>Add question</button></div>
           <div className="card" style={{ marginBottom: 16 }}><h2 style={{ fontSize: '1.2rem' }}>Policies</h2>
             <p className="muted">Leave a box empty to show a generic default. Review the text with a legal adviser before relying on it.</p>
-            {Object.entries(data.policy_titles).map(([slug, title]) => <Field key={slug} label={title} error={errors.policies}>{(p) => <textarea {...p} className="input" rows={4} placeholder="Using the generic default" value={policies[slug] ?? ''} onChange={(e) => setPolicies({ ...policies, [slug]: e.target.value })} />}</Field>)}</div>
+            {Object.entries(data.policy_titles).map(([slug, title]) => <RichField key={slug} label={title} error={errors.policies} rows={5} placeholder="Using the generic default" value={policies[slug] ?? ''} onChange={(x) => setPolicies((all) => ({ ...all, [slug]: x }))} />)}</div>
           <button className="btn" disabled={busy}>{busy ? <Spinner /> : 'Save website content'}</button>
         </form>
       )}
     </>
+  )
+}
+
+/** The picture shown behind the headings of the restaurant's web pages. */
+function HeroPicture({ current }: { current?: string | null }) {
+  const toast = useToast()
+  const [url, setUrl] = useState(current ?? null)
+  const [busy, setBusy] = useState(false)
+  async function send(file: File | null) {
+    setBusy(true)
+    try {
+      const body = file ? new FormData() : undefined
+      if (file) body!.append('image', file)
+      const r = await api<{ hero_image: string | null }>('/catalog/site/hero/', file ? { method: 'POST', body } : { method: 'DELETE' })
+      setUrl(r.hero_image); toast(file ? 'Picture saved.' : 'Picture removed.')
+    } catch (e) { toast(e instanceof ApiError ? (Object.values(e.fieldErrors())[0] ?? e.message) : 'Could not save the picture.') } finally { setBusy(false) }
+  }
+  return (
+    <div className="picture-slot">
+      <b>Picture behind the page headings</b>
+      <p className="hint">A wide photo of your food or dining room (PNG, JPEG or WebP, up to 4 MB). It is saved as soon as you choose it.</p>
+      {url && <img src={url} alt="Current heading picture" />}
+      <div className="location-actions">
+        <label className="btn sm secondary">{busy ? <Spinner /> : url ? 'Change picture' : 'Upload picture'}<input type="file" className="visually-hidden" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={(e) => { const file = e.target.files?.[0]; e.target.value = ''; if (file) void send(file) }} /></label>
+        {url && <button type="button" className="btn sm ghost" disabled={busy} onClick={() => void send(null)}>Remove</button>}
+      </div>
+    </div>
   )
 }

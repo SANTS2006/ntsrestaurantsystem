@@ -95,7 +95,7 @@ function ConvertModal({ req, onClose, onDone }: { req: Req; onClose: () => void;
     <Modal title={`Order ${done.number} created`} onClose={onDone}>
       {done.momo !== null && <MomoPayment paymentId={done.momo} />}
       {done.change !== null && <p style={{ fontSize: '1.4rem' }}>Change to give: <b>{money(done.change)}</b></p>}
-      <div style={{ display: 'flex', gap: 8 }}>{done.receipt && <Link className="btn" to={`/receipts/${done.receipt}`} target="_blank">Print receipt</Link>}<button className="btn secondary" onClick={onDone}>Done</button></div>
+      <div style={{ display: 'flex', gap: 8 }}>{done.receipt && <Link className="btn" to={`/receipts/${done.receipt}?print=1`}>Print receipt</Link>}<button className="btn secondary" onClick={onDone}>Done</button></div>
     </Modal>
   )
   return (

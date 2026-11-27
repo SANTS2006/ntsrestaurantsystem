@@ -3,11 +3,13 @@ import { useState, type FormEvent } from 'react'
 import { ApiError, api, type Page } from '../../lib/api'
 import { Empty, ErrorState, Field, Modal, Skeleton, Spinner, useAsync, useDocumentTitle, useToast } from '../../ui/kit'
 import { useConfirm } from '../../ui/dialogs'
+import { LocationPicker } from '../../ui/Maps'
+import { fullAddress } from '../../ui/geo'
 
 export type Restaurant = {
   id: number; name: string; slug: string; status: 'active' | 'suspended'; logo: string | null
   primary_color: string; secondary_color: string; description: string; contact_email: string; contact_phone: string
-  address: string; city: string; country: string; public_url: string
+  address: string; city: string; country: string; latitude: string | null; longitude: string | null; public_url: string
   branches_count: number; staff_count: number; customers_count: number
 }
 
@@ -81,7 +83,7 @@ export default function Restaurants() {
   )
 }
 
-const empty = { name: '', slug: '', admin_full_name: '', admin_email: '', primary_color: '#0a72e0', secondary_color: '#0b3f93', description: '', contact_email: '', contact_phone: '', address: '', city: '', country: '' }
+const empty = { name: '', slug: '', admin_full_name: '', admin_email: '', primary_color: '#0a72e0', secondary_color: '#0b3f93', description: '', contact_email: '', contact_phone: '', address: '', city: '', country: '', latitude: '', longitude: '' }
 
 function RestaurantForm({ initial, onClose, onSaved }: { initial: Restaurant | null; onClose: () => void; onSaved: () => void }) {
   const toast = useToast()
@@ -102,7 +104,7 @@ function RestaurantForm({ initial, onClose, onSaved }: { initial: Restaurant | n
     }
     setErrors(local)
     if (Object.keys(local).length) return
-    const keys = ['name', 'slug', 'primary_color', 'secondary_color', 'description', 'contact_email', 'contact_phone', 'address', 'city', 'country', ...(initial ? [] : ['admin_full_name', 'admin_email'])]
+    const keys = ['name', 'slug', 'primary_color', 'secondary_color', 'description', 'contact_email', 'contact_phone', 'address', 'city', 'country', 'latitude', 'longitude', ...(initial ? [] : ['admin_full_name', 'admin_email'])]
     const fd = new FormData()
     keys.forEach((k) => fd.append(k, v[k] ?? ''))
     if (logo) fd.append('logo', logo)
@@ -130,7 +132,7 @@ function RestaurantForm({ initial, onClose, onSaved }: { initial: Restaurant | n
       <form onSubmit={submit} noValidate>
         {errors.form && !Object.keys(errors).some((k) => k !== 'form') && <div className="alert error" role="alert">{errors.form}</div>}
         {text('name', 'Restaurant name', 'Enter the restaurant name')}
-        {text('slug', 'Website address (slug)', 'e.g. ocean-view', { hint: 'Public address: slug.yourplatform.com. Must be unique.' })}
+        {text('slug', 'Website address (slug)', 'e.g. ocean-view', { hint: 'The restaurant’s website is at your platform address followed by /slug. Must be unique.' })}
         {!initial && <>
           {text('admin_full_name', 'Administrator full name', 'Enter the administrator’s full name')}
           {text('admin_email', 'Administrator email', 'Enter the administrator’s email address', { type: 'email', hint: 'A secure password-setup link is sent here.' })}
@@ -156,6 +158,7 @@ function RestaurantForm({ initial, onClose, onSaved }: { initial: Restaurant | n
         {text('contact_phone', 'Contact phone', 'Enter the contact phone number')}
         {text('address', 'Address (optional)', 'Enter the street address')}
         <div className="grid g2">{text('city', 'City', 'City')}{text('country', 'Country', 'Country')}</div>
+        <LocationPicker address={v.address ? fullAddress(v.address, v.city, v.country) : ''} value={{ latitude: v.latitude, longitude: v.longitude }} onChange={(pin) => setV((now) => ({ ...now, ...pin }))} error={errors.latitude} />
         <button className="btn" disabled={busy} style={{ width: '100%' }}>{busy ? <Spinner /> : initial ? 'Save changes' : 'Register restaurant'}</button>
       </form>
     </Modal>

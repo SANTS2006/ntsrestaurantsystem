@@ -143,6 +143,24 @@ def _render(template, ctx, restaurant=None):
         return f"Invoice {ctx['number']} from {brand}", _layout(brand, color, f"Invoice {escape(ctx['number'])}", (
             f"<p>Hello {name}, an invoice for <b>{escape(ctx['total'])}</b> has been issued to you by {escape(brand)}. "
             f"Payment is due by <b>{escape(ctx['due'])}</b>. Please contact the restaurant for a copy or payment details.</p>"))
+    if template == "payroll_update":
+        rows = "".join(f"<li>{escape(line)}</li>" for line in ctx["lines"])
+        note = f"<p>{escape(ctx['note'])}</p>" if ctx["note"] else ""
+        return f"{ctx['subject']} ({brand})", _layout(brand, color, escape(ctx["heading"]), (
+            f"<p>Hello {name},</p><p>{escape(ctx['text'])}</p>" + (f"<ul>{rows}</ul>" if rows else "") + note
+            + _button(ctx["url"], "Open payroll", color)))
+    if template == "contact_received":
+        body = escape(ctx["message"]).replace("\n", "<br>")
+        return f"New website message {ctx['reference']}: {' '.join(str(ctx['subject']).split())[:100]}", _layout(brand, color, "A new message from your website", (
+            f"<p><b>{escape(ctx['name'])}</b> wrote to you.<br>Email: {escape(ctx['email'])}<br>Phone: {escape(ctx['phone'])}</p>"
+            f"<p><b>{escape(ctx['subject'])}</b><br>{body}</p>" + _button(ctx["url"], "Open the message", color)))
+    if template == "contact_reply":
+        reply = escape(ctx["reply"]).replace("\n", "<br>")
+        original = escape(ctx["original"][:1500]).replace("\n", "<br>")
+        return f"Re: {' '.join(str(ctx['subject']).split())[:120]} ({ctx['reference']})", _layout(brand, color, "We have replied to your message", (
+            f"<p>Hello {name},</p><p>{reply}</p>"
+            f'<p style="margin:18px 0 6px;color:#566883;font-size:13px">Your message ({escape(ctx["reference"])}):</p>'
+            f'<div style="padding:10px 12px;background:#f6f9ff;border:1px solid #dbe5f3;border-radius:8px;color:#566883;font-size:13px">{original}</div>'))
     if template == "reservation_confirmed":
         return f"Your reservation at {brand}", _layout(brand, color, "Reservation confirmed", (
             f"<p>Hello {name}, your table for <b>{escape(ctx['party'])}</b> is booked for <b>{escape(ctx['when'])}</b>. "

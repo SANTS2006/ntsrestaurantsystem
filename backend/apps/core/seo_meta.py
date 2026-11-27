@@ -9,6 +9,8 @@ from html import escape
 
 from django.conf import settings
 
+from apps.website.content import merged, plain
+
 PLATFORM_NAME = "NTS Restaurant Platform"
 PLATFORM_PAGES = {
     "": ("Restaurant management and online ordering platform", "Websites, online ordering, mobile money, point of sale, kitchen display, staff, payroll and reporting for restaurants, in one platform."),
@@ -41,9 +43,22 @@ def _absolute(url):
     return url if url.startswith("http") else _origin() + url
 
 
+def _platform_pages():
+    """Titles and descriptions as the platform owner wrote them in Website content (the built-in ones otherwise)."""
+    from apps.website.models import PlatformContent
+
+    row = PlatformContent.objects.filter(pk=1).first()
+    seo = merged(row.data if row else {})["seo"]
+    pages = {}
+    for key, entry in seo.items():
+        path = "" if key == "home" else key
+        pages[path] = (entry["title"] or PLATFORM_PAGES[path][0], entry["text"] or PLATFORM_PAGES[path][1])
+    return pages
+
+
 def _platform(path):
     if path in PLATFORM_PAGES:
-        title, desc = PLATFORM_PAGES[path]
+        title, desc = _platform_pages()[path]
     elif path.startswith("legal/"):
         title = path.split("/", 1)[1].replace("-", " ").capitalize()
         desc = f"{title} of the {PLATFORM_NAME}."
@@ -73,9 +88,11 @@ def _tenant(restaurant, path):
     lines, data, image = [], None, logo or _origin() + "/logo-512.png"
     if path == "":
         title = st.seo_title or (f"{name} | {where}" if where else name)
-        desc = st.seo_description or restaurant.description or f"Order online from {name}: see the menu, order for pickup or delivery and reserve a table."
+        desc = plain(st.seo_description or restaurant.description) or f"Order online from {name}: see the menu, order for pickup or delivery and reserve a table."
         data = {"@context": "https://schema.org", "@type": "Restaurant", "name": name, "url": base, "image": image, "description": desc,
                 "hasMenu": f"{base}/menu", "acceptsReservations": True}
+        if restaurant.latitude is not None and restaurant.longitude is not None:
+            data["geo"] = {"@type": "GeoCoordinates", "latitude": float(restaurant.latitude), "longitude": float(restaurant.longitude)}
         if restaurant.contact_phone:
             data["telephone"] = restaurant.contact_phone
         if restaurant.address or restaurant.city:
@@ -94,7 +111,7 @@ def _tenant(restaurant, path):
         p = Product.unscoped.filter(restaurant=restaurant, slug=path.split("/")[1], is_archived=False, category__is_active=True).first()
         if p is None:
             return None
-        title, desc = f"{p.name} | {name}", (p.description or f"{p.name} from {name}.")[:160]
+        title, desc = f"{p.name} | {name}", (plain(p.description) or f"{p.name} from {name}.")[:160]
         try:
             image = _absolute(p.image.url) if p.image else image
         except Exception:  # noqa: BLE001

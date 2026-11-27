@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from apps.core.models import AuditLog
 
+from .geo import check_pin
 from .models import PlatformSettings, Restaurant, SubscriptionPlan
 
 LOGO_MAX_BYTES = 2 * 1024 * 1024
@@ -29,9 +30,12 @@ class RestaurantAdminSerializer(serializers.ModelSerializer):
     class Meta:
         model = Restaurant
         fields = ["id", "name", "slug", "status", "logo", "primary_color", "secondary_color", "description",
-                  "contact_email", "contact_phone", "address", "city", "country", "plan", "plan_name", "public_url",
+                  "contact_email", "contact_phone", "address", "city", "country", "latitude", "longitude", "plan", "plan_name", "public_url",
                   "branches_count", "staff_count", "customers_count", "created_at"]
         read_only_fields = ["id", "status", "created_at"]  # status only changes through suspend/activate actions
+
+    def validate(self, data):
+        return check_pin(data, self.instance)
 
     def validate_logo(self, value):
         return validate_logo_file(value)

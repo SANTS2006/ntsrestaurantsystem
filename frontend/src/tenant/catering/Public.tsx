@@ -6,6 +6,7 @@ import { useSeo } from '../seo'
 import { useSite } from '../SiteContext'
 import { useConfirm } from '../../ui/dialogs'
 import { BackButton } from '../../ui/BackButton'
+import { PageHero } from '../../ui/PageHero'
 
 type Options = { event_types: { value: string; label: string }[]; services: { id: number; name: string }[]; branches: { id: number; name: string }[]; currency: string }
 const A = { auth: false } as const
@@ -56,8 +57,9 @@ export function CateringRequestPage() {
     </div></section>
   )
   return (
-    <section className="section"><div className="container" style={{ maxWidth: 760 }}>
-      <h1>Catering and events</h1>
+    <>
+    <PageHero crumb="Catering" eyebrow="Events" title="Catering and events" lead={`Tell ${site.restaurant.name} about your event and receive a quotation.`} image={site.hero_image} />
+    <section className="section"><div className="container narrow">
       <p className="muted">Tell us about your event and we will send you a quotation. Budget amounts are in {opts.data?.currency ?? site.currency}{v.budget && /^\d+(\.\d{1,2})?$/.test(v.budget) ? ` (${money(v.budget)})` : ''}.</p>
       {opts.error && <ErrorState message={opts.error} onRetry={opts.reload} />}
       {opts.loading ? <Skeleton h={300} /> : (
@@ -86,6 +88,7 @@ export function CateringRequestPage() {
           <button className="btn" disabled={busy}>{busy ? <Spinner /> : 'Send request'}</button>
         </form>)}
     </div></section>
+    </>
   )
 }
 

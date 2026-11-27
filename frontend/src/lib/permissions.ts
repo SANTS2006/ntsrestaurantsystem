@@ -28,7 +28,7 @@ export function can(role: string | null | undefined, ability: Ability): boolean 
 const SECTION_ABILITY: Record<string, Ability> = {
   dashboard: 'manage.use', customers: 'manage.use', stock: 'manage.use', finance: 'manage.use', tables: 'manage.use', catering: 'manage.use',
   shifts: 'manage.use', products: 'manage.use', categories: 'manage.use', inventory: 'manage.use', reports: 'manage.use', staff: 'manage.use',
-  payroll: 'manage.use', services: 'manage.use', gallery: 'manage.use',
+  payroll: 'manage.use', services: 'manage.use', gallery: 'manage.use', 'website-contact': 'manage.use',
   branches: 'admin.use', site: 'admin.use', cashier: 'pos.use', floor: 'floor.use', kitchen: 'kitchen.use', orders: 'orders.view', 'my-pay': 'mypay.view',
 }
 

@@ -43,7 +43,7 @@ export function MomoPayment({ paymentId, onPaid }: { paymentId: number; onPaid?:
         <CheckCircle2 size={46} aria-hidden />
         <h3>Payment received</h3>
         <p>{s.currency} {s.amount} for order {s.order_number}</p>
-        {s.receipt_id && <Link className="btn" to={`/receipts/${s.receipt_id}`} target="_blank">Print receipt</Link>}
+        {s.receipt_id && <Link className="btn" to={`/receipts/${s.receipt_id}?print=1`}>Print receipt</Link>}
       </div>
     )
   }

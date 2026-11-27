@@ -18,7 +18,7 @@ from apps.core.models import audit
 from apps.core.pagination import StandardPagination
 from apps.orders.models import Order
 
-from .models import CustomerNote
+from .models import CustomerAddress, CustomerNote
 
 DEAD = ["cancelled", "refunded"]
 
@@ -31,16 +31,20 @@ def scoped_customers(request):
     return qs.filter(user_id__in=ids)
 
 
+def picture(request, user):
+    """The customer's profile picture as an absolute URL, or None (the screen then shows initials)."""
+    try:
+        return request.build_absolute_uri(user.avatar.url) if user.avatar else None
+    except Exception:  # noqa: BLE001 - a storage hiccup must not break the directory
+        return None
+
+
 def stats_for(request, user_ids):
     o = Order.unscoped.filter(restaurant=request.tenant, customer_id__in=user_ids)
     if effective_role(request) not in (Role.RESTAURANT_ADMIN, Role.PLATFORM_ADMIN):
         o = o.filter(branch_id__in=accessible_branch_ids(request))  # a manager sees only their own branches' activity
     rows = o.exclude(status__in=DEAD).values("customer_id").annotate(n=Count("id"), spent=Sum("total", output_field=DecimalField()), last=Max("created_at"))
     return {r["customer_id"]: r for r in rows}
-
-
-class DirectoryRow(serializers.Serializer):
-    pass
 
 
 class CustomerList(ListAPIView):
@@ -59,7 +63,7 @@ class CustomerList(ListAPIView):
         rows = []
         for m in page:
             st = stats.get(m.user_id)
-            rows.append({"id": m.user_id, "name": m.user.full_name or m.user.email, "email": m.user.email, "phone": m.user.phone, "joined": m.created_at if hasattr(m, "created_at") else None,
+            rows.append({"id": m.user_id, "name": m.user.full_name or m.user.email, "email": m.user.email, "phone": m.user.phone, "avatar": picture(request, m.user), "joined": m.created_at,
                          "orders": st["n"] if st else 0, "spent": str((st["spent"] or Decimal("0")).quantize(Decimal("0.01"))) if st else "0.00", "last_order": st["last"] if st else None})
         return self.get_paginated_response(rows)
 
@@ -93,6 +97,10 @@ class CustomerDetail(APIView):
         audit("customer.viewed", actor=request.user, restaurant=request.tenant, obj=m.user, request=request)
         return Response({
             "id": m.user_id, "name": m.user.full_name or m.user.email, "email": m.user.email, "phone": m.user.phone,
+            "avatar": picture(request, m.user), "email_verified": m.user.email_verified, "joined": m.created_at,
+            "addresses": [{"id": x.pk, "label": x.label, "recipient": x.recipient_name, "phone": x.phone,
+                           "address": ", ".join(v for v in (x.line1, x.line2, x.city) if v), "notes": x.delivery_notes}
+                          for x in CustomerAddress.unscoped.filter(restaurant=request.tenant, user_id=m.user_id)[:10]],
             "orders": st["n"] if st else 0, "spent": str((st["spent"] or Decimal("0")).quantize(Decimal("0.01"))) if st else "0.00", "last_order": st["last"] if st else None,
             "recent_orders": [{"id": o.pk, "number": o.number, "status": o.status, "total": str(o.total), "branch": o.branch.name, "created_at": o.created_at} for o in orders[:10]],
             "notes": [{"id": n.pk, "text": n.text, "author": (n.author.full_name or n.author.email) if n.author else None, "created_at": n.created_at} for n in notes]})

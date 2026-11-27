@@ -165,10 +165,54 @@ class PeriodDetailView(Manage):
         return Response({"id": p.pk, "label": str(p), "records": [record_json(r, with_lines=False) for r in recs]})
 
 
+class GenerateInput(serializers.Serializer):
+    membership_ids = serializers.ListField(child=serializers.IntegerField(), required=False, allow_null=True, default=None, max_length=500)
+
+
 class PeriodGenerateView(Manage):
     def post(self, request, pk):
-        made, skipped = services.generate_period(request, pk)
-        return Response({"created": made, "skipped": skipped})
+        s = GenerateInput(data=request.data)
+        s.is_valid(raise_exception=True)
+        made, skipped = services.generate_period(request, pk, s.validated_data["membership_ids"])
+        return Response({"created": len(made), "skipped": len(skipped), "skipped_details": skipped})
+
+
+class PeriodCandidatesView(Manage):
+    def get(self, request, pk):
+        return Response([{"id": e.pk, "name": services._name(e.user), "email": e.user.email, "role": e.role,
+                          "branches": [b.name for b in e.branches.all()], "eligible": problem is None, "reason": problem or ""}
+                         for e, problem in services.candidates(request, pk)])
+
+
+class BulkInput(serializers.Serializer):
+    action = serializers.ChoiceField(choices=services.BULK_ACTIONS)
+    record_ids = serializers.ListField(child=serializers.IntegerField(), min_length=1, max_length=500)
+    reason = serializers.CharField(max_length=300, required=False, allow_blank=True, default="")
+    method = serializers.ChoiceField(choices=PAY_METHODS, required=False)
+    paid_on = serializers.DateField(required=False)
+
+    def validate(self, data):
+        if data["action"] == "pay" and not (data.get("method") and data.get("paid_on")):
+            raise serializers.ValidationError({"method": "Choose how and when the salaries were paid."})
+        if data["action"] in ("reject", "cancel") and not data["reason"].strip():
+            raise serializers.ValidationError({"reason": "Please give a reason."})
+        return data
+
+
+class PeriodBulkView(Manage):
+    def post(self, request, pk):
+        s = BulkInput(data=request.data)
+        s.is_valid(raise_exception=True)
+        d = s.validated_data
+
+        def handler():
+            payment = {"method": d.get("method"), "paid_on": d.get("paid_on")} if d["action"] == "pay" else None
+            done, failed = services.bulk(request, pk, d["action"], d["record_ids"], reason=d["reason"], payment=payment)
+            return 200, {"done": [{"id": r.pk, "name": services._name(r.employee.user), "net": str(r.net), "reference": r.payment_reference,
+                                   "receipt_number": r.receipt.number if d["action"] == "pay" else None} for r in done], "failed": failed}
+
+        status, body = run_idempotent(request, f"payroll.bulk:{pk}", request.headers.get("Idempotency-Key", ""), request.data, handler)
+        return Response(body, status=status)
 
 
 class RecordInput(serializers.Serializer):

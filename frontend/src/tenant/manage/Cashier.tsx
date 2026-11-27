@@ -118,7 +118,7 @@ function NewOrder({ hasShift, goShift, onCreated }: { hasShift: boolean; goShift
       {done.momo !== null && <MomoPayment paymentId={done.momo} onPaid={onCreated} />}
       {done.change !== null && <p style={{ fontSize: '1.5rem' }}>Change to give: <b>{money(done.change)}</b></p>}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {done.receipt && <Link className="btn" to={`/receipts/${done.receipt}`} target="_blank">Print receipt</Link>}
+        {done.receipt && <Link className="btn" to={`/receipts/${done.receipt}?print=1`}>Print receipt</Link>}
         <button className="btn secondary" onClick={reset}>New order</button>
       </div>
     </div>

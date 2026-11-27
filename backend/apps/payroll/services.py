@@ -17,8 +17,10 @@ from rest_framework.exceptions import NotFound
 
 from apps.accounts.models import Membership, Role
 from apps.accounts.permissions import accessible_branch_ids, can_assign_role, effective_role
-from apps.core.models import audit
+from apps.core.models import audit, next_document_number
 from apps.notifications.services import queue_email
+
+from . import notices
 
 from .models import (COMPONENT_TYPES, DEDUCTION_TYPES, EARNING_TYPES, PAY_METHODS, PayrollPeriod, PayrollRecord,
                      PayrollSequence, PayrollSettings, SalaryReceipt, SalaryStructure)
@@ -255,6 +257,7 @@ def create_structure(request, membership_id, data):
         components=clean_components(data["components"]), terms=data["terms"], currency=request.tenant.get_settings().currency,
         effective_from=data["effective_from"], created_by=request.user)
     audit("payroll.structure_created", actor=request.user, restaurant=request.tenant, obj=s, metadata={"employee": emp.pk, "version": version}, request=request)
+    notices.structure(request, "submitted", s)
     return s
 
 
@@ -286,6 +289,7 @@ def approve_structure(request, sid):
     audit("payroll.structure_approved", actor=request.user, restaurant=request.tenant, obj=s, metadata={"employee": s.employee.pk}, request=request)
     queue_email("salary_structure_updated", s.employee.user.email, {"name": s.employee.user.full_name, "effective": s.effective_from.isoformat()},
                 restaurant=request.tenant, dedupe_key=f"payroll:structure:{s.pk}")
+    notices.structure(request, "approved", s)
     return s
 
 
@@ -300,6 +304,7 @@ def reject_structure(request, sid, reason):
     s.status, s.reject_reason = SS.REJECTED, reason[:300]
     s.save()
     audit("payroll.structure_rejected", actor=request.user, restaurant=request.tenant, obj=s, metadata={"reason": reason[:200]}, request=request)
+    notices.structure(request, "rejected", s, reason[:300])
     return s
 
 
@@ -366,17 +371,51 @@ def upsert_record(request, period_id, membership_id, adjustments):
     return rec
 
 
-@transaction.atomic
-def generate_period(request, period_id):
-    """Create draft records for every in-scope employee with an approved structure and no record yet."""
+def draft_problem(request, period, emp, has_record):
+    """Why no new draft can be generated for this employee, or None."""
+    if has_record:
+        return "Already has a record for this month."
+    if not emp.is_active:
+        return "This staff account is deactivated."
+    problem = check_manage(request, emp)
+    if problem:
+        return problem
+    if pick_structure(emp, period) is None:
+        return "No approved salary for this month."
+    return None
+
+
+def candidates(request, period_id):
+    """Every in-scope employee, and whether a draft can be generated for them this month."""
     period = _period(request, period_id)
-    made, skipped = 0, 0
-    for emp in employees_in_scope(request):
-        if check_manage(request, emp) or PayrollRecord.unscoped.filter(period=period, employee=emp).exists() or pick_structure(emp, period) is None:
-            skipped += 1
+    have = set(PayrollRecord.unscoped.filter(period=period).values_list("employee_id", flat=True))
+    out = []
+    for emp in employees_in_scope(request).order_by("user__full_name", "id"):
+        problem = draft_problem(request, period, emp, emp.pk in have)
+        out.append((emp, problem))
+    return out
+
+
+@transaction.atomic
+def generate_period(request, period_id, membership_ids=None):
+    """Create drafts for the chosen employees (all of them when none are chosen) who have an approved salary and no record yet.
+    Returns the new records and, for chosen employees that were skipped, the reason."""
+    period = _period(request, period_id)
+    made, skipped = [], []
+    chosen = None if membership_ids is None else set(membership_ids)
+    for emp, problem in candidates(request, period.pk):
+        if chosen is not None and emp.pk not in chosen:
             continue
-        upsert_record(request, period.pk, emp.pk, [])
-        made += 1
+        if problem:
+            skipped.append({"id": emp.pk, "name": _name(emp.user), "reason": problem})
+            continue
+        made.append(upsert_record(request, period.pk, emp.pk, []))
+    if chosen is not None:
+        missing = chosen - {r.employee_id for r in made} - {x["id"] for x in skipped}
+        skipped += [{"id": i, "name": "Unknown employee", "reason": "Not in your scope."} for i in sorted(missing)]
+    if made:
+        fresh = list(PayrollRecord.unscoped.filter(pk__in=[r.pk for r in made]).select_related("employee__user", "period", "prepared_by"))
+        notices.records(request, "generated", fresh)
     return made, skipped
 
 
@@ -391,19 +430,25 @@ def _record(request, rid):
     return rec
 
 
+def _announce(request, event, rec, announce, reason=""):
+    if announce:
+        notices.records(request, event, [rec], reason)
+
+
 @transaction.atomic
-def submit_record(request, rid):
+def submit_record(request, rid, announce=True):
     rec = _record(request, rid)
     if rec.status != R.DRAFT:
         _fail("Only a draft can be submitted for approval.")
     rec.status, rec.submitted_at = R.SUBMITTED, timezone.now()
     rec.save()
     audit("payroll.record_submitted", actor=request.user, restaurant=request.tenant, obj=rec, request=request)
+    _announce(request, "submitted", rec, announce)
     return rec
 
 
 @transaction.atomic
-def approve_record(request, rid):
+def approve_record(request, rid, announce=True):
     _need_approver_role(request)
     rec = _record(request, rid)
     if rec.status != R.SUBMITTED:
@@ -414,11 +459,12 @@ def approve_record(request, rid):
     rec.status, rec.approved_by, rec.approved_at = R.APPROVED, request.user, timezone.now()
     rec.save()
     audit("payroll.record_approved", actor=request.user, restaurant=request.tenant, obj=rec, metadata={"net": str(rec.net)}, request=request)
+    _announce(request, "approved", rec, announce)
     return rec
 
 
 @transaction.atomic
-def reject_record(request, rid, reason):
+def reject_record(request, rid, reason, announce=True):
     _need_approver_role(request)
     rec = _record(request, rid)
     if rec.status != R.SUBMITTED:
@@ -428,11 +474,12 @@ def reject_record(request, rid, reason):
     rec.status, rec.decision_note = R.REJECTED, reason[:300]
     rec.save()
     audit("payroll.record_rejected", actor=request.user, restaurant=request.tenant, obj=rec, metadata={"reason": reason[:200]}, request=request)
+    _announce(request, "rejected", rec, announce, reason[:300])
     return rec
 
 
 @transaction.atomic
-def cancel_record(request, rid, reason):
+def cancel_record(request, rid, reason, announce=True):
     rec = _record(request, rid)
     if rec.status in (R.PAID, R.CANCELLED):
         _fail("This record can no longer be cancelled.")
@@ -441,11 +488,17 @@ def cancel_record(request, rid, reason):
     rec.status, rec.decision_note = R.CANCELLED, reason[:300]
     rec.save()
     audit("payroll.record_cancelled", actor=request.user, restaurant=request.tenant, obj=rec, metadata={"reason": reason[:200]}, request=request)
+    _announce(request, "cancelled", rec, announce, reason[:300])
     return rec
 
 
+def payment_reference(tenant, period):
+    """The system's own reference for a salary payment: unique and in sequence for this restaurant, e.g. PAY-202611-000042."""
+    return next_document_number(tenant, "salary_pay", f"PAY-{period.year}{period.month:02d}")
+
+
 @transaction.atomic
-def pay_record(request, rid, data):
+def pay_record(request, rid, data, announce=True):
     rec = _record(request, rid)
     if rec.status != R.APPROVED:
         _fail("Only an approved record can be paid.")
@@ -453,23 +506,67 @@ def pay_record(request, rid, data):
         _fail("A different person from the approver must record the payment.")
     if data["method"] not in PAY_METHODS:
         _fail("Choose a payment method.", "method")
-    if data["method"] != "cash" and not data["reference"].strip():
-        _fail("Enter the payment reference (transfer or transaction number).", "reference")
     if data["paid_on"] > timezone.now().date():
         _fail("The payment date cannot be in the future.", "paid_on")
     seq, _ = PayrollSequence.objects.select_for_update().get_or_create(restaurant=request.tenant)
     seq.last_number += 1
     seq.save(update_fields=["last_number"])
     rec.status, rec.paid_by, rec.paid_on = R.PAID, request.user, data["paid_on"]
-    rec.payment_method, rec.payment_reference = data["method"], data["reference"].strip()
+    rec.payment_method = data["method"]
+    rec.payment_reference = (data.get("reference") or "").strip() or payment_reference(request.tenant, rec.period)  # generated unless one is given
     rec.save()
     number = f"SAL-{seq.last_number:06d}"
-    SalaryReceipt.objects.create(restaurant=request.tenant, record=rec, number=number, data=receipt_data(rec, number, request.tenant))
+    rec.receipt = SalaryReceipt.objects.create(restaurant=request.tenant, record=rec, number=number, data=receipt_data(rec, number, request.tenant))
     audit("payroll.record_paid", actor=request.user, restaurant=request.tenant, obj=rec, metadata={"net": str(rec.net), "method": rec.payment_method}, request=request)
     queue_email("salary_paid", rec.employee.user.email, {"name": rec.employee.user.full_name, "period": str(rec.period), "net": f"{rec.currency} {rec.net}",
                                                         "number": number, "url": f"{request.tenant.public_url}/manage/my-pay"},
                 restaurant=request.tenant, dedupe_key=f"payroll:paid:{rec.pk}")
+    _announce(request, "paid", rec, announce)
     return rec
+
+
+BULK_ACTIONS = ("submit", "approve", "reject", "cancel", "pay")
+PAST = {"submit": "submitted", "approve": "approved", "reject": "rejected", "cancel": "cancelled", "pay": "paid"}
+
+
+def _reason_of(exc):
+    detail = getattr(exc, "detail", None)
+    while isinstance(detail, (dict, list)) and detail:
+        detail = next(iter(detail.values())) if isinstance(detail, dict) else detail[0]
+    return str(detail) if detail else "Not allowed."
+
+
+@transaction.atomic
+def bulk(request, period_id, action, record_ids, *, reason="", payment=None):
+    """Apply one action to many records of a month. Each record is checked by the same rules as a single action and succeeds or
+    fails on its own; the people concerned are then told once about everything that succeeded."""
+    period = _period(request, period_id)
+    mine = {r.pk: r for r in PayrollRecord.unscoped.filter(restaurant=request.tenant, period=period, pk__in=record_ids,
+                                                           employee__in=employees_in_scope(request).values("pk")).select_related("employee__user")}
+    done, failed = [], []
+    for rid in dict.fromkeys(record_ids):  # the same record is never handled twice
+        if rid not in mine:
+            failed.append({"id": rid, "name": "Unknown record", "reason": "Not a record of this month that you can handle."})
+            continue
+        try:
+            with transaction.atomic():
+                if action == "submit":
+                    rec = submit_record(request, rid, announce=False)
+                elif action == "approve":
+                    rec = approve_record(request, rid, announce=False)
+                elif action == "reject":
+                    rec = reject_record(request, rid, reason, announce=False)
+                elif action == "cancel":
+                    rec = cancel_record(request, rid, reason, announce=False)
+                else:  # every payment gets its own generated reference
+                    rec = pay_record(request, rid, {**payment, "reference": ""}, announce=False)
+            done.append(rec)
+        except (serializers.ValidationError, NotFound, PermissionError) as exc:
+            failed.append({"id": rid, "name": _name(mine[rid].employee.user), "reason": _reason_of(exc)})
+    notices.records(request, PAST[action], done, reason[:300] if action in ("reject", "cancel") else "")
+    audit(f"payroll.bulk_{action}", actor=request.user, restaurant=request.tenant, obj=period,
+          metadata={"done": [r.pk for r in done], "failed": len(failed)}, request=request)
+    return done, failed
 
 
 def receipt_data(rec, number, tenant):

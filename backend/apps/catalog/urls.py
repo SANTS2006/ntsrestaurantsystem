@@ -19,5 +19,6 @@ urlpatterns = [
     path("public/site/", pv.PublicSiteView.as_view()),
     path("public/policies/<slug:slug>/", pv.PublicPolicyView.as_view()),
     path("site/", pv.SiteContentView.as_view()),
+    path("site/hero/", pv.SiteHeroView.as_view()),
     path("", include(router.urls)),
 ]

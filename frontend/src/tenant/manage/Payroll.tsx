@@ -1,10 +1,12 @@
 import { Download } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { ApiError, api, downloadFile } from '../../lib/api'
 import { useAuth } from '../../lib/auth'
 import { Empty, ErrorState, Field, Modal, Skeleton, useAsync, useDocumentTitle, useToast } from '../../ui/kit'
 import { useSite } from '../SiteContext'
 import { usePrompt } from '../../ui/dialogs'
+import { useSearchParams } from 'react-router-dom'
+import { BulkBar, GenerateModal, Tick } from './PayrollBulk'
 
 export type Comp = { type: string; name: string; mode: 'fixed' | 'percent_of_basic'; amount: string }
 type Structure = { id: number; employee_id: number; version: number; status: string; frequency: string; basic_salary: string; components: Comp[]; terms: string; effective_from: string; created_by: string | null }
@@ -12,7 +14,7 @@ type Employee = { id: number; name: string; email: string; role: string; branche
 type Period = { id: number; year: number; month: number; label: string; records: number }
 type Rec = {
   id: number; period: string; status: string; employee: { id: number; name: string; role: string }; branch: string | null; basic_salary: string; gross: string; total_deductions: string; net: string
-  prepared_by: string | null; approved_by: string | null; paid_by: string | null; paid_on: string | null; receipt_number: string | null; decision_note: string
+  prepared_by: string | null; approved_by: string | null; paid_by: string | null; paid_on: string | null; receipt_number: string | null; decision_note: string; payment_reference?: string
   lines?: { source: string; type: string; name: string; amount: string }[]; adjustments?: Comp[]
 }
 type Summary = { by_status: Record<string, { count: number; gross: string; deductions: string; net: string }>; by_branch: { branch: string; count: number; gross: string; net: string }[]; paid_net: string; committed_net: string }
@@ -57,7 +59,10 @@ export default function Payroll() {
   useDocumentTitle('Payroll')
   const { me } = useAuth()
   const isAdmin = me?.role === 'restaurant_admin' || me?.role === 'platform_admin'
-  const [tab, setTab] = useState<'employees' | 'runs' | 'reports'>('employees')
+  const [params, setParams] = useSearchParams()
+  const wanted = params.get('tab')
+  const tab = wanted === 'runs' || wanted === 'reports' ? wanted : 'employees'
+  const setTab = (next: string) => setParams({ tab: next }, { replace: true })
   return (
     <>
       <h1 className="page-title">Payroll</h1>
@@ -160,17 +165,25 @@ function Runs({ isAdmin }: { isAdmin: boolean }) {
   const toast = useToast()
   const now = new Date()
   const periods = useAsync(() => api<Period[]>('/payroll/periods/'), [])
-  const [sel, setSel] = useState<number | null>(null)
+  const [params] = useSearchParams()
+  const linked = Number(params.get('period')) || null
+  const [sel, setSel] = useState<number | null>(linked)
+  useEffect(() => { if (linked) setSel(linked) }, [linked])
+  const [ticked, setTicked] = useState<Set<number>>(new Set())
+  const [generating, setGenerating] = useState(false)
   const [np, setNp] = useState({ year: now.getFullYear(), month: now.getMonth() + 1 })
   const [open, setOpen] = useState<number | null>(null)
   const cur = sel ?? periods.data?.[0]?.id ?? null
   const recs = useAsync(() => (cur ? api<{ label: string; records: Rec[] }>(`/payroll/periods/${cur}/`) : Promise.resolve(null)), [cur])
+  useEffect(() => { setTicked(new Set()) }, [cur])
+  const rows = recs.data?.records ?? []
+  const selected = rows.filter((r) => ticked.has(r.id))
+  const tickOne = (id: number, on: boolean) => setTicked((now) => { const next = new Set(now); if (on) next.add(id); else next.delete(id); return next })
+  const statuses = [...new Set(rows.map((r) => r.status))]
+  const changed = () => { recs.reload(); periods.reload() }
 
   async function create() {
     try { const p = await api<Period>('/payroll/periods/', { body: np }); toast('Payroll month created.'); periods.reload(); setSel(p.id) } catch (e) { toast(msg(e)) }
-  }
-  async function generate() {
-    try { const r = await api<{ created: number; skipped: number }>(`/payroll/periods/${cur}/generate/`, { body: {} }); toast(`${r.created} draft(s) created${r.skipped ? `, ${r.skipped} skipped` : ''}.`); recs.reload(); periods.reload() } catch (e) { toast(msg(e)) }
   }
   return (
     <>
@@ -178,20 +191,28 @@ function Runs({ isAdmin }: { isAdmin: boolean }) {
         <select className="input" style={{ maxWidth: 200 }} aria-label="Payroll month" value={cur ?? ''} onChange={(e) => setSel(Number(e.target.value))}>
           {(periods.data ?? []).map((p) => <option key={p.id} value={p.id}>{MONTHS[p.month - 1]} {p.year} ({p.records})</option>)}
         </select>
-        {cur && <button className="btn sm" onClick={generate}>Generate drafts</button>}
+        {cur && <button className="btn sm" onClick={() => setGenerating(true)}>Generate drafts</button>}
         <span style={{ flex: 1 }} />
         <select className="input" style={{ maxWidth: 90 }} aria-label="New month" value={np.month} onChange={(e) => setNp({ ...np, month: Number(e.target.value) })}>{MONTHS.map((n, i) => <option key={n} value={i + 1}>{n}</option>)}</select>
         <input className="input" style={{ maxWidth: 90 }} aria-label="New year" type="number" value={np.year} onChange={(e) => setNp({ ...np, year: Number(e.target.value) })} />
         <button className="btn sm secondary" onClick={create}>New month</button>
       </div>
       {recs.error && <ErrorState message={recs.error} onRetry={recs.reload} />}
+      {statuses.length > 0 && (
+        <div className="chips" role="group" aria-label="Select records by status" style={{ marginBottom: 10 }}>
+          <span className="muted">Select:</span>
+          {statuses.map((st) => <button type="button" key={st} className="chip" onClick={() => setTicked(new Set(rows.filter((r) => r.status === st).map((r) => r.id)))}>All {st} ({rows.filter((r) => r.status === st).length})</button>)}
+        </div>
+      )}
+      {cur && <BulkBar periodId={cur} selected={selected} isAdmin={isAdmin} onClear={() => setTicked(new Set())} onDone={changed} />}
       <div className="card table-wrap">
-        {!cur ? <Empty title="No payroll month yet">Create a month above, then generate drafts.</Empty> : !recs.data ? <Skeleton h={100} /> : !recs.data.records.length ? <Empty title="No records">Press “Generate drafts” to prepare pay for employees with an approved salary.</Empty> : (
-          <table className="tbl"><thead><tr><th>Employee</th><th>Branch</th><th>Gross</th><th>Deductions</th><th>Net pay</th><th>Status</th><th /></tr></thead><tbody>
-            {recs.data.records.map((r) => <tr key={r.id}><td><b>{r.employee.name}</b></td><td>{r.branch ?? '–'}</td><td>{money(r.gross)}</td><td>{money(r.total_deductions)}</td><td><b>{money(r.net)}</b></td><td><span className={`badge ${r.status === 'paid' ? 'active' : r.status === 'rejected' || r.status === 'cancelled' ? 'suspended' : ''}`}>{r.status}</span></td><td><button className="btn sm" onClick={() => setOpen(r.id)}>Open</button></td></tr>)}
+        {!cur ? <Empty title="No payroll month yet">Create a month above, then generate drafts.</Empty> : !recs.data ? <Skeleton h={100} /> : !recs.data.records.length ? <Empty title="No records">Press “Generate drafts” and choose the employees to prepare pay for.</Empty> : (
+          <table className="tbl"><thead><tr><th className="tick-col"><Tick label="Select all records" checked={rows.length > 0 && selected.length === rows.length} some={selected.length > 0} onChange={(on) => setTicked(new Set(on ? rows.map((r) => r.id) : []))} /></th><th>Employee</th><th>Branch</th><th>Gross</th><th>Deductions</th><th>Net pay</th><th>Status</th><th /></tr></thead><tbody>
+            {recs.data.records.map((r) => <tr key={r.id} className={ticked.has(r.id) ? 'row-new' : ''}><td className="tick-col"><Tick label={`Select ${r.employee.name}`} checked={ticked.has(r.id)} onChange={(on) => tickOne(r.id, on)} /></td><td><b>{r.employee.name}</b></td><td>{r.branch ?? '–'}</td><td>{money(r.gross)}</td><td>{money(r.total_deductions)}</td><td><b>{money(r.net)}</b></td><td><span className={`badge ${r.status === 'paid' ? 'active' : r.status === 'rejected' || r.status === 'cancelled' ? 'suspended' : ''}`}>{r.status}</span></td><td><button className="btn sm" onClick={() => setOpen(r.id)}>Open</button></td></tr>)}
           </tbody></table>)}
       </div>
-      {open !== null && <RecordModal id={open} isAdmin={isAdmin} onClose={() => setOpen(null)} onChanged={() => { recs.reload(); periods.reload() }} />}
+      {open !== null && <RecordModal id={open} isAdmin={isAdmin} onClose={() => setOpen(null)} onChanged={changed} />}
+      {generating && cur && <GenerateModal periodId={cur} label={recs.data?.label ?? ''} roleName={(r) => ROLE[r] ?? r} onClose={() => setGenerating(false)} onDone={() => { setGenerating(false); changed() }} />}
     </>
   )
 }
@@ -225,7 +246,7 @@ function RecordModal({ id, isAdmin, onClose, onChanged }: { id: number; isAdmin:
   }
   return (
     <Modal title={`${r.employee.name}: ${r.period}`} onClose={onClose}>
-      <p><span className="badge">{r.status}</span> {r.branch ?? 'Restaurant-wide'} · prepared by {r.prepared_by ?? '–'}{r.approved_by && <> · approved by {r.approved_by}</>}{r.paid_by && <> · paid by {r.paid_by} on {r.paid_on}</>}</p>
+      <p><span className="badge">{r.status}</span> {r.branch ?? 'Restaurant-wide'} · prepared by {r.prepared_by ?? '–'}{r.approved_by && <> · approved by {r.approved_by}</>}{r.paid_by && <> · paid by {r.paid_by} on {r.paid_on}</>}{r.payment_reference && <> · reference <code>{r.payment_reference}</code></>}</p>
       {r.decision_note && <p className="err">Note: {r.decision_note}</p>}
       <table className="tbl"><tbody>
         {(r.lines ?? []).map((l, i) => <tr key={i}><td>{l.name} <span className="muted">({TYPE_LABEL[l.type] ?? l.type}{l.source === 'adjustment' ? ', this month only' : ''})</span></td><td style={{ textAlign: 'right' }}>{['deduction', 'other_deduction'].includes(l.type) ? '−' : ''}{money(l.amount)}</td></tr>)}
@@ -261,7 +282,6 @@ function PayModal({ id, net, onClose, onPaid }: { id: number; net: string; onClo
   const [key] = useState(() => crypto.randomUUID()) // one key per dialog so a double-click cannot pay twice
   async function submit(e: FormEvent) {
     e.preventDefault()
-    if (f.method !== 'cash' && !f.reference.trim()) return setErr('Enter the transfer or transaction reference.')
     setBusy(true); setErr('')
     try { await api(`/payroll/records/${id}/pay/`, { body: f, headers: { 'Idempotency-Key': key } }); toast('Payment recorded.'); onPaid() } catch (x) { setErr(msg(x)) } finally { setBusy(false) }
   }
@@ -270,7 +290,7 @@ function PayModal({ id, net, onClose, onPaid }: { id: number; net: string; onClo
       <form noValidate onSubmit={submit}>
         <p className="muted">This records that you paid the employee outside the system. It cannot be undone.</p>
         <Field label="Method">{(p) => <select {...p} className="input" value={f.method} onChange={(e) => setF({ ...f, method: e.target.value })}><option value="bank_transfer">Bank transfer</option><option value="mobile_money">Mobile money</option><option value="cash">Cash</option><option value="other">Other</option></select>}</Field>
-        <Field label={f.method === 'cash' ? 'Reference (optional)' : 'Reference'}>{(p) => <input {...p} className="input" maxLength={80} value={f.reference} onChange={(e) => setF({ ...f, reference: e.target.value })} />}</Field>
+        <Field label="Your own reference (optional)" hint="Leave empty and the system generates one, e.g. PAY-202611-000001.">{(p) => <input {...p} className="input" maxLength={80} placeholder="Generated automatically" value={f.reference} onChange={(e) => setF({ ...f, reference: e.target.value })} />}</Field>
         <Field label="Paid on">{(p) => <input {...p} className="input" type="date" max={new Date().toISOString().slice(0, 10)} value={f.paid_on} onChange={(e) => setF({ ...f, paid_on: e.target.value })} />}</Field>
         {err && <p className="err" role="alert">{err}</p>}
         <button className="btn" disabled={busy}>{busy ? 'Recording…' : 'Confirm payment'}</button>

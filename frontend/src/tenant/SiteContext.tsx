@@ -3,6 +3,7 @@ import { api } from '../lib/api'
 import { API_URL } from '../lib/config'
 import { ErrorState, PageLoader, useAsync } from '../ui/kit'
 import { setBrand } from '../ui/Loaders'
+import { NotFound } from '../ui/NotFound'
 
 export type Variation = { id: number; kind: string; name: string; price_delta: string; is_default: boolean }
 export type Addon = { id: number; name: string; price: string; max_quantity: number }
@@ -14,10 +15,10 @@ export type PublicProduct = {
 }
 export type MenuCategory = { id: number; slug: string; name: string; description: string; products: PublicProduct[] }
 export type Site = {
-  restaurant: { name: string; slug: string; logo: string | null; primary_color: string; secondary_color: string; description: string; contact_email: string; contact_phone: string; address: string; city: string; country: string }
-  url: string; hero_title: string; hero_subtitle: string; about_text: string; delivery_info: string; faqs: { q: string; a: string }[]
+  restaurant: { name: string; slug: string; logo: string | null; primary_color: string; secondary_color: string; description: string; contact_email: string; contact_phone: string; address: string; city: string; country: string; latitude: string | null; longitude: string | null }
+  hero_image: string | null; url: string; hero_title: string; hero_subtitle: string; about_text: string; delivery_info: string; faqs: { q: string; a: string }[]
   currency: string; online_payments: boolean; delivery_enabled: boolean; pickup_enabled: boolean; seo_title: string; seo_description: string
-  branches: { id: number; name: string; address: string; phone: string; email: string; operating_hours: Record<string, string> }[]
+  branches: { id: number; name: string; address: string; location: string; latitude: string | null; longitude: string | null; phone: string; email: string; operating_hours: Record<string, string> }[]
   policies: { slug: string; title: string }[]
 }
 
@@ -37,7 +38,7 @@ export function formatMoney(value: string | number, currency = 'SLE'): string {
 
 /** Loads the restaurant's public data once and applies its brand colours to the whole page. */
 export function SiteProvider({ children }: { children: ReactNode }) {
-  const { data, loading, error, reload } = useAsync(() => api<Site>('/catalog/public/site/', { auth: false }), [])
+  const { data, loading, error, status, reload } = useAsync(() => api<Site>('/catalog/public/site/', { auth: false }), [])
   useEffect(() => {
     if (!data) return
     const r = document.documentElement.style
@@ -49,6 +50,10 @@ export function SiteProvider({ children }: { children: ReactNode }) {
   }, [data])
   const value = useMemo(() => (data ? { site: data, money: (v: string | number) => formatMoney(v, data.currency) } : null), [data])
   if (loading) return <PageLoader />
+  if (!value && status === 404) {
+    return <NotFound full brand="NTS Restaurant Platform" logo="/logo-64.png" title="We could not find this page"
+      text="There is no page or restaurant at this address. Check the spelling, or go to the main website." links={[{ href: '/', label: 'Go to the main website' }, { href: '/contact', label: 'Contact us' }]} />
+  }
   if (error || !value) return <div className="container section"><ErrorState message={error ?? 'Restaurant not found.'} onRetry={reload} /></div>
   return <SiteCtx.Provider value={value}>{children}</SiteCtx.Provider>
 }

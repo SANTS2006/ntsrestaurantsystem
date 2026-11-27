@@ -1,10 +1,11 @@
 import { Download, Printer } from 'lucide-react'
 import { useEffect, useRef } from 'react'
-import { Link, Navigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { api, downloadFile } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { API_URL } from '../lib/config'
 import { BackButton } from '../ui/BackButton'
+import { printWhenReady } from '../ui/print'
 import { ErrorState, Skeleton, useAsync, useDocumentTitle, useToast } from '../ui/kit'
 import { formatMoney } from './SiteContext'
 import '../receipt.css'
@@ -89,6 +90,10 @@ export default function Receipt() {
   const { me, loading } = useAuth()
   const toast = useToast()
   const wrap = useRef<HTMLDivElement>(null)
+  const navigate = useNavigate()
+  const location = useLocation()
+  const [params, setParams] = useSearchParams()
+  const wantsPrint = params.get('print') === '1'
   const r = useAsync(() => (me ? api<ReceiptData>(`/payments/receipts/${id}/`) : Promise.resolve(null)), [id, me?.id])
   useDocumentTitle(r.data ? `Receipt ${r.data.number}` : 'Receipt')
 
@@ -108,8 +113,15 @@ export default function Receipt() {
     return () => { window.removeEventListener('beforeprint', fit); style.remove(); document.documentElement.classList.remove('printing-receipt') }
   }, [r.data])
 
+  // "Print receipt" buttons arrive with ?print=1: open the print window once the logo and QR code are drawn.
+  // (This effect is declared after the one that sets the paper size, so the size is in place first.)
+  useEffect(() => {
+    if (!r.data || !wantsPrint || !wrap.current) return
+    return printWhenReady(wrap.current, () => setParams((p) => { p.delete('print'); return p }, { replace: true }))
+  }, [r.data, wantsPrint, setParams])
+
   if (loading) return <Skeleton h={200} />
-  if (!me) return <Navigate to={`/login?next=/receipts/${id}`} replace />
+  if (!me) return <Navigate to={`/login?next=${encodeURIComponent(`/receipts/${id}${location.search}`)}`} replace />
   if (r.loading && !r.data) return <div className="container section"><Skeleton h={300} /></div>
   if (r.error || !r.data) return <div className="container section"><ErrorState message={r.error ?? 'Receipt not found.'} /> <Link to="/">Home</Link></div>
   const d = r.data
@@ -117,9 +129,9 @@ export default function Receipt() {
   return (
     <div className="receipt-page" ref={wrap}>
       <div className="receipt-actions no-print">
-        <BackButton to={back} />
-        <button className="btn secondary" onClick={() => window.print()}><Printer size={16} aria-hidden /> Print (80 mm)</button>
-        <button className="btn" onClick={() => downloadFile(`/payments/receipts/${id}/pdf/`, `${d.number}.pdf`).catch(() => toast('Could not download the PDF.'))}><Download size={16} aria-hidden /> PDF</button>
+        <BackButton onClick={() => (location.key === 'default' ? navigate(back) : navigate(-1))} />
+        <button className="btn" onClick={() => window.print()}><Printer size={16} aria-hidden /> Print (80 mm)</button>
+        <button className="btn secondary" onClick={() => downloadFile(`/payments/receipts/${id}/pdf/`, `${d.number}.pdf`).catch(() => toast('Could not download the PDF.'))}><Download size={16} aria-hidden /> PDF</button>
       </div>
       <ReceiptPaper d={d} />
       <p className="hint no-print receipt-help">For the thermal printer, choose it in the print window with paper size 80 mm, margins “None” and scale 100%.</p>

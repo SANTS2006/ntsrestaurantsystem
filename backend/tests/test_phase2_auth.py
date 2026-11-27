@@ -281,7 +281,27 @@ def test_google_rejects_invalid_token_unverified_email_and_platform_host(world, 
     google["claims"] = claims(email_verified=False)
     assert g(accept_terms=True).status_code == 401
     google["claims"] = claims()
-    assert g(slug=None, accept_terms=True).status_code == 404
+    assert g(slug=None, accept_terms=True).status_code == 403  # the platform page never creates accounts
+    assert not User.objects.filter(email="gus@gmail.com").exists()
+
+
+def test_google_signs_in_an_existing_platform_admin_on_the_platform_only(world, google, settings):
+    settings.MFA_ENFORCEMENT = False
+    google["claims"] = claims(sub="g-root", email="root@x.com", name="Root")
+    r = g(slug=None)
+    assert r.status_code == 200 and "access" in r.data["data"]
+    assert GoogleIdentity.objects.get(sub="g-root").user == world["platform"]
+    assert g(slug="alpha", accept_terms=True).status_code == 403  # still refused on a restaurant website
+    world["platform"].is_active = False
+    world["platform"].save(update_fields=["is_active"])
+    assert g(slug=None).status_code == 403
+
+
+@pytest.mark.parametrize("email", ["cust@a.com", "admin@a.com", "stranger@gmail.com"])
+def test_google_platform_page_refuses_everyone_who_is_not_a_platform_admin(world, google, email):
+    google["claims"] = claims(sub="g-no", email=email)
+    r = g(slug=None, accept_terms=True)
+    assert r.status_code == 403 and not GoogleIdentity.objects.filter(sub="g-no").exists()
 
 
 def test_google_links_verified_existing_account_by_sub_only(world, google):

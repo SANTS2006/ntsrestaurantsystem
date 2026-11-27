@@ -4,10 +4,11 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.validators import RegexValidator
+from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models
 
 from apps.core.tenancy import TimeStampedModel
+from apps.core.uploads import random_upload_path
 
 hex_color = RegexValidator(r"^#[0-9a-fA-F]{6}$", "Enter a hex colour like #1a2b3c.")
 # A restaurant lives at https://<platform domain>/<slug>, so its slug must never equal a top-level platform path.
@@ -16,6 +17,12 @@ RESERVED_SLUGS = {
     "healthz", "readyz", "robots", "sitemap", "login", "register", "logout", "features", "pricing", "about", "faq", "contact",
     "legal", "terms", "privacy", "forgot-password", "setup-password", "verify-email", "favicon", "logo", "index", "new", "null", "undefined",
 }
+
+
+def _coordinate(limit):
+    """An optional map coordinate (about 11 cm precision)."""
+    return models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True,
+                               validators=[MinValueValidator(-limit), MaxValueValidator(limit)])
 
 
 def validate_slug(value):
@@ -72,6 +79,8 @@ class Restaurant(TimeStampedModel):
     address = models.CharField(max_length=255, blank=True)
     city = models.CharField(max_length=100, blank=True)
     country = models.CharField(max_length=100, blank=True)
+    latitude = _coordinate(90)  # optional exact map pin; without it the map searches for the written address
+    longitude = _coordinate(180)
 
     # Plain manager is intentionally unscoped: Restaurant *is* the tenant.
     unscoped_objects = models.Manager()
@@ -130,6 +139,7 @@ class RestaurantSettings(TimeStampedModel):
     # Public website content (edited by the restaurant administrator)
     hero_title = models.CharField(max_length=120, blank=True)
     hero_subtitle = models.CharField(max_length=250, blank=True)
+    hero_image = models.ImageField(upload_to=random_upload_path("restaurants/heroes"), blank=True)  # picture behind page headings
     about_text = models.TextField(blank=True)
     delivery_info = models.TextField(blank=True)
     faqs = models.JSONField(default=list, blank=True)  # [{"q": "...", "a": "..."}]
@@ -146,6 +156,8 @@ class Branch(TimeStampedModel):
     code = models.CharField(max_length=20)
     address = models.CharField(max_length=255, blank=True)
     location = models.CharField(max_length=150, blank=True)
+    latitude = _coordinate(90)
+    longitude = _coordinate(180)
     phone = models.CharField(max_length=30, blank=True)
     email = models.EmailField(blank=True)
     operating_hours = models.JSONField(default=dict, blank=True)

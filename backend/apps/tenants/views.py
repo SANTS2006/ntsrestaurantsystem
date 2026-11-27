@@ -9,6 +9,7 @@ from apps.accounts.permissions import (BranchScopedQuerysetMixin, IsManagerOrAbo
                                        IsRestaurantAdminOrAbove)
 from apps.core.models import audit
 
+from .geo import check_pin
 from .models import Branch, Restaurant
 
 
@@ -18,7 +19,7 @@ class PublicRestaurantSerializer(serializers.ModelSerializer):
     class Meta:
         model = Restaurant
         fields = ["name", "slug", "logo", "primary_color", "secondary_color", "description",
-                  "contact_email", "contact_phone", "address", "city", "country"]
+                  "contact_email", "contact_phone", "address", "city", "country", "latitude", "longitude"]
 
 
 class CurrentRestaurantView(APIView):
@@ -39,7 +40,7 @@ class BranchSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Branch
-        fields = ["id", "name", "code", "address", "location", "phone", "email", "operating_hours", "status",
+        fields = ["id", "name", "code", "address", "location", "latitude", "longitude", "phone", "email", "operating_hours", "status",
                   "manager", "manager_name", "staff_count"]
         # restaurant is never client-settable; status and manager change only through the audited actions below
         read_only_fields = ["id", "status", "manager"]
@@ -58,6 +59,9 @@ class BranchSerializer(serializers.ModelSerializer):
         if qs.exists():
             raise serializers.ValidationError("This branch code is already used.")
         return value
+
+    def validate(self, data):
+        return check_pin(data, self.instance)
 
     def validate_operating_hours(self, value):
         if not isinstance(value, dict) or len(value) > 7 or not all(isinstance(k, str) and isinstance(v, str) and len(v) <= 40 for k, v in value.items()):

@@ -18,8 +18,14 @@ def _when(value):
 
 def related_details(request, n):
     tenant = getattr(request, "tenant", None)
-    if tenant is None or not n.object_id:
+    if not n.object_id:
         return None
+    if n.object_type == "contact_message":
+        return _contact_message(request, n)
+    if tenant is None:
+        return None
+    if n.object_type in ("payroll_record", "salary_change"):
+        return _pay(request, tenant, n)
     if n.object_type == "order":
         from apps.orders.models import Order
 
@@ -60,3 +66,43 @@ def related_details(request, n):
             ("Status now", c.get_status_display()), ("Event", c.get_event_type_display()), ("Date", c.event_date), ("Guests", c.guests),
             ("Customer", c.customer_name), ("Branch", c.branch.name)), "items": []}
     return None
+
+
+def _contact_message(request, n):
+    from apps.website.views import CanHandleMessages, visible_messages
+
+    if not CanHandleMessages().has_permission(request, None):
+        return None
+    m = visible_messages(request).filter(pk=n.object_id).first()
+    if m is None:
+        return None
+    return {"heading": f"Website message {m.reference}", "fields": _fields(
+        ("Status now", m.get_status_display()), ("From", m.name), ("Email", m.email), ("Phone", m.phone), ("Restaurant of the sender", m.business_name),
+        ("About", m.get_topic_display()), ("Subject", m.subject), ("Branch", m.branch.name if m.branch else ""), ("Sent", _when(m.created_at)),
+        ("Message", m.message[:600])), "items": []}
+
+
+def _pay(request, tenant, n):
+    """The employee sees their own pay; otherwise only someone who may handle that employee's pay today."""
+    from apps.accounts.permissions import effective_role
+    from apps.payroll.models import PayrollRecord, SalaryStructure
+    from apps.payroll.services import check_manage
+
+    model = PayrollRecord if n.object_type == "payroll_record" else SalaryStructure
+    row = model.unscoped.filter(pk=n.object_id, restaurant=tenant).select_related("employee__user").first()
+    if row is None:
+        return None
+    own = row.employee.user_id == request.user.pk
+    handler = effective_role(request) in ("platform_admin", "restaurant_admin", "manager") and check_manage(request, row.employee) is None
+    if not own and not handler:
+        return None
+    who = row.employee.user.full_name or row.employee.user.email
+    if n.object_type == "salary_change":
+        return {"heading": f"Salary of {who}", "fields": _fields(
+            ("Status now", row.get_status_display()), ("Basic salary", f"{row.currency} {row.basic_salary}"), ("Starts on", row.effective_from)), "items": []}
+    final = row.status in ("approved", "paid")
+    amounts = handler or final  # an employee learns the amounts once they are approved
+    return {"heading": f"Pay of {who}, {row.period}", "fields": _fields(
+        ("Status now", row.get_status_display()), ("Gross", f"{row.currency} {row.gross}" if amounts else ""),
+        ("Deductions", f"{row.currency} {row.total_deductions}" if amounts else ""), ("Net pay", f"{row.currency} {row.net}" if amounts else ""),
+        ("Paid on", row.paid_on), ("Payment reference", row.payment_reference)), "items": []}

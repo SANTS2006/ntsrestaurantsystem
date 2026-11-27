@@ -4,6 +4,7 @@ import { ApiError, api } from '../lib/api'
 import { Empty, ErrorState, Field, Skeleton, Spinner, useAsync, useDocumentTitle } from '../ui/kit'
 import { useSite } from './SiteContext'
 import { useConfirm } from '../ui/dialogs'
+import { PageHero } from '../ui/PageHero'
 
 type Options = { enabled: boolean; max_party: number; duration_minutes: number; auto_confirm: boolean; branches: { id: number; name: string }[] }
 type Booked = { reference: string; status: string; branch: string; local_date: string; local_time: string; party_size: number; table: string | null; manage_token?: string; cancel_reason?: string }
@@ -55,9 +56,9 @@ export function ReservePage() {
     </div>
   )
   return (
-    <div className="container section" style={{ maxWidth: 720 }}>
-      <p className="eyebrow">Reservations</p>
-      <h1 style={{ fontSize: 'clamp(2rem, 4vw, 2.8rem)' }}>Reserve a table</h1>
+    <>
+    <PageHero crumb="Reserve" eyebrow="Reservations" title="Reserve a table" lead="Choose a day, the number of guests and a time that suits you." image={site.hero_image} />
+    <div className="container section narrow">
       <p className="muted">Pick a day, party size and time. Bookings hold the table for {opts.data.duration_minutes} minutes. For groups above {opts.data.max_party}, please call us.</p>
       <form className="card" onSubmit={submit} noValidate>
         {errors.form && <div className="alert error" role="alert">{errors.form}</div>}
@@ -81,6 +82,7 @@ export function ReservePage() {
         <button className="btn lg" disabled={busy}>{busy ? <Spinner /> : 'Book this table'}</button>
       </form>
     </div>
+    </>
   )
 }
 

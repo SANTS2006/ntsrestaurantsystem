@@ -2,6 +2,7 @@
 from django.conf import settings
 
 GOOGLE = "https://accounts.google.com"
+MAPS = "https://www.google.com/maps https://maps.google.com"  # the embedded location maps on the websites
 
 
 def csp() -> str:
@@ -12,7 +13,7 @@ def csp() -> str:
         "img-src": "'self' data: https://res.cloudinary.com",
         "font-src": "'self'",
         "connect-src": f"'self' wss: {GOOGLE}/gsi/",
-        "frame-src": f"{GOOGLE}/gsi/",
+        "frame-src": f"{GOOGLE}/gsi/ {MAPS}",
         "frame-ancestors": "'none'",
         "base-uri": "'self'",
         "form-action": "'self'",
@@ -32,7 +33,7 @@ class SecurityHeadersMiddleware:
         if request.path.startswith("/django-admin"):
             return resp  # the Django admin ships its own inline scripts; it is also restricted to platform staff
         resp.setdefault("Content-Security-Policy", csp())
-        resp.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()")
+        resp.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=(self), payment=(), usb=(), interest-cohort=()")
         resp.setdefault("Cross-Origin-Opener-Policy", "same-origin-allow-popups")  # allows the Google sign-in popup
         resp.setdefault("Cross-Origin-Resource-Policy", "same-site")
         if request.path_info.startswith("/api/") and "Cache-Control" not in resp:

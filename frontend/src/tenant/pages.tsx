@@ -7,7 +7,12 @@ import { Rise, SectionHead, Tilt } from '../ui/fx'
 import { useSeo } from './seo'
 import { ProductBuy } from './shop'
 import { useSite, type MenuCategory, type PublicProduct } from './SiteContext'
-import { BackButton } from '../ui/BackButton'
+import { ContactForm } from '../ui/ContactForm'
+import { PageHero } from '../ui/PageHero'
+import { NotFound } from '../ui/NotFound'
+import { Paragraphs, RichText } from '../ui/RichText'
+import { plain } from '../ui/boldText'
+import { Locations } from './Locations'
 
 const A = { auth: false } as const
 const Scene3D = lazy(() => import('../ui/Scene3D'))
@@ -42,11 +47,6 @@ function Grid({ items }: { items: PublicProduct[] }) {
   return <div className="cards">{items.map((p, i) => <Rise key={p.id} index={i % 4}><Tilt><ProductCard p={p} /></Tilt></Rise>)}</div>
 }
 
-function Hours({ hours }: { hours: Record<string, string> }) {
-  const e = Object.entries(hours ?? {})
-  return e.length ? <ul style={{ listStyle: 'none', padding: 0, margin: '6px 0' }}>{e.map(([d, t]) => <li key={d}><b style={{ textTransform: 'capitalize' }}>{d}</b>: {t}</li>)}</ul> : null
-}
-
 export function Home() {
   const { site } = useSite()
   const r = site.restaurant
@@ -60,7 +60,7 @@ export function Home() {
   useSeo({
     title: site.seo_title, description: site.seo_description, image: r.logo, path: '/',
     jsonLd: {
-      '@context': 'https://schema.org', '@type': 'Restaurant', name: r.name, description: r.description, url: site.url, image: r.logo ?? undefined,
+      '@context': 'https://schema.org', '@type': 'Restaurant', name: r.name, description: plain(r.description), url: site.url, image: r.logo ?? undefined,
       telephone: r.contact_phone || undefined, email: r.contact_email || undefined, hasMenu: `${site.url}/menu`,
       address: r.address || r.city ? { '@type': 'PostalAddress', streetAddress: r.address, addressLocality: r.city, addressCountry: r.country } : undefined,
     },
@@ -69,13 +69,14 @@ export function Home() {
   const where = [r.city, r.country].filter(Boolean).join(', ')
   return (
     <>
-      <section className="hero-x">
+      <section className={`hero-x ${site.hero_image ? 'has-photo' : ''}`}>
+        {site.hero_image && <img className="hero-photo" src={site.hero_image} alt="" />}
         <span className="blob a" aria-hidden /><span className="blob b" aria-hidden />
         <div className="container cols">
           <div>
             <p className="pill"><UtensilsCrossed size={14} aria-hidden /> {where || 'Welcome'}</p>
-            <h1><span className="grad">{site.hero_title}</span></h1>
-            {site.hero_subtitle && <p className="lead">{site.hero_subtitle}</p>}
+            <h1><span className="grad"><RichText text={site.hero_title} /></span></h1>
+            {site.hero_subtitle && <p className="lead"><RichText text={site.hero_subtitle} /></p>}
             <div className="cta">
               <Link className="btn lg" to="/menu">View the menu <ArrowRight size={18} aria-hidden /></Link>
               <Link className="btn lg secondary" to="/reserve"><CalendarCheck size={18} aria-hidden /> Reserve a table</Link>
@@ -133,10 +134,8 @@ export function Home() {
       )}
 
       <section className="section-x alt"><div className="container"><SectionHead eyebrow="Visit" title="Find us" />
-        <div className="visit">
-          {site.branches.map((b, i) => <Rise key={b.name} index={i} from="left"><div className="card"><h3><MapPin aria-hidden size={20} /> {b.name}</h3>{b.address && <p>{b.address}</p>}{b.phone && <p><Phone size={15} aria-hidden /> <a href={`tel:${b.phone}`}>{b.phone}</a></p>}<Hours hours={b.operating_hours} /></div></Rise>)}
-          {(site.delivery_info || site.delivery_enabled) && <Rise from="right"><div className="card"><h3><Truck aria-hidden size={20} /> Delivery</h3><p>{site.delivery_info || 'Delivery is available. Details are shown at checkout.'}</p></div></Rise>}
-        </div>
+        <Locations />
+        {(site.delivery_info || site.delivery_enabled) && <Rise from="zoom"><div className="delivery-note"><Truck aria-hidden size={22} /><div><h3>Delivery</h3>{site.delivery_info ? <Paragraphs text={site.delivery_info} /> : <p>Delivery is available. Details are shown at checkout.</p>}</div></div></Rise>}
       </div></section>
 
       <section className="section-x"><div className="container"><Rise from="zoom"><div className="cta-band">
@@ -156,8 +155,9 @@ export function Menu() {
   const shown = useMenu({ q: q.trim(), category: params })
   useSeo({ title: `Menu | ${site.restaurant.name}`, description: `Browse the full menu of ${site.restaurant.name}.`, path: '/menu' })
   return (
+    <>
+    <PageHero crumb="Menu" eyebrow="From our kitchen" title="Our menu" lead={`Browse everything ${site.restaurant.name} serves, and order online.`} image={site.hero_image} />
     <section className="section"><div className="container">
-      <h1>Menu</h1>
       <div style={{ position: 'relative', maxWidth: 420, marginBottom: 16 }}>
         <Search size={18} aria-hidden style={{ position: 'absolute', left: 12, top: 13 }} />
         <input className="input" style={{ paddingLeft: 38 }} type="search" placeholder="Search dishes" aria-label="Search dishes" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -171,20 +171,22 @@ export function Menu() {
         : !shown.data?.length ? <Empty title={q ? 'No dishes match your search' : 'The menu is being prepared'}>{q ? 'Try a different word.' : 'Please check back soon.'}</Empty>
         : shown.data.map((c) => <div key={c.slug} style={{ marginBottom: 36 }}><h2>{c.name}</h2>{c.description && <p className="muted">{c.description}</p>}<Grid items={c.products} /></div>)}
     </div></section>
+    </>
   )
 }
 
 export function ProductPage() {
   const { slug = '' } = useParams()
   const { site, money } = useSite()
-  const { data: p, loading, error } = useAsync(() => api<PublicProduct>(`/catalog/public/products/${slug}/`, A), [slug])
+  const { data: p, loading, error, status, reload } = useAsync(() => api<PublicProduct>(`/catalog/public/products/${slug}/`, A), [slug])
   useSeo({
     title: p ? `${p.name} | ${site.restaurant.name}` : site.restaurant.name, description: p?.description.slice(0, 160), image: p?.image, path: `/menu/${slug}`, type: 'product',
     jsonLd: p ? { '@context': 'https://schema.org', '@type': 'Product', name: p.name, description: p.description, image: p.image ?? undefined,
       offers: { '@type': 'Offer', price: p.price, priceCurrency: site.currency, availability: p.sold_out ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock' } } : undefined,
   })
   if (loading) return <div className="container section"><Skeleton h={300} /></div>
-  if (error || !p) return <div className="container section"><Empty title="Dish not found"><BackButton to="/menu">Back to the menu</BackButton></Empty></div>
+  if (!p && status === 404) return <NotFound title="That dish is not on the menu" text="It may have been renamed or taken off the menu." links={[{ to: '/menu', label: 'See the menu' }, { to: '/', label: 'Back to home' }]} />
+  if (error || !p) return <div className="container section"><ErrorState message={error ?? 'Could not load this dish.'} onRetry={reload} /></div>
   return (
     <section className="section"><div className="container grid g2" style={{ alignItems: 'start' }}>
       {p.image ? <img src={p.image} alt={p.name} style={{ width: '100%', borderRadius: 12 }} /> : <div className="card empty" aria-hidden>🍽️</div>}
@@ -213,11 +215,14 @@ export function Services() {
   const { data, loading, error, reload } = useAsync(() => api<{ slug: string; name: string; description: string; image: string | null }[]>('/catalog/public/services/', A), [])
   useSeo({ title: `Services | ${site.restaurant.name}`, description: `Services offered by ${site.restaurant.name}.`, path: '/services' })
   return (
-    <section className="section"><div className="container"><h1>Our services</h1>
+    <>
+    <PageHero crumb="Services" eyebrow="What we offer" title="Our services" lead={`How ${site.restaurant.name} can look after you.`} image={site.hero_image} />
+    <section className="section"><div className="container">
       {loading ? <Skeleton h={160} /> : error ? <ErrorState message={error} onRetry={reload} /> : !data?.length ? <Empty title="No services listed yet" /> : (
-        <div className="grid g3">{data.map((s) => <div className="card" key={s.slug}>{s.image && <img src={s.image} alt={s.name} loading="lazy" style={{ width: '100%', borderRadius: 8, marginBottom: 10 }} />}<h3>{s.name}</h3><p className="muted">{s.description}</p></div>)}</div>
+        <div className="grid g3">{data.map((s) => <div className="card lift" key={s.slug}>{s.image && <img src={s.image} alt={s.name} loading="lazy" style={{ width: '100%', borderRadius: 8, marginBottom: 10 }} />}<h3>{s.name}</h3><p className="muted">{s.description}</p></div>)}</div>
       )}
     </div></section>
+    </>
   )
 }
 
@@ -226,22 +231,39 @@ export function Gallery() {
   const { data, loading, error, reload } = useAsync(() => api<{ id: number; image: string; caption: string }[]>('/catalog/public/gallery/', A), [])
   useSeo({ title: `Gallery | ${site.restaurant.name}`, description: `Photos of ${site.restaurant.name}.`, path: '/gallery' })
   return (
-    <section className="section"><div className="container"><h1>Gallery</h1>
+    <>
+    <PageHero crumb="Gallery" eyebrow="A look inside" title="Gallery" lead={`Photos from ${site.restaurant.name}.`} image={site.hero_image} />
+    <section className="section"><div className="container">
       {loading ? <Skeleton h={200} /> : error ? <ErrorState message={error} onRetry={reload} /> : !data?.length ? <Empty title="No photos yet" /> : (
-        <div className="grid g3">{data.map((g) => <figure key={g.id} style={{ margin: 0 }}><img src={g.image} alt={g.caption || `${site.restaurant.name} photo`} loading="lazy" style={{ width: '100%', borderRadius: 10 }} />{g.caption && <figcaption className="muted">{g.caption}</figcaption>}</figure>)}</div>
+        <div className="gallery-grid">{data.map((g) => <figure key={g.id}><img src={g.image} alt={g.caption || `${site.restaurant.name} photo`} loading="lazy" />{g.caption && <figcaption>{g.caption}</figcaption>}</figure>)}</div>
       )}
     </div></section>
+    </>
   )
 }
 
 export function About() {
   const { site } = useSite()
-  useSeo({ title: `About | ${site.restaurant.name}`, description: site.seo_description, path: '/about' })
+  const name = site.restaurant.name
+  useSeo({ title: `About | ${name}`, description: site.seo_description, path: '/about' })
   return (
-    <section className="section"><div className="container prose"><h1>About {site.restaurant.name}</h1>
-      <p style={{ whiteSpace: 'pre-line' }}>{site.about_text}</p>
-      {site.delivery_info && <><h2>Delivery</h2><p style={{ whiteSpace: 'pre-line' }}>{site.delivery_info}</p></>}
-    </div></section>
+    <>
+      <PageHero crumb="About" eyebrow="Our story" title={`About ${name}`} lead={site.restaurant.description} image={site.hero_image} />
+      <section className="section-x"><div className="container faq-layout">
+        <article className="story-card">
+          {site.about_text ? <Paragraphs text={site.about_text} /> : <p className="muted">Our story is coming soon.</p>}
+          {site.delivery_info && <><h2>Delivery</h2><Paragraphs text={site.delivery_info} /></>}
+        </article>
+        <aside className="side-card">
+          <UtensilsCrossed size={30} aria-hidden />
+          <h3>Come and eat with us</h3>
+          <p>Order online or book a table.</p>
+          <Link className="btn" to="/menu">View the menu</Link>
+          <Link className="btn secondary" to="/reserve">Reserve a table</Link>
+        </aside>
+      </div></section>
+      <section className="section-x alt"><div className="container"><SectionHead eyebrow="Visit" title="Where to find us" /><Locations /></div></section>
+    </>
   )
 }
 
@@ -250,12 +272,20 @@ export function Contact() {
   const r = site.restaurant
   useSeo({ title: `Contact | ${r.name}`, description: `Contact ${r.name}, find our locations and opening hours.`, path: '/contact' })
   return (
-    <section className="section"><div className="container prose"><h1>Contact us</h1>
-      {r.contact_phone && <p><Phone size={16} aria-hidden /> <a href={`tel:${r.contact_phone}`}>{r.contact_phone}</a></p>}
-      {r.contact_email && <p><Mail size={16} aria-hidden /> <a href={`mailto:${r.contact_email}`}>{r.contact_email}</a></p>}
-      <h2>Locations and hours</h2>
-      {site.branches.map((b) => <div key={b.name} className="card" style={{ marginBottom: 12 }}><h3>{b.name}</h3><p><MapPin size={16} aria-hidden /> {b.address || 'Address not listed'}</p>{b.phone && <p><Phone size={16} aria-hidden /> {b.phone}</p>}<Hours hours={b.operating_hours} /></div>)}
-    </div></section>
+    <>
+      <PageHero crumb="Contact" eyebrow="We would love to hear from you" title="Contact us" lead={`Ask a question, tell us about your visit or plan something with ${r.name}.`} image={site.hero_image} />
+      <section className="section-x"><div className="container contact-layout">
+        <aside className="contact-info">
+          {r.contact_phone && <a className="info-tile" href={`tel:${r.contact_phone}`}><Phone aria-hidden /><span><b>Call us</b><small>{r.contact_phone}</small></span></a>}
+          {r.contact_email && <a className="info-tile" href={`mailto:${r.contact_email}`}><Mail aria-hidden /><span><b>Email us</b><small>{r.contact_email}</small></span></a>}
+          <Link className="info-tile" to="/reserve"><CalendarCheck aria-hidden /><span><b>Book a table</b><small>Reserve online</small></span></Link>
+          <Link className="info-tile" to="/catering"><Sparkles aria-hidden /><span><b>Plan an event</b><small>Ask for a catering quotation</small></span></Link>
+          <a className="info-tile" href="#find-us"><MapPin aria-hidden /><span><b>Visit us</b><small>Addresses, maps and directions</small></span></a>
+        </aside>
+        <ContactForm branches={site.branches} privacyTo="/policies/privacy-policy" />
+      </div></section>
+      <section className="section-x alt" id="find-us"><div className="container"><SectionHead eyebrow="Visit" title="Locations and opening hours" /><Locations /></div></section>
+    </>
   )
 }
 
@@ -263,21 +293,36 @@ export function Faq() {
   const { site } = useSite()
   useSeo({
     title: `FAQ | ${site.restaurant.name}`, path: '/faq',
-    jsonLd: site.faqs.length ? { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: site.faqs.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) } : undefined,
+    jsonLd: site.faqs.length ? { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: site.faqs.map((f) => ({ '@type': 'Question', name: plain(f.q), acceptedAnswer: { '@type': 'Answer', text: plain(f.a) } })) } : undefined,
   })
   return (
-    <section className="section"><div className="container prose faq"><h1>Frequently asked questions</h1>
-      {site.faqs.length ? site.faqs.map((f) => <details key={f.q}><summary>{f.q}</summary><p style={{ marginTop: 8 }}>{f.a}</p></details>) : <Empty title="No questions yet" />}
-    </div></section>
+    <>
+      <PageHero crumb="FAQ" eyebrow="Help" title="Frequently asked questions" lead={`Quick answers about ordering from ${site.restaurant.name}.`} image={site.hero_image} />
+      <section className="section-x"><div className="container faq-layout">
+        <div className="faq-list">
+          {site.faqs.length ? site.faqs.map((f, i) => <details key={i}><summary><RichText text={f.q} /></summary><Paragraphs text={f.a} /></details>) : <Empty title="No questions yet" />}
+        </div>
+        <aside className="side-card"><Mail size={30} aria-hidden /><h3>Still have a question?</h3><p>Send us a message and we will get back to you.</p><Link className="btn" to="/contact">Contact us</Link></aside>
+      </div></section>
+    </>
   )
 }
 
 export function Policy() {
   const { slug = '' } = useParams()
   const { site } = useSite()
-  const { data, loading, error } = useAsync(() => api<{ title: string; text: string }>(`/catalog/public/policies/${slug}/`, A), [slug])
+  const { data, loading, error, status, reload } = useAsync(() => api<{ title: string; text: string }>(`/catalog/public/policies/${slug}/`, A), [slug])
   useSeo({ title: `${data?.title ?? 'Policy'} | ${site.restaurant.name}`, path: `/policies/${slug}` })
   if (loading) return <div className="container section"><Skeleton h={200} /></div>
-  if (error || !data) return <div className="container section"><Empty title="Page not found" /></div>
-  return <section className="section"><div className="container prose"><h1>{data.title}</h1><p style={{ whiteSpace: 'pre-line' }}>{data.text}</p></div></section>
+  if (!data && status === 404) return <NotFound />
+  if (error || !data) return <div className="container section"><ErrorState message={error ?? 'Could not load this page.'} onRetry={reload} /></div>
+  return (
+    <>
+      <PageHero crumb={data.title} eyebrow="Policy" title={data.title} image={site.hero_image} />
+      <section className="section-x"><div className="container legal-layout">
+        <aside className="legal-nav"><h4>Policies</h4><ul>{site.policies.map((x) => <li key={x.slug}><Link to={`/policies/${x.slug}`} aria-current={x.slug === slug ? 'page' : undefined}>{x.title}</Link></li>)}</ul></aside>
+        <article className="legal-doc"><Paragraphs text={data.text} /></article>
+      </div></section>
+    </>
+  )
 }

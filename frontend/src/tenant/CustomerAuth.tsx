@@ -13,6 +13,13 @@ const emailOk = (v: string) => /^\S+@\S+\.\S+$/.test(v)
 
 const safeNext = (n: string | null) => (n && n.startsWith('/') && !n.startsWith('//') ? n : null) // no open redirects
 
+/** Where to go after signing in: the page that asked for it, otherwise the person's home. Customers are never sent into the workspace. */
+export function destination(role: string | null, next: string | null): string {
+  const staff = STAFF_ROLES.includes(role ?? '')
+  if (next && (staff || !next.startsWith('/manage'))) return next
+  return staff ? '/manage' : '/account'
+}
+
 export function Login() {
   const { login, me, adoptTokens } = useAuth()
   const navigate = useNavigate()
@@ -24,7 +31,7 @@ export function Login() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
   const [challenge, setChallenge] = useState<string | null>(null)
-  const dest = (role: string | null) => (STAFF_ROLES.includes(role ?? '') ? '/manage' : next ?? '/account')
+  const dest = (role: string | null) => destination(role, next)
   if (me) return <Navigate to={dest(me.role)} replace />
 
   async function submit(e: FormEvent) {
@@ -51,7 +58,7 @@ export function Login() {
   return (
     <Shell title={challenge ? 'Two-step verification' : 'Sign in'} subtitle={challenge ? undefined : 'Welcome back. Enter your details to continue.'}
       footer={challenge ? undefined : <>Don&apos;t have an account? <Link to={`/register${next ? `?next=${encodeURIComponent(next)}` : ''}`}>Sign Up</Link></>}>
-      {challenge ? <MfaChallengeForm token={challenge} remember={remember} onDone={() => navigate('/manage')} onCancel={() => setChallenge(null)} /> : <>
+      {challenge ? <MfaChallengeForm token={challenge} remember={remember} onDone={() => navigate(next ?? '/manage')} onCancel={() => setChallenge(null)} /> : <>
         <form onSubmit={submit} noValidate>
           {errors.form && <div className="alert error" role="alert">{errors.form}</div>}
           <AuthField label="Email address" icon={User} error={errors.email} type="email" autoComplete="username" placeholder="Enter your email address" value={email} onChange={(e) => setEmail(e.target.value)} />

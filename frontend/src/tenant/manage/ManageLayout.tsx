@@ -1,4 +1,4 @@
-import { Banknote, BarChart3, Bell, Boxes, Building2, CalendarDays, ChefHat, Contact, Grid3x3, HandCoins, Truck, Clock, FileBarChart, Image, Package, QrCode, Receipt, Settings, Store, Tags, Users, Wallet, ShieldCheck } from 'lucide-react'
+import { Banknote, BarChart3, Bell, Boxes, Building2, CalendarDays, ChefHat, Contact, Grid3x3, HandCoins, Inbox, Truck, Clock, FileBarChart, Image, Package, QrCode, Receipt, Settings, Store, Tags, Users, Wallet, ShieldCheck } from 'lucide-react'
 import { Link, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { API_URL } from '../../lib/config'
 import { useAuth } from '../../lib/auth'
@@ -17,7 +17,7 @@ export default function ManageLayout() {
   const { unread } = useNotifications()
   const { site } = useSite()
   if (loading) return <PageLoader />
-  if (!me) return <Navigate to="/login" replace />
+  if (!me) return <Navigate to={`/login?next=${encodeURIComponent(loc.pathname + loc.search)}`} replace />
   const role = me.role ?? ''
   const manage = can(role, 'manage.use')
   const admin = can(role, 'admin.use')
@@ -44,6 +44,7 @@ export default function ManageLayout() {
       { to: '/manage/security', label: 'Security', icon: ShieldCheck },
     ] },
     { label: 'Website', items: manage ? [
+      { to: '/manage/website-contact', label: 'Website contact', icon: Inbox },
       { to: '/manage/services', label: 'Services', icon: Store }, { to: '/manage/gallery', label: 'Gallery', icon: Image },
       ...(admin ? [{ to: '/manage/site', label: 'Website content', icon: Settings }] : []),
     ] : [] },

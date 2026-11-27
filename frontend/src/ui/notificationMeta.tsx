@@ -1,6 +1,6 @@
-import { Banknote, Bell, BellRing, CalendarDays, CircleCheck, QrCode, Receipt } from 'lucide-react'
+import { Banknote, Bell, BellRing, CalendarDays, CircleCheck, Inbox, QrCode, Receipt } from 'lucide-react'
 
-const LABELS: Record<string, string> = { order_new: 'New order', order_ready: 'Ready', order_update: 'Order update', payment: 'Payment', reservation: 'Reservation', request: 'Table request', catering: 'Catering' }
+const LABELS: Record<string, string> = { order_new: 'New order', order_ready: 'Ready', order_update: 'Order update', payment: 'Payment', reservation: 'Reservation', request: 'Table request', catering: 'Catering', contact_message: 'Website message', payroll: 'Payroll', salary: 'Salary' }
 
 export const kindLabel = (kind: string) => LABELS[kind] ?? 'Notification'
 
@@ -9,7 +9,8 @@ export function kindIcon(kind: string, size = 18) {
   if (kind === 'order_ready') return <BellRing {...p} />
   if (kind === 'order_new') return <Receipt {...p} />
   if (kind === 'order_update') return <CircleCheck {...p} />
-  if (kind === 'payment') return <Banknote {...p} />
+  if (kind === 'payment' || kind === 'payroll' || kind === 'salary') return <Banknote {...p} />
+  if (kind === 'contact_message') return <Inbox {...p} />
   if (kind === 'reservation' || kind === 'catering') return <CalendarDays {...p} />
   if (kind === 'request') return <QrCode {...p} />
   return <Bell {...p} />

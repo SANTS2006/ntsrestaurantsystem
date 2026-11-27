@@ -144,17 +144,17 @@ const LIVE_POLL_MS = 30000
  *  visible, when it regains focus, and whenever something is pushed or the refresh button is pressed): no flicker, and the data object
  *  keeps its identity when nothing changed, so a form being edited is not reset. */
 export function useAsync<T>(fn: () => Promise<T>, deps: unknown[]) {
-  const [state, setState] = useState<{ data: T | null; error: string | null; loading: boolean }>({ data: null, error: null, loading: true })
+  const [state, setState] = useState<{ data: T | null; error: string | null; loading: boolean; status?: number }>({ data: null, error: null, loading: true })
   const [tick, setTick] = useState(0)
   const quiet = useRef(false)
   useEffect(() => {
     let live = true
     const silent = quiet.current
     quiet.current = false
-    if (!silent) setState((s) => ({ ...s, loading: true, error: null }))
+    if (!silent) setState((s) => ({ ...s, loading: true, error: null, status: undefined }))
     fn().then(
       (data) => live && setState((s) => (silent && s.data !== null && JSON.stringify(s.data) === JSON.stringify(data) ? s : { data, error: null, loading: false })),
-      (e: Error) => live && setState((s) => (silent && s.data !== null ? s : { data: null, error: e.message, loading: false })),
+      (e: Error) => live && setState((s) => (silent && s.data !== null ? s : { data: null, error: e.message, loading: false, status: (e as Error & { status?: number }).status })),
     )
     return () => {
       live = false

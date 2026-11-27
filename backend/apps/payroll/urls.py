@@ -11,6 +11,8 @@ urlpatterns = [
     path("periods/<int:pk>/", v.PeriodDetailView.as_view()),
     path("periods/<int:pk>/generate/", v.PeriodGenerateView.as_view()),
     path("periods/<int:pk>/records/", v.PeriodRecordView.as_view()),
+    path("periods/<int:pk>/candidates/", v.PeriodCandidatesView.as_view()),
+    path("periods/<int:pk>/bulk/", v.PeriodBulkView.as_view()),
     path("records/<int:pk>/", v.RecordView.as_view()),
     path("records/<int:pk>/pdf/", v.RecordPdfView.as_view()),
     path("records/<int:pk>/<str:act>/", v.RecordActionView.as_view()),

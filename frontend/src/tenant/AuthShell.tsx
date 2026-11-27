@@ -6,6 +6,8 @@ import { useSite } from './SiteContext'
 import { BackButton } from '../ui/BackButton'
 
 /** Sign-in, register and password pages of a restaurant, in the restaurant's own name, logo and colours. */
+import { plain } from '../ui/boldText'
+
 export function Shell({ title, subtitle, children, footer }: { title: string; subtitle?: string; children: ReactNode; footer?: ReactNode }) {
   const { site } = useSite()
   const r = site.restaurant
@@ -15,7 +17,7 @@ export function Shell({ title, subtitle, children, footer }: { title: string; su
     <AuthLayout
       brand={r.name}
       logo={logo}
-      tagline={r.description || `Welcome to ${r.name}`}
+      tagline={plain(r.description) || `Welcome to ${r.name}`}
       title={title}
       subtitle={subtitle}
       back={<BackButton to="/">{r.name}</BackButton>}

@@ -248,9 +248,33 @@ def onboard_restaurant_admin(request, restaurant, email, full_name):
 
 
 # ---- Google sign-in ----------------------------------------------------------------------------
+def platform_google_login(request, token):
+    """Google sign-in on the platform's own sign-in page. It only ever signs in a platform administrator who already exists:
+    nothing is created, and the second factor (when switched on) is still asked for by the view."""
+    claims = verify_google_id_token(token)
+    if not claims["email_verified"]:
+        raise FlowError("email_unverified", "Your Google email address is not verified.", 401)
+    with transaction.atomic():
+        identity = GoogleIdentity.objects.select_related("user").filter(sub=claims["sub"]).first()
+        user = identity.user if identity else User.objects.select_for_update().filter(email=claims["email"].lower()).first()
+        if user is not None and user.is_active and user.is_platform_admin:
+            if identity is None:
+                if not user.email_verified:
+                    user.email_verified = True
+                    user.save(update_fields=["email_verified"])
+                GoogleIdentity.objects.create(user=user, sub=claims["sub"])
+            audit("auth.google_login", actor=user, request=request, metadata={"area": "platform"})
+            return user
+    audit("auth.google_refused", request=request, metadata={"area": "platform"})
+    # the same answer whether the account is unknown, inactive or not an administrator
+    raise FlowError("not_allowed", "This Google account cannot sign in here.", 403)
+
+
 def google_login(request, token, accept_terms):
     tenant = request.tenant
     if tenant is None:
+        if getattr(request, "is_platform", False):
+            return platform_google_login(request, token)
         raise FlowError("no_tenant", "Google sign-in is only available on a restaurant website.", 404)
     claims = verify_google_id_token(token)  # GoogleAuthError handled by the view
     if not claims["email_verified"]:
